@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -33,6 +33,10 @@ let active = LSget('mx.active', null);          // workout in progress
 let editing = null;                             // past session being edited (memory only)
 let settings = Object.assign({ inc: {}, sound: true, vibrate: true, override: null }, LSget('mx.settings', {}));
 let timer = LSget('mx.timer', null);
+let daily = LSget('mx.daily', {});             // {YYYY-MM-DD: {steps, sleep}}
+const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const saveDaily = () => LSset('mx.daily', daily);
+const fdk = k => { const [y, m, d] = k.split('-'); return fd(new Date(+y, +m - 1, +d).getTime()); };
 let view = { name: 'home', params: {} };
 let open = 0;
 let persisted = null;
@@ -210,6 +214,29 @@ function render() {
 const views = {};
 const homeBtn = '<button class="btn ghost" data-go="home">Back to Train</button>';
 
+function dailyCard() {
+  const t = daily[todayKey()] || {};
+  return `<div class="card"><span class="tag">TODAY</span>
+  <div class="row"><label style="flex:1;margin:0">Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label>
+  <label style="flex:1;margin:0">Sleep (hours)<input data-act="daily-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="0" max="24" value="${t.sleep == null ? '' : t.sleep}" placeholder="0"></label></div>
+  <p style="margin:8px 0 0"><small>From Samsung Health. Saves as you type. Enter last night's sleep today.</small></p></div>`;
+}
+function dailySection() {
+  const keys = Object.keys(daily).sort();
+  if (!keys.length) return '';
+  const part = (f, label, unit) => {
+    const r = keys.filter(k => daily[k][f] != null).slice(-14);
+    if (!r.length) return '';
+    const avg = rnd(r.reduce((a, k) => a + daily[k][f], 0) / r.length);
+    return `<div class="card"><b>${label}</b><p>Average of last ${r.length} days: ${avg.toLocaleString()} ${unit}</p>
+    ${r.length >= 2 ? chart(r.map(k => daily[k][f]), r.map(fdk)) : ''}</div>`;
+  };
+  const rows = keys.slice(-14).reverse();
+  return `<h2 style="margin-top:18px">Steps and sleep</h2>${part('steps', 'Steps', 'steps')}${part('sleep', 'Sleep', 'hours')}
+  <div class="card"><table><tr><th>Date</th><th>Steps</th><th>Sleep</th></tr>${rows.map(k =>
+    `<tr><td>${fdk(k)}</td><td>${daily[k].steps == null ? '-' : daily[k].steps.toLocaleString()}</td><td>${daily[k].sleep == null ? '-' : daily[k].sleep + ' h'}</td></tr>`).join('')}</table></div>`;
+}
+
 views.home = p => {
   const n = nextWorkout(), d = dayOf(n.dayKey) || DAYS[0];
   const l = sortedDesc()[0];
@@ -233,6 +260,7 @@ views.home = p => {
     <ul class="list">${d.exercises.map(e => `<li>${esc(e.name)}<span>${e.sets} x ${e.lo}-${e.hi}${e.side ? ' /side' : ''}</span></li>`).join('')}</ul>
     <div class="row" style="margin-top:12px"><button class="btn" data-act="start">Start workout</button><button class="btn ghost" data-act="picker">Change</button></div></div>
   ${picker}
+  ${dailyCard()}
   <div class="chips">${chips}</div>
   ${l ? `<p>Last workout: ${esc(l.name)} on ${fd(l.finishedAt)}, ${doneCount(l)} sets, ${Math.round(volume(l)).toLocaleString()} kg volume.</p>` : '<p>No workouts logged yet. Your first one sets the baseline.</p>'}`;
 };
@@ -358,7 +386,8 @@ views.progress = p => {
       : '<p>Log this exercise in at least two workouts to see a trend.</p>'}
   ${rows.length ? `<p>Latest: ${rows[rows.length - 1].v} ${m === 'vol' ? (nw ? 'reps' : 'kg total') : (m === 'e1' ? 'kg est. 1RM' : unit)}</p>` : ''}</div>
   ${rows.length ? `<div class="card"><table><tr><th>Date</th><th>Wk</th><th>Sets</th></tr>${rows.slice(-10).reverse().map(r =>
-      `<tr><td>${fd(r.s.finishedAt)}</td><td>${r.s.week}</td><td>${esc(fmtSets({ noWeight: nw }, r.sets))}</td></tr>`).join('')}</table></div>` : ''}`;
+      `<tr><td>${fd(r.s.finishedAt)}</td><td>${r.s.week}</td><td>${esc(fmtSets({ noWeight: nw }, r.sets))}</td></tr>`).join('')}</table></div>` : ''}
+  ${dailySection()}`;
 };
 
 views.info = () => '<h2>Program info</h2>' + window.INFO_HTML;
@@ -379,7 +408,7 @@ views.settings = () => `<h2>Settings</h2>
 function firstIncomplete(c) { const i = c.exercises.findIndex(x => x.sets.some(t => !t.done)); return i < 0 ? 0 : i; }
 
 async function exportData() {
-  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, settings };
+  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, settings };
   const name = 'metrix-train-' + new Date().toISOString().slice(0, 10) + '.json';
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   try {
@@ -402,6 +431,7 @@ function importData(file) {
         const i = sessions.findIndex(x => x.id === s.id);
         if (i < 0) { sessions.push(s); add++; } else if ((s.updatedAt || 0) > (sessions[i].updatedAt || 0)) { sessions[i] = s; upd++; }
       });
+      if (d.daily && typeof d.daily === 'object') { Object.keys(d.daily).forEach(k => { if (!daily[k]) daily[k] = d.daily[k]; }); saveDaily(); }
       saveSessions(); toast('Imported ' + add + ' new, ' + upd + ' updated'); render();
     } catch (e) { toast('Import failed: ' + e.message); }
   };
@@ -486,6 +516,13 @@ async function act(a, el) {
       if (k >= 0) sessions[k] = Object.assign({}, sessions[k], { exercises: ex, updatedAt: Date.now() });
       saveSessions(); editing = null; toast('Saved'); go('session', { id: e.id }, true); break;
     }
+    case 'daily-in': {
+      const k = todayKey(), f = el.dataset.f, v = parseFloat(String(el.value).replace(',', '.'));
+      daily[k] = daily[k] || {};
+      if (isNaN(v) || v < 0) delete daily[k][f]; else daily[k][f] = f === 'steps' ? Math.round(v) : rnd(v);
+      if (!Object.keys(daily[k]).length) delete daily[k];
+      saveDaily(); toast('Saved'); break;
+    }
     case 'summary-done': go('home', {}, true); break;
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
     case 'open-session': go('session', { id: el.dataset.id }); break;
@@ -513,8 +550,8 @@ async function act(a, el) {
     }
     case 'reset':
       if (confirm('Delete ALL workouts on this phone? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
-        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer'].forEach(k => localStorage.removeItem(k));
-        sessions = []; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null };
+        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily'].forEach(k => localStorage.removeItem(k));
+        sessions = []; daily = {}; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null };
         toast('All data deleted'); go('home', {}, true);
       }
       break;
