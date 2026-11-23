@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '2.0.1';
+const VERSION = '2.1.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -209,7 +209,7 @@ async function wake() {
 function applyTheme() {
   const t = settings.theme || 'system', r = t === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
   document.documentElement.dataset.theme = r;
-  document.documentElement.style.zoom = settings.scale || 0.88;
+  document.documentElement.style.zoom = settings.scale || 0.8;
   const tc = $('#tc'); if (tc) tc.content = r === 'light' ? '#eef1fa' : '#080a14';
 }
 try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if ((settings.theme || 'system') === 'system') applyTheme(); }); } catch (e) {}
@@ -284,7 +284,26 @@ function miniBars(vals, col, w, h, goal, label) {
   if (goal > 0) { const gy = h - goal / mx * (h - 2); s += `<line x1="0" x2="${w}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" stroke="var(--dim)" stroke-dasharray="3 3"/>`; }
   return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label || 'Chart')}">${s}</svg>`;
 }
-const lastDays = n => { const o = []; for (let i = n - 1; i >= 0; i--) o.push(kAdd(todayKey(), -i)); return o; };
+function spark(vals, col, w, h, label) {
+  const pts = vals.map((v, i) => v == null ? null : [i, v]).filter(Boolean);
+  if (pts.length < 2) return `<div class="dim" style="font-size:12px;padding:10px 0">Log at least two days to see the trend.</div>`;
+  const lo = Math.min(...pts.map(p => p[1])), hi = Math.max(...pts.map(p => p[1])), n = vals.length, pad = 6;
+  const x = i => pad + i * (w - 2 * pad) / Math.max(1, n - 1), y = v => h - pad - (v - lo) / ((hi - lo) || 1) * (h - 2 * pad);
+  const line = pts.map(p => x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1)).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label || 'Trend')}"><polyline points="${line}" fill="none" style="stroke:${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${pts.map(p => `<circle cx="${x(p[0]).toFixed(1)}" cy="${y(p[1]).toFixed(1)}" r="${n > 30 ? 2 : 3.5}" style="fill:${col}"/>`).join('')}</svg>`;
+}
+function bodyTile() {
+  const ds = lastDays(14), vals = ds.map(k => (daily[k] || {}).weight), have = vals.filter(v => v != null);
+  const latest = have.length ? have[have.length - 1] : null, t = (daily[todayKey()] || {}).weight;
+  const a = vals.slice(7).filter(v => v != null), b = vals.slice(0, 7).filter(v => v != null);
+  const av = x => x.reduce((p, q) => p + q, 0) / x.length;
+  let tag = latest == null ? 'NOT LOGGED' : 'LOGGED', sub = '7 day average: -';
+  if (a.length) { sub = '7 day avg ' + r1(av(a)) + ' kg'; if (b.length) { const d = av(a) - av(b); tag = Math.abs(d) < 0.05 ? 'SAME' : (d > 0 ? 'UP ' : 'DOWN ') + Math.abs(r1(d)) + ' KG'; } }
+  const tw = settings.goals.weight;
+  if (tw > 0 && latest != null) { const dd = r1(latest - tw); sub += '. Target ' + tw + ' kg, ' + (Math.abs(dd) < 0.05 ? 'reached' : Math.abs(dd) + ' kg ' + (dd > 0 ? 'to lose' : 'to gain')); }
+  return `<div class="card" style="padding:14px;margin:12px 0 0"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="ic" style="background:color-mix(in srgb,var(--body) 18%,transparent);color:var(--body)">BW</span><span class="t" style="color:var(--body)">${tag}</span></div>
+  <div class="m" style="margin-top:10px">BODY WEIGHT${t == null && latest != null ? ', LAST LOGGED' : ''}</div><div class="n" style="font-size:32px;margin:2px 0">${latest == null ? '-' : r1(latest)}<span style="font-size:14px;color:var(--dim)"> kg</span></div><div class="dim" style="font-size:12px;margin-bottom:6px">${sub}</div>${spark(vals, 'var(--body)', 330, 56, 'Body weight, last 14 days')}</div>`;
+} const lastDays = n => { const o = []; for (let i = n - 1; i >= 0; i--) o.push(kAdd(todayKey(), -i)); return o; };
 const dayFood = k => food[k] || [];
 const foodTot = k => dayFood(k).reduce((a, e) => ({ kcal: a.kcal + (e.kcal || 0), p: a.p + (e.p || 0), c: a.c + (e.c || 0), f: a.f + (e.f || 0), fi: a.fi + (e.fi || 0) }), { kcal: 0, p: 0, c: 0, f: 0, fi: 0 });
 const MAC = [['p', 'Protein', 'protein', 'var(--prot)'], ['c', 'Carbs', 'carbs', 'var(--carb)'], ['f', 'Fat', 'fat', 'var(--fat)'], ['fi', 'Fiber', 'fiber', 'var(--fib)']];
@@ -332,7 +351,8 @@ function tilesHTML() {
   return `<div class="two">${tile('MV', 'var(--move)', 'MOVE', t.steps == null ? '-' : t.steps.toLocaleString(), 'steps', 'Goal ' + g.steps.toLocaleString(), t.steps == null ? 'NOT LOGGED' : sp + '%', miniBars(ds.map(k => (daily[k] || {}).steps), 'var(--move)', 130, 40, g.steps, 'Steps, last 7 days'))}
   ${tile('RS', 'var(--rest)', 'REST', t.sleep == null ? '-' : sleepTxt(t.sleep), '', 'Goal ' + g.sleep + ' h, last night', t.sleep == null ? 'NOT LOGGED' : t.sleep >= g.sleep ? 'HIT' : 'SHORT', miniBars(ds.map(k => (daily[k] || {}).sleep), 'var(--rest)', 130, 40, g.sleep, 'Sleep, last 7 days'))}</div>`;
 }
-function refreshRings() { const a = $('#score-box'), b = $('#tiles'); if (a) a.innerHTML = scoreCard(); if (b) b.innerHTML = tilesHTML(); }
+const tilesAll = () => tilesHTML() + bodyTile();
+function refreshRings() { const a = $('#score-box'), b = $('#tiles'); if (a) a.innerHTML = scoreCard(); if (b) b.innerHTML = tilesAll(); }
 function weekStrip() {
   const mon = mondayOf(todayKey()), tk = todayKey();
   return `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:16px 0">${[0, 1, 2, 3, 4, 5, 6].map(n => {
@@ -348,9 +368,10 @@ function fuelSummary() {
 function logCard() {
   const t = daily[todayKey()] || {};
   return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">LOG TODAY</span><small>From Samsung Health</small></div>
-  <div class="ins"><label>Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label>
-  <label>Sleep (hours)<input data-act="daily-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="0" max="24" value="${t.sleep == null ? '' : t.sleep}" placeholder="0"></label></div>
-  <p style="margin:10px 0 0;text-align:center"><small>Type today's numbers. Log last night's sleep in the morning.</small></p></div>`;
+  <div class="ins" style="grid-template-columns:repeat(3,minmax(0,1fr))"><label>Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label>
+  <label>Sleep (h)<input data-act="daily-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="0" max="24" value="${t.sleep == null ? '' : t.sleep}" placeholder="0"></label>
+  <label>Weight (kg)<input data-act="daily-in" data-f="weight" type="number" inputmode="decimal" step="any" min="0" max="400" value="${t.weight == null ? '' : t.weight}" placeholder="0"></label></div>
+  <p style="margin:10px 0 0;text-align:center"><small>Type today's numbers. Weigh yourself the same way each morning for a clean trend.</small></p></div>`;
 }
 function resumeCard() {
   return active ? `<div class="card hl"><span class="tag">IN PROGRESS</span><h3>${esc(active.name)}</h3><p>Week ${active.week}, ${doneCount(active)}/${totalCount(active)} sets done</p>
@@ -371,7 +392,7 @@ views.home = () => {
   <button data-go="me" aria-label="Open Me" style="width:46px;height:46px;border-radius:15px;background:var(--g3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span class="n" style="font-size:24px">E</span></button></div>
   ${weekStrip()}<div id="score-box">${scoreCard()}</div>
   <div style="height:12px"></div>${active ? resumeCard() : nextHero(false)}
-  ${'<div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div>'}<div id="tiles">${tilesHTML()}</div>${logCard()}${fuelSummary()}${programStrip()}`;
+  ${'<div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div>'}<div id="tiles">${tilesAll()}</div>${logCard()}${fuelSummary()}${programStrip()}`;
 };
 views.train = p => {
   const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), l = sortedDesc()[0];
@@ -524,7 +545,7 @@ const SC_DEF = { workout: true, steps: true, sleep: true, protein: true, kcal: f
 const scoreCfg = () => Object.assign({}, SC_DEF, settings.score || {});
 function dayInfo(k) {
   const g = settings.goals, d = daily[k] || {}, f = foodTot(k), ss = sessions.filter(s => dkey(s.finishedAt) === k), sc = scoreCfg();
-  const logged = ss.length || d.steps != null || d.sleep != null || dayFood(k).length;
+  const logged = ss.length || d.steps != null || d.sleep != null || d.weight != null || dayFood(k).length;
   const t = [];
   if (sc.workout && (ss.length || (k === todayKey() && active))) t.push(['Workout', ss.length > 0]);
   if (sc.steps) t.push(['Steps', d.steps != null && d.steps >= g.steps]);
@@ -595,6 +616,7 @@ function weekView() {
   ${cmp('Training volume', vol, avg(x => x.ss[0] ? volume(x.ss[0]) : null), v => Math.round(v).toLocaleString(), ' kg')}
   ${cmp('Steps', i.d.steps == null ? null : i.d.steps, avg(x => x.d.steps), v => Math.round(v).toLocaleString())}
   ${cmp('Sleep', i.d.sleep == null ? null : i.d.sleep, avg(x => x.d.sleep), v => sleepTxt(v))}
+  ${cmp('Body weight', i.d.weight == null ? null : i.d.weight, avg(x => x.d.weight), v => r1(v), ' kg')}
   ${cmp('Calories', i.f.kcal || null, avg(x => x.f.kcal || null), v => Math.round(v).toLocaleString())}
   ${cmp('Protein', i.f.p || null, avg(x => x.f.p || null), v => Math.round(v), ' g')}
   ${cmp('Fat', i.f.f || null, avg(x => x.f.f || null), v => Math.round(v), ' g')}
@@ -642,7 +664,9 @@ function trendsView() {
   const fl = k => (dayFood(k).length ? foodTot(k) : null), pv2 = days.map(k => fl(k) ? fl(k).p : null), pa = avgOf(days, k => fl(k) ? fl(k).p : null), ppa = avgOf(prev, k => fl(k) ? fl(k).p : null);
   const fa = avgOf(days, k => fl(k) ? fl(k).f : null), fia = avgOf(days, k => fl(k) ? fl(k).fi : null), ka = avgOf(days, k => fl(k) ? fl(k).kcal : null);
   const fuelCard = card('FU', 'var(--prot)', 'FUEL, PROTEIN', pa == null ? '-' : Math.round(pa), 'g avg per day', tagOf(pa, ppa, v => Math.round(v) + ' g'), miniBars(pv2, 'var(--prot)', 330, 60, g.protein, 'Daily protein'), pa == null ? 'No food logged in this period.' : `Averages: ${Math.round(ka).toLocaleString()} kcal, fat ${Math.round(fa)} g, fiber ${Math.round(fia)} g.`);
-  return `<div class="seg">${[[4, '4 weeks'], [8, '8 weeks'], [0, 'All time']].map(([r, l]) => `<button class="mini${R === r ? ' on' : ''}" data-act="range" data-r="${r}">${l}</button>`).join('')}</div>${volCard}${exCard}${stepCard}${sleepCard}${fuelCard}`;
+  const wv = days.map(k => (daily[k] || {}).weight), wh = wv.filter(v => v != null), wa = avgOf(days, k => (daily[k] || {}).weight), wpa = avgOf(prev, k => (daily[k] || {}).weight);
+  const bodyCard = card('BW', 'var(--body)', 'BODY WEIGHT', wa == null ? '-' : r1(wa), 'kg avg', tagOf(wa, wpa, v => r1(v) + ' kg'), spark(wv, 'var(--body)', 330, 90, 'Body weight'), wh.length ? `Lowest ${r1(Math.min(...wh))} kg, highest ${r1(Math.max(...wh))} kg, ${wh.length} weigh-ins.${g.weight > 0 ? ' Target ' + g.weight + ' kg, latest ' + r1(wh[wh.length - 1]) + ' kg.' : ''}` : 'No weigh-ins in this period.');
+  return `<div class="seg">${[[4, '4 weeks'], [8, '8 weeks'], [0, 'All time']].map(([r, l]) => `<button class="mini${R === r ? ' on' : ''}" data-act="range" data-r="${r}">${l}</button>`).join('')}</div>${volCard}${exCard}${bodyCard}${stepCard}${sleepCard}${fuelCard}`;
 }
 views.trends = () => `<h2 style="font-size:52px">Trends</h2>${histTabs()}` + (hist.mode === 'trends' ? trendsView() : hist.mode === 'cal' ? calView() : hist.mode === 'week' ? weekView() : (() => {
   const l = sortedDesc();
@@ -664,6 +688,7 @@ views.day = p => {
   const row = (lab, v, goalTxt, pct, note, col) => `<div style="margin-top:12px"><div class="brow"><span>${lab}</span><span><b>${v}</b> <small>${goalTxt}</small></span></div><div class="bar"><i style="width:${Math.min(100, pct * 100).toFixed(0)}%;background:${col}"></i></div><div class="tg" style="color:${col}">${note}</div></div>`;
   const ss = `<div class="card"><div class="m">MOVE AND REST</div>
   ${row('Steps', d.steps == null ? '-' : d.steps.toLocaleString(), '/ ' + g.steps.toLocaleString(), d.steps == null ? 0 : d.steps / g.steps, d.steps == null ? 'NOT LOGGED' : d.steps >= g.steps ? 'GOAL HIT' : 'SHORT BY ' + (g.steps - d.steps).toLocaleString(), 'var(--move)')}
+  ${d.weight != null ? `<div class="li" style="margin-top:10px"><span>Body weight</span><span><span class="n" style="font-size:22px;color:var(--ink)">${r1(d.weight)} kg</span></span></div>` : ''}
   ${row('Sleep', d.sleep == null ? '-' : sleepTxt(d.sleep), '/ ' + g.sleep + 'h', d.sleep == null ? 0 : d.sleep / g.sleep, d.sleep == null ? 'NOT LOGGED' : d.sleep >= g.sleep ? 'GOAL HIT' : 'SHORT BY ' + Math.round((g.sleep - d.sleep) * 60) + ' MIN', 'var(--rest)')}</div>`;
   return head + hero + train + nut + ss + '<button class="btn ghost" data-go="trends">Back to trends</button>';
 };
@@ -706,9 +731,9 @@ views.me = () => {
   const gv = (v, u) => v > 0 ? v.toLocaleString() + (u ? ' ' + u : '') : 'Not set';
   return `<h2 style="font-size:52px">Me</h2>
   <div class="cut" style="display:flex;align-items:center;gap:14px;flex-wrap:nowrap"><div style="width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;display:flex;align-items:center;justify-content:center;flex:none"><span class="n" style="font-size:34px">E</span></div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:18px">Elie</div><div class="dim" style="font-size:13px;margin-top:2px">${P.weeks} week hypertrophy, week ${Math.min(n.week, P.weeks)}</div></div><span class="t" style="color:var(--acct)">LOCAL ACCOUNT</span></div>
-  ${grp('GOALS AND TARGETS', lrow('Daily steps', gv(g.steps), 'goals') + lrow('Sleep', g.sleep + ' h', 'goals') + lrow('Energy', gv(g.calories, 'kcal'), 'goals') + lrow('Protein', gv(g.protein, 'g'), 'goals') + lrow('Carbs', gv(g.carbs, 'g'), 'goals') + lrow('Fat', gv(g.fat, 'g'), 'goals') + lrow('Fiber', gv(g.fiber, 'g'), 'goals') + lrow('Targets that count for Day Score', Object.keys(sc).filter(k => sc[k]).length + ' on', 'goals'))}
+  ${grp('GOALS AND TARGETS', lrow('Daily steps', gv(g.steps), 'goals') + lrow('Sleep', g.sleep + ' h', 'goals') + lrow('Target weight', gv(g.weight, 'kg'), 'goals') + lrow('Energy', gv(g.calories, 'kcal'), 'goals') + lrow('Protein', gv(g.protein, 'g'), 'goals') + lrow('Carbs', gv(g.carbs, 'g'), 'goals') + lrow('Fat', gv(g.fat, 'g'), 'goals') + lrow('Fiber', gv(g.fiber, 'g'), 'goals') + lrow('Targets that count for Day Score', Object.keys(sc).filter(k => sc[k]).length + ' on', 'goals'))}
   <div class="dl"><b></b><span class="m">APPEARANCE</span><b></b></div><div class="seg" role="group" aria-label="Theme">${[['system', 'System'], ['dark', 'Dark'], ['light', 'Light']].map(([v, l]) => `<button class="mini${th === v ? ' on' : ''}" data-act="theme-set" data-v="${v}" aria-pressed="${th === v}">${l}</button>`).join('')}</div>
-  <div class="m" style="margin:2px 0 8px">TEXT AND SCREEN SIZE</div><div class="seg" role="group" aria-label="Text size">${[[0.8, 'Small'], [0.88, 'Medium'], [1, 'Large']].map(([v, l]) => `<button class="mini${(settings.scale || 0.88) === v ? ' on' : ''}" data-act="scale-set" data-v="${v}" aria-pressed="${(settings.scale || 0.88) === v}">${l}</button>`).join('')}</div>
+  <div class="m" style="margin:2px 0 8px">TEXT AND SCREEN SIZE</div><div class="seg" role="group" aria-label="Text size">${[[0.72, 'Small'], [0.8, 'Medium'], [0.9, 'Large']].map(([v, l]) => `<button class="mini${(settings.scale || 0.8) === v ? ' on' : ''}" data-act="scale-set" data-v="${v}" aria-pressed="${(settings.scale || 0.8) === v}">${l}</button>`).join('')}</div>
   ${grp('TRAINING', trow('Rest timer sound', 'sound-in', settings.sound) + trow('Vibration', 'vib-in', settings.vibrate) + lrow('Program guide', '', 'info'))}
   <div class="dl"><b></b><span class="m">NUTRITION AND AI</span><b></b></div><div class="card"><p>Type what you ate in Fuel and the AI fills in calories, protein, carbs, fat and fiber. It uses Google's Gemini. Get a free key at aistudio.google.com and paste it here. The key stays on this phone and is never included in backups. What you type is sent to Google to get the estimate.</p>
   <label>Gemini API key<input data-act="ai-key-in" type="password" autocomplete="off" value="${esc(settings.ai.key)}" placeholder="Paste key"></label>
@@ -729,6 +754,7 @@ views.goals = () => {
   const box = inner => `<div class="card" style="padding:2px 16px 4px">${inner.replace('border-top:1px solid var(--line)', '')}</div>`;
   return `<div class="row" style="justify-content:space-between"><button class="m" data-go="me">&lsaquo; ME</button><span class="m">GOALS AND TARGETS</span></div><h2 style="margin:12px 0 4px;font-size:46px">Goals</h2><p>Set each target and choose which ones count toward your Day Score.</p>
   <div class="dl"><b></b><span class="m">MOVE AND REST</span><b></b></div>${box(stp('steps', 'Daily steps', 'STEPS', 500, 1, g.steps, 'var(--move)') + stp('sleep', 'Sleep', 'HOURS', 0.25, 1, g.sleep, 'var(--rest)'))}
+  <div class="dl"><b></b><span class="m">BODY</span><b></b></div>${box(stp('weight', 'Target weight', 'KG', 0.5, 0, g.weight, 'var(--body)'))}
   <div class="dl"><b></b><span class="m">FUEL</span><b></b></div>${box(stp('calories', 'Energy', 'KCAL', 50, 0, g.calories, 'var(--carb)') + stp('protein', 'Protein', 'G', 5, 0, g.protein, 'var(--prot)') + stp('carbs', 'Carbs', 'G', 10, 0, g.carbs, 'var(--carb)') + stp('fat', 'Fat', 'G', 5, 0, g.fat, 'var(--fat)') + stp('fiber', 'Fiber', 'G', 2, 0, g.fiber, 'var(--fib)'))}
   <div class="dl"><b></b><span class="m">DAY SCORE COUNTS</span><b></b></div><div class="card" style="padding:2px 16px">${trow('Workout, on days you trained', 'score-in', sc.workout, 'workout')}${trow('Steps', 'score-in', sc.steps, 'steps')}${trow('Sleep', 'score-in', sc.sleep, 'sleep')}${trow('Protein', 'score-in', sc.protein, 'protein')}${trow('Energy, within 10% of goal', 'score-in', sc.kcal, 'kcal')}${trow('Carbs, fat and fiber', 'score-in', sc.macros, 'macros')}</div>
   <p style="margin:10px 4px 16px"><small>A target only counts if it has a goal. Changes apply to every day, including past days.</small></p><button class="btn" data-go="me">Done</button>`;
@@ -862,7 +888,7 @@ async function act(a, el) {
     case 'daily-in': {
       const k = todayKey(), f = el.dataset.f, v = parseFloat(String(el.value).replace(',', '.'));
       daily[k] = daily[k] || {};
-      if (isNaN(v) || v < 0) delete daily[k][f]; else daily[k][f] = f === 'steps' ? Math.round(v) : rnd(v);
+      if (isNaN(v) || v < 0) delete daily[k][f]; else daily[k][f] = f === 'steps' ? Math.round(v) : f === 'weight' ? r1(v) : rnd(v);
       if (!Object.keys(daily[k]).length) delete daily[k];
       saveDaily(); refreshRings(); break;
     }
@@ -1032,7 +1058,7 @@ async function act(a, el) {
     case 'theme-set': settings.theme = el.dataset.v; saveSettings(); applyTheme(); render(); break;
     case 'score-in': settings.score = Object.assign({}, settings.score || {}, { [el.dataset.k]: el.checked }); saveSettings(); break;
     case 'goal-step': {
-      const f = el.dataset.f, cur = settings.goals[f] || 0, min = (f === 'steps' || f === 'sleep') ? 1 : 0;
+      const f = el.dataset.f, lw = Object.keys(daily).sort().map(k => daily[k].weight).filter(v => v != null).pop(), cur = settings.goals[f] || (f === 'weight' ? (lw || 70) - parseFloat(el.dataset.d) : 0), min = (f === 'steps' || f === 'sleep') ? 1 : 0;
       const nv = Math.max(min, Math.round((cur + parseFloat(el.dataset.d)) * 100) / 100);
       if (nv > 0) settings.goals[f] = nv; else delete settings.goals[f];
       saveSettings(); const inp = $('#gi-' + f); if (inp) inp.value = nv > 0 ? nv : ''; break;
