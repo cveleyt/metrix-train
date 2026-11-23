@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.4.1';
+const VERSION = '1.4.2';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -660,7 +660,7 @@ async function act(a, el) {
         if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
         if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
       } catch (e) {}
-      location.reload(); break;
+      location.replace(location.pathname + '?r=' + Date.now()); break;
     }
     case 'reset':
       if (confirm('Delete ALL workouts on this phone? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
