@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.7.1';
+const VERSION = '1.7.2';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -715,27 +715,37 @@ async function act(a, el) {
           generationConfig: { temperature: 0.2, responseMimeType: 'application/json',
             responseSchema: { type: 'OBJECT', properties: { kcal: { type: 'NUMBER' }, protein_g: { type: 'NUMBER' }, carbs_g: { type: 'NUMBER' } }, required: ['kcal', 'protein_g', 'carbs_g'] } }
         });
-        let r = null;
-        for (let attempt = 0; attempt < 4; attempt++) {
-          const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 25000);
-          try {
-            r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(settings.ai.model) + ':generateContent', {
-              method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key }, body
-            });
-          } finally { clearTimeout(to); }
-          if (r.ok || ![429, 500, 502, 503, 504].includes(r.status) || attempt === 3) break;
-          say('The AI is busy, retrying (' + (attempt + 1) + ' of 3)...');
-          await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
+        const models = [...new Set([settings.ai.model, 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-2.5-flash'])];
+        let r = null, used = '', keyBad = false;
+        outer: for (let mi = 0; mi < models.length; mi++) {
+          for (let attempt = 0; attempt < 2; attempt++) {
+            const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 20000);
+            try {
+              r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(models[mi]) + ':generateContent', {
+                method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key }, body
+              });
+            } catch (err) { if (err.name === 'AbortError') { r = { ok: false, status: 504 }; } else throw err; } finally { clearTimeout(to); }
+            if (r.ok) { used = models[mi]; break outer; }
+            if (r.status === 403 || r.status === 400) {
+              const txt = await r.clone().text().catch(() => '');
+              if (/api key|API_KEY|permission/i.test(txt)) { keyBad = true; break outer; }
+              break; // model problem: try the next model
+            }
+            if (r.status === 404) break;
+            if (![429, 500, 502, 503, 504].includes(r.status)) break;
+            if (attempt === 0) await new Promise(res => setTimeout(res, 1200));
+          }
+          if (mi < models.length - 1) say('That AI model is busy, trying another (' + (mi + 2) + ' of ' + models.length + ')...');
         }
         if (!r.ok) {
-          const why = r.status === 400 || r.status === 403 ? 'The key or model was rejected. Check them in Settings.' : r.status === 429 ? 'Too many requests or the free limit is used up. Wait a minute and try again.' : 'Google\'s AI is overloaded right now (' + r.status + '). Try again in a minute, or type the numbers.';
+          const why = keyBad ? 'Google rejected the key. Check it in Settings.' : r.status === 429 ? 'Free limit reached or too many requests. Wait a minute and try again.' : 'Google\'s AI is overloaded on every model right now (' + r.status + '). Try again in a few minutes, or type the numbers.';
           throw new Error(why);
         }
         const j = await r.json(), out = JSON.parse(j.candidates[0].content.parts[0].text);
         const k = Math.round(+out.kcal), p = Math.round(+out.protein_g * 10) / 10, c = Math.round(+out.carbs_g * 10) / 10;
         if ([k, p, c].some(v => isNaN(v) || v < 0)) throw new Error('The AI gave an unusable answer. Try rewording.');
         $('#fd-kcal').value = k; $('#fd-p').value = p; $('#fd-c').value = c;
-        say('Estimate: ' + k + ' kcal, ' + p + ' g protein, ' + c + ' g carbs. Edit if needed, then tap Add to today.');
+        say('Estimate: ' + k + ' kcal, ' + p + ' g protein, ' + c + ' g carbs. Edit if needed, then tap Add to today.' + (used && used !== settings.ai.model ? ' (answered by ' + used + ')' : ''));
       } catch (e) {
         say(e.name === 'AbortError' ? 'Timed out. Check your connection and try again.' : (e instanceof TypeError ? 'No connection. You can still type the numbers yourself.' : e.message));
       }
