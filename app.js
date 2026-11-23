@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.6.0';
+const VERSION = '1.7.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -32,6 +32,7 @@ let sessions = LSget('mx.sessions', []);        // completed workouts
 let active = LSget('mx.active', null);          // workout in progress
 let editing = null;                             // past session being edited (memory only)
 let settings = Object.assign({ inc: {}, sound: true, vibrate: true, override: null }, LSget('mx.settings', {}));
+settings.ai = Object.assign({ key: '', model: 'gemini-3.1-flash-lite' }, settings.ai || {});
 settings.goals = Object.assign({ steps: 10000, sleep: 8, protein: 130 }, settings.goals || {});
 let timer = LSget('mx.timer', null);
 let daily = LSget('mx.daily', {});             // {YYYY-MM-DD: {steps, sleep}}
@@ -279,7 +280,9 @@ function foodCard() {
   return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><span class="cap" style="margin:0">FOOD TODAY</span><small>${list.length} ${list.length === 1 ? 'entry' : 'entries'}</small></div>
   <div style="display:flex;flex-direction:column;gap:14px">${foodRows()}</div>
   <div class="cap" style="margin-top:18px">ADD FOOD</div>
-  <label>What did you eat (optional)<input id="fd-name" type="text" placeholder="e.g. Chicken and rice" autocomplete="off"></label>
+  <label>What did you eat<input id="fd-name" type="text" placeholder="e.g. 2 eggs, 150 g cooked rice, chicken breast" autocomplete="off"></label>
+  <button class="btn ghost" data-act="food-ai" id="fd-ai" style="margin-bottom:6px">Estimate with AI</button>
+  <p id="fd-aimsg" style="margin:0 0 10px;min-height:18px"><small>AI fills the numbers below as an estimate. Check them before adding.</small></p>
   <div class="three"><label>Calories<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label>
   <label>Protein (g)<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label>
   <label>Carbs (g)<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div>
@@ -533,6 +536,10 @@ views.settings = () => `<h2>Settings</h2>
   <label>Calories goal (optional)<input data-act="goal-in" data-f="calories" type="number" inputmode="numeric" min="0" value="${settings.goals.calories || ''}" placeholder="No goal"></label>
   <label>Protein goal (g)<input data-act="goal-in" data-f="protein" type="number" inputmode="decimal" step="any" min="0" value="${settings.goals.protein || ''}" placeholder="No goal"></label>
   <label>Carbs goal (g, optional)<input data-act="goal-in" data-f="carbs" type="number" inputmode="decimal" step="any" min="0" value="${settings.goals.carbs || ''}" placeholder="No goal"></label></div>
+  <div class="card"><h3>AI food estimates</h3>
+  <p>Type what you ate in the Food card and the AI fills in calories, protein and carbs. It uses Google's Gemini. Get a free key at aistudio.google.com, then paste it here. The key stays on this phone and is never included in backups. What you type is sent to Google to get the estimate.</p>
+  <label>Gemini API key<input data-act="ai-key-in" type="password" autocomplete="off" value="${esc(settings.ai.key)}" placeholder="Paste key"></label>
+  <label>Model<input data-act="ai-model-in" type="text" autocomplete="off" value="${esc(settings.ai.model)}"></label></div>
   <div class="card"><h3>About</h3><p>MetriX Train ${VERSION}</p><button class="btn ghost" data-act="update">Update app</button></div>
   <button class="btn danger" data-act="reset">Delete all data</button>`;
 
@@ -540,7 +547,7 @@ views.settings = () => `<h2>Settings</h2>
 function firstIncomplete(c) { const i = c.exercises.findIndex(x => x.sets.some(t => !t.done)); return i < 0 ? 0 : i; }
 
 async function exportData() {
-  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, food, settings };
+  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, food, settings: Object.assign({}, settings, { ai: undefined }) };
   const name = 'metrix-train-' + new Date().toISOString().slice(0, 10) + '.json';
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   try {
@@ -695,6 +702,42 @@ async function act(a, el) {
         active = null; LSset('mx.active', null); timer = null; saveTimer(); replacing = -1; toast('Workout cancelled'); go('home', {}, true);
       }
       break;
+    case 'food-ai': {
+      const txt = ($('#fd-name').value || '').trim(), msg = $('#fd-aimsg'), btn = $('#fd-ai');
+      const say = m => { msg.innerHTML = '<small>' + esc(m) + '</small>'; };
+      if (!txt) { say('Type what you ate first, with amounts if you know them.'); break; }
+      if (!settings.ai.key) { say('Add your free Gemini key in Settings, under AI food estimates.'); break; }
+      btn.disabled = true; btn.textContent = 'Estimating...'; say('Asking the AI...');
+      try {
+        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 25000);
+        const prompt = 'Estimate the total nutrition for this meal or food: "' + txt + '". Use the amounts given. If an amount is missing, assume one typical serving. Cooked weights unless stated otherwise. Return JSON with kcal (calories), protein_g and carbs_g as numbers for the whole thing combined.';
+        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(settings.ai.model) + ':generateContent', {
+          method: 'POST', signal: ctl.signal,
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, responseMimeType: 'application/json',
+              responseSchema: { type: 'OBJECT', properties: { kcal: { type: 'NUMBER' }, protein_g: { type: 'NUMBER' }, carbs_g: { type: 'NUMBER' } }, required: ['kcal', 'protein_g', 'carbs_g'] } }
+          })
+        });
+        clearTimeout(to);
+        if (!r.ok) {
+          const why = r.status === 400 || r.status === 403 ? 'The key or model was rejected. Check them in Settings.' : r.status === 429 ? 'Too many requests. Wait a minute and try again.' : 'The AI service returned an error (' + r.status + ').';
+          throw new Error(why);
+        }
+        const j = await r.json(), out = JSON.parse(j.candidates[0].content.parts[0].text);
+        const k = Math.round(+out.kcal), p = Math.round(+out.protein_g * 10) / 10, c = Math.round(+out.carbs_g * 10) / 10;
+        if ([k, p, c].some(v => isNaN(v) || v < 0)) throw new Error('The AI gave an unusable answer. Try rewording.');
+        $('#fd-kcal').value = k; $('#fd-p').value = p; $('#fd-c').value = c;
+        say('Estimate: ' + k + ' kcal, ' + p + ' g protein, ' + c + ' g carbs. Edit if needed, then tap Add to today.');
+      } catch (e) {
+        say(e.name === 'AbortError' ? 'Timed out. Check your connection and try again.' : (e instanceof TypeError ? 'No connection. You can still type the numbers yourself.' : e.message));
+      }
+      btn.disabled = false; btn.textContent = 'Estimate with AI';
+      break;
+    }
+    case 'ai-key-in': settings.ai.key = el.value.trim(); saveSettings(); toast(settings.ai.key ? 'Key saved on this phone' : 'Key removed'); break;
+    case 'ai-model-in': settings.ai.model = el.value.trim() || 'gemini-3.1-flash-lite'; saveSettings(); break;
     case 'food-add': {
       const num = id => { const v = parseFloat(String($('#' + id).value).replace(',', '.')); return isNaN(v) || v < 0 ? 0 : Math.round(v * 10) / 10; };
       const e = { id: uid(), t: Date.now(), name: ($('#fd-name').value || '').trim(), kcal: Math.round(num('fd-kcal')), p: num('fd-p'), c: num('fd-c') };
@@ -734,7 +777,7 @@ async function act(a, el) {
     case 'reset':
       if (confirm('Delete ALL workouts on this phone? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
         ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food'].forEach(k => localStorage.removeItem(k));
-        sessions = []; daily = {}; food = {}; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, goals: { steps: 10000, sleep: 8, protein: 130 } };
+        sessions = []; daily = {}; food = {}; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, goals: { steps: 10000, sleep: 8, protein: 130 }, ai: { key: '', model: 'gemini-3.1-flash-lite' } };
         toast('All data deleted'); go('home', {}, true);
       }
       break;
