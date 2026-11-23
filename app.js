@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '2.1.0';
+const VERSION = '2.2.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -126,7 +126,7 @@ function finishWorkout() {
   const c = active;
   const s = {
     id: c.id, week: c.week, dayKey: c.dayKey, name: c.name, startedAt: c.startedAt, finishedAt: Date.now(), note: '', updatedAt: Date.now(),
-    exercises: c.exercises.map(x => ({ slotId: x.orig ? null : x.slotId, name: x.name, nw: x.nw, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true })) })).filter(x => x.sets.length)
+    exercises: c.exercises.map(x => ({ slotId: x.orig ? null : x.slotId, name: x.name, nw: x.nw, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true, rest: t.rest })) })).filter(x => x.sets.length)
   };
   sessions.push(s); saveSessions();
   active = null; LSset('mx.active', null);
@@ -149,7 +149,18 @@ function syncInputs(i) {
 }
 
 /* ---------- rest timer ---------- */
-function startTimer(min, max, next) { timer = { start: Date.now(), min, max, f1: 0, f2: 0, pop: true, next: next || '' }; saveTimer(); }
+const tel = t => ((t.acc || 0) + (t.state === 'run' && t.start ? (Date.now() - t.start) / 1000 : 0));
+function startTimer(min, max, next, ref, force) {
+  const run = force || settings.autoStart !== false;
+  timer = { state: run ? 'run' : 'idle', start: run ? Date.now() : null, acc: 0, min, max, f1: 0, f2: 0, pop: true, next: next || '', ref: ref || null };
+  saveTimer();
+}
+function stopTimer(log) {
+  if (!timer) return;
+  const el = Math.round(tel(timer)), ref = timer.ref;
+  if (log && el > 0 && ref && active && active.exercises[ref.i] && active.exercises[ref.i].sets[ref.j]) { active.exercises[ref.i].sets[ref.j].rest = el; persist(); toast('Rest logged: ' + fdur(el * 1000)); }
+  timer = null; saveTimer();
+}
 let actx = null;
 function unlockAudio() {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {}
@@ -172,26 +183,27 @@ function tick() {
   const c = cur(), el = $('#elapsed');
   if (el && c) el.textContent = fdur(Date.now() - c.startedAt);
   if (!timer) return;
-  const s = (Date.now() - timer.start) / 1000;
-  if (!timer.f1 && s >= timer.min) {
-    timer.f1 = 1; timer.pop = true; saveTimer(); alertUser(1);
-    if (view.name === 'workout' && !view.params.edit) { render(); return; }
+  const st = timer.state || 'run', s = tel(timer);
+  if (st === 'run') {
+    if (!timer.f1 && s >= timer.min) {
+      timer.f1 = 1; timer.pop = true; saveTimer(); alertUser(1);
+      if (view.name === 'workout' && !view.params.edit) { render(); return; }
+    }
+    if (!timer.f2 && timer.max > timer.min && s >= timer.max) { timer.f2 = 1; saveTimer(); alertUser(2); }
   }
-  if (!timer.f2 && timer.max > timer.min && s >= timer.max) { timer.f2 = 1; saveTimer(); alertUser(2); }
+  const ready = st !== 'idle' && s >= timer.min, rem = Math.max(0, timer.min - s);
   const pp = $('#pp-time');
   if (pp) {
-    const ready = s >= timer.min, rem = Math.max(0, timer.min - s);
-    pp.textContent = ready ? 'GO' : fdur(Math.ceil(rem) * 1000);
-    $('#pp-label').textContent = ready ? 'READY FOR THE NEXT SET' : 'REST';
-    $('#pp-sub').textContent = ready ? (timer.max > timer.min && s < timer.max ? 'up to ' + fdur(timer.max * 1000) : 'Rest complete') : 'ready at ' + fdur(timer.min * 1000);
-    setTicks(ready ? 1 : 1 - rem / timer.min);
-    $('#pp-card').classList.toggle('ready', ready);
+    pp.textContent = st === 'idle' ? fdur(timer.min * 1000) : ready ? 'GO' : fdur(Math.ceil(rem) * 1000);
+    $('#pp-label').textContent = st === 'idle' ? 'READY TO START' : st === 'pause' ? 'PAUSED' : ready ? 'READY FOR THE NEXT SET' : 'REST';
+    $('#pp-sub').textContent = ready ? (timer.max > timer.min && s < timer.max ? 'up to ' + fdur(timer.max * 1000) : 'Rest complete') : 'ready at ' + fdur(timer.min * 1000) + (timer.max > timer.min ? ', up to ' + fdur(timer.max * 1000) : '');
+    setTicks(st === 'idle' ? 0 : ready ? 1 : 1 - rem / timer.min);
+    $('#pp-card').classList.toggle('ready', ready && st === 'run');
   }
   const m = $('#tmr-main'); if (!m) return;
-  const rem = timer.min - s;
-  m.textContent = rem > 0 ? fdur(Math.ceil(rem) * 1000) : '+' + fdur(-rem * 1000);
-  $('#tmr-lab').textContent = rem > 0 ? 'Rest, ready at ' + fdur(timer.min * 1000)
-    : (s < timer.max ? 'Ready. Up to ' + fdur(timer.max * 1000) : 'Rest is over');
+  const r2 = timer.min - s;
+  m.textContent = st === 'idle' ? fdur(timer.min * 1000) : r2 > 0 ? fdur(Math.ceil(r2) * 1000) : '+' + fdur(-r2 * 1000);
+  $('#tmr-lab').textContent = st === 'idle' ? 'Ready to start' : st === 'pause' ? 'Paused' : r2 > 0 ? 'Rest, ready at ' + fdur(timer.min * 1000) : (s < timer.max ? 'Ready. Up to ' + fdur(timer.max * 1000) : 'Rest is over');
   $('#tmr-fill').style.width = Math.min(100, s / timer.max * 100) + '%';
 }
 
@@ -434,7 +446,7 @@ function stepper(k, i, j, v) {
 function setRow(ex, t, i, j) {
   return `<div class="set ${t.done ? 'done' : ''} ${ex.noWeight ? 'nw' : ''}"><span class="sn">${j + 1}</span>
   ${ex.noWeight ? '' : stepper('w', i, j, t.w)}${stepper('r', i, j, t.r)}
-  <button class="dn" data-act="done" data-i="${i}" data-j="${j}">${t.done ? 'DONE' : 'Done'}</button></div>`;
+  <button class="dn" data-act="done" data-i="${i}" data-j="${j}">${t.done ? 'DONE' : 'Done'}</button></div>${t.rest ? `<div class="m" style="text-align:right;margin:-4px 2px 6px;font-size:9.5px">REST ${fdur(t.rest * 1000)}</div>` : ''}`;
 }
 let replacing = -1;
 function exOf(x) {
@@ -489,17 +501,27 @@ function setTicks(frac) {
 }
 function popupHTML() {
   if (!timer || !timer.pop) return '';
+  const st = timer.state || 'run';
+  const main = st === 'idle' ? '<button class="btn" data-act="tstart">Start timer</button><div style="height:8px"></div><button class="btn ghost" data-act="tskip">Skip rest</button>'
+    : st === 'run' ? '<div class="row"><button class="btn ghost" data-act="tpause">Pause</button><button class="btn" data-act="tstop">Stop</button></div>'
+    : '<div class="row"><button class="btn" data-act="tresume">Resume</button><button class="btn ghost" data-act="tstop">Stop</button></div>';
+  const hint = st === 'idle' ? 'Set the rest you want, then start. Applies to this set only.' : 'Stop ends the rest and logs how long you rested.';
   return `<div class="ovl" data-act="tmin"></div>
   <div class="tpop" id="pp-card" role="dialog" aria-label="Rest timer"><button class="mini hide" data-act="tmin">Hide</button>
   <div class="pl" id="pp-label">REST</div>
   <div class="pw">${tkSvg(250)}
   <div class="pc"><b id="pp-time">0:00</b><small id="pp-sub"></small></div></div>
   ${timer.next ? `<div class="pn">Next: ${esc(timer.next)}</div>` : ''}
-  <div class="row"><button class="btn ghost" data-act="t+30">+30s</button><button class="btn" data-act="tskip">Skip rest</button></div></div>`;
+  <div class="row" style="margin-bottom:10px"><button class="btn ghost" data-act="t-30" style="font-size:18px;padding:11px">- 30 s</button><button class="btn ghost" data-act="t+30" style="font-size:18px;padding:11px">+ 30 s</button></div>
+  ${main}<p style="margin:10px 0 0"><small>${hint}</small></p></div>`;
 }
 function timerBar() {
-  if (timer) return `<div class="tbar"><div id="tmr-fill" class="fill"></div><div class="tin"><div><b id="tmr-main">0:00</b><small id="tmr-lab"></small></div>
-    <div class="row"><button class="mini" data-act="tshow">Expand</button><button class="mini" data-act="t+30">+30s</button><button class="mini" data-act="tskip">Skip</button></div></div></div>`;
+  if (timer) {
+    const st = timer.state || 'run';
+    const mid = st === 'idle' ? '<button class="mini" data-act="tstart">Start</button>' : st === 'run' ? '<button class="mini" data-act="tpause">Pause</button>' : '<button class="mini" data-act="tresume">Resume</button>';
+    return `<div class="tbar"><div id="tmr-fill" class="fill"></div><div class="tin"><div><b id="tmr-main">0:00</b><small id="tmr-lab"></small></div>
+    <div class="row"><button class="mini" data-act="tshow">Expand</button>${mid}<button class="mini" data-act="${st === 'idle' ? 'tskip' : 'tstop'}">${st === 'idle' ? 'Skip' : 'Stop'}</button></div></div></div>`;
+  }
   return `<div class="tbar"><div class="tin"><small>Rest timer</small><div class="row">${[60, 90, 120, 180].map(s => `<button class="mini" data-act="tpre" data-s="${s}">${fdur(s * 1000)}</button>`).join('')}</div></div></div>`;
 }
 views.workout = p => {
@@ -697,7 +719,7 @@ views.session = p => {
   const s = sessions.find(x => x.id === p.id);
   if (!s) return '<div class="card"><h3>Session not found</h3>' + homeBtn + '</div>';
   return `<h2>${esc(s.name)}</h2><p>Week ${s.week} &middot; ${fd(s.finishedAt)} &middot; ${fdur(s.finishedAt - s.startedAt)} &middot; ${Math.round(volume(s)).toLocaleString()} kg volume</p>
-  ${s.exercises.map(x => { const ex = { noWeight: x.nw != null ? x.nw : (slot[x.slotId] ? slot[x.slotId].noWeight : isNW(x.name)) }; return `<div class="card"><b>${esc(x.name)}</b><p>${esc(fmtSets(ex, x.sets))}</p></div>`; }).join('')}
+  ${s.exercises.map(x => { const ex = { noWeight: x.nw != null ? x.nw : (slot[x.slotId] ? slot[x.slotId].noWeight : isNW(x.name)) }; return `<div class="card"><b>${esc(x.name)}</b><p>${esc(fmtSets(ex, x.sets))}</p>${x.sets.some(t => t.rest) ? `<p><small>Rest: ${x.sets.map(t => t.rest ? fdur(t.rest * 1000) : '-').join(', ')}</small></p>` : ''}</div>`; }).join('')}
   ${s.note ? `<div class="card"><span class="tag">NOTES</span><p>${esc(s.note)}</p></div>` : ''}
   <div class="row"><button class="btn" data-act="edit-session" data-id="${s.id}">Edit</button><button class="btn danger" data-act="delete-session" data-id="${s.id}">Delete</button></div>
   <div style="height:8px"></div><button class="btn ghost" data-go="history">Back to history</button>`;
@@ -734,7 +756,7 @@ views.me = () => {
   ${grp('GOALS AND TARGETS', lrow('Daily steps', gv(g.steps), 'goals') + lrow('Sleep', g.sleep + ' h', 'goals') + lrow('Target weight', gv(g.weight, 'kg'), 'goals') + lrow('Energy', gv(g.calories, 'kcal'), 'goals') + lrow('Protein', gv(g.protein, 'g'), 'goals') + lrow('Carbs', gv(g.carbs, 'g'), 'goals') + lrow('Fat', gv(g.fat, 'g'), 'goals') + lrow('Fiber', gv(g.fiber, 'g'), 'goals') + lrow('Targets that count for Day Score', Object.keys(sc).filter(k => sc[k]).length + ' on', 'goals'))}
   <div class="dl"><b></b><span class="m">APPEARANCE</span><b></b></div><div class="seg" role="group" aria-label="Theme">${[['system', 'System'], ['dark', 'Dark'], ['light', 'Light']].map(([v, l]) => `<button class="mini${th === v ? ' on' : ''}" data-act="theme-set" data-v="${v}" aria-pressed="${th === v}">${l}</button>`).join('')}</div>
   <div class="m" style="margin:2px 0 8px">TEXT AND SCREEN SIZE</div><div class="seg" role="group" aria-label="Text size">${[[0.72, 'Small'], [0.8, 'Medium'], [0.9, 'Large']].map(([v, l]) => `<button class="mini${(settings.scale || 0.8) === v ? ' on' : ''}" data-act="scale-set" data-v="${v}" aria-pressed="${(settings.scale || 0.8) === v}">${l}</button>`).join('')}</div>
-  ${grp('TRAINING', trow('Rest timer sound', 'sound-in', settings.sound) + trow('Vibration', 'vib-in', settings.vibrate) + lrow('Program guide', '', 'info'))}
+  ${grp('TRAINING', trow('Auto-start rest timer', 'auto-in', settings.autoStart !== false) + trow('Rest timer sound', 'sound-in', settings.sound) + trow('Vibration', 'vib-in', settings.vibrate) + lrow('Program guide', '', 'info'))}
   <div class="dl"><b></b><span class="m">NUTRITION AND AI</span><b></b></div><div class="card"><p>Type what you ate in Fuel and the AI fills in calories, protein, carbs, fat and fiber. It uses Google's Gemini. Get a free key at aistudio.google.com and paste it here. The key stays on this phone and is never included in backups. What you type is sent to Google to get the estimate.</p>
   <label>Gemini API key<input data-act="ai-key-in" type="password" autocomplete="off" value="${esc(settings.ai.key)}" placeholder="Paste key"></label>
   <label style="margin-bottom:0">Model<input data-act="ai-model-in" type="text" autocomplete="off" value="${esc(settings.ai.model)}"></label>
@@ -838,7 +860,7 @@ async function act(a, el) {
           let nt;
           if (k >= 0) nt = 'set ' + (k + 1) + ', ' + x.name;
           else { const n2 = c.exercises.findIndex(y => y.sets.some(q => !q.done)); nt = n2 >= 0 ? c.exercises[n2].name + ', set ' + (c.exercises[n2].sets.findIndex(q => !q.done) + 1) : 'all sets done, tap Finish'; }
-          startTimer(ex.rest[0], ex.rest[1], nt);
+          startTimer(ex.rest[0], ex.rest[1], nt, { i, j });
         }
         if (x.sets.every(s => s.done)) { const nx = c.exercises.findIndex((y, k) => k > i && y.sets.some(s => !s.done)); open = nx >= 0 ? nx : i; moved = nx >= 0; }
       }
@@ -858,13 +880,20 @@ async function act(a, el) {
       const steps = [1, 1.25, 2.5, 5, 10]; settings.inc[ex.name] = steps[(steps.indexOf(getInc(ex)) + 1) % steps.length];
       saveSettings(); render(); break;
     }
-    case 'tpre': startTimer(+el.dataset.s, +el.dataset.s); render(); break;
+    case 'tpre': startTimer(+el.dataset.s, +el.dataset.s, '', null, true); render(); break;
     case 'tskip': timer = null; saveTimer(); render(); break;
+    case 'tstart': if (timer) { timer.state = 'run'; timer.start = Date.now(); timer.acc = 0; timer.f1 = 0; timer.f2 = 0; saveTimer(); render(); } break;
+    case 'tpause': if (timer && timer.state === 'run') { timer.acc = tel(timer); timer.state = 'pause'; timer.start = null; saveTimer(); render(); } break;
+    case 'tresume': if (timer && timer.state === 'pause') { timer.state = 'run'; timer.start = Date.now(); saveTimer(); render(); } break;
+    case 'tstop': stopTimer(true); render(); break;
+    case 'auto-in': settings.autoStart = el.checked; saveSettings(); break;
     case 'tmin': if (timer) { timer.pop = false; saveTimer(); } render(); break;
     case 'tshow': if (timer) { timer.pop = true; saveTimer(); } render(); break;
-    case 't+30': {
-      timer.min += 30; timer.max += 30;
-      const s = (Date.now() - timer.start) / 1000; timer.f1 = s >= timer.min ? 1 : 0; timer.f2 = s >= timer.max ? 1 : 0;
+    case 't+30': case 't-30': {
+      if (!timer) break;
+      const d = a === 't+30' ? 30 : -30;
+      timer.min = Math.max(10, timer.min + d); timer.max = Math.max(timer.min, timer.max + d);
+      const s = tel(timer), run = (timer.state || 'run') === 'run'; timer.f1 = run && s >= timer.min ? 1 : 0; timer.f2 = run && s >= timer.max ? 1 : 0;
       saveTimer(); tick(); break;
     }
     case 'exit':
@@ -1108,8 +1137,9 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 (function init() {
   applyTheme();
   if (timer) {
-    const s = (Date.now() - timer.start) / 1000;
-    if (s > timer.max + 900) { timer = null; saveTimer(); } else { timer.f1 = s >= timer.min ? 1 : 0; timer.f2 = s >= timer.max ? 1 : 0; }
+    if (!timer.state) { timer.state = 'run'; timer.acc = 0; }
+    const s = tel(timer);
+    if (timer.state === 'run' && s > timer.max + 900) { timer = null; saveTimer(); } else { timer.f1 = timer.state === 'run' && s >= timer.min ? 1 : 0; timer.f2 = timer.state === 'run' && s >= timer.max ? 1 : 0; }
   }
   if (active) { open = firstIncomplete(active); view = { name: 'workout', params: {} }; }
   try { history.replaceState({ name: view.name, params: view.params }, ''); } catch (e) {}
