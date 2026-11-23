@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.8.0';
+const VERSION = '1.9.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -214,7 +214,7 @@ function go(name, params, replace) {
   render();
 }
 window.addEventListener('popstate', e => { view = e.state || { name: 'home', params: {} }; render(); });
-const tabOf = n => ({ workout: 'home', summary: 'home', session: 'history' }[n] || n);
+const tabOf = n => ({ workout: 'home', summary: 'home', session: 'history', day: 'history' }[n] || n);
 
 function render() {
   const app = $('#app');
@@ -477,12 +477,113 @@ views.summary = p => {
   <button class="btn" data-act="summary-done">Done</button>`;
 };
 
+/* ---------- daily performance ---------- */
+const dkey = t => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const kDate = k => { const [y, m, d] = k.split('-'); return new Date(+y, +m - 1, +d); };
+const kAdd = (k, n) => { const d = kDate(k); d.setDate(d.getDate() + n); return dkey(d); };
+const kLong = k => kDate(k).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+let hist = { mode: 'cal', y: new Date().getFullYear(), m: new Date().getMonth(), wk: null };
+function dayInfo(k) {
+  const g = settings.goals, d = daily[k] || {}, f = foodTot(k), ss = sessions.filter(s => dkey(s.finishedAt) === k);
+  const logged = ss.length || d.steps != null || d.sleep != null || dayFood(k).length;
+  const t = [];
+  if (ss.length) t.push(['Workout', true]);
+  t.push(['Steps', d.steps != null && d.steps >= g.steps]);
+  t.push(['Sleep', d.sleep != null && d.sleep >= g.sleep]);
+  t.push(['Protein', f.p >= g.protein && g.protein > 0]);
+  return { k, d, f, ss, logged, hit: t.filter(x => x[1]).length, of: t.length, t };
+}
+const scoreTxt = i => (i.logged ? i.hit + '/' + i.of : '');
+const mondayOf = k => { const d = kDate(k), w = (d.getDay() + 6) % 7; d.setDate(d.getDate() - w); return dkey(d); };
+function prCount(s) {
+  const prior = sessions.filter(o => o.finishedAt < s.finishedAt);
+  let n = 0;
+  s.exercises.forEach(x => {
+    const best = a => a.reduce((m, o) => o.exercises.filter(y => y.name === x.name).reduce((m2, y) => y.sets.reduce((m3, t) => t.done ? Math.max(m3, score(t.w, t.r)) : m3, m2), m), 0);
+    const mine = x.sets.reduce((m, t) => t.done ? Math.max(m, score(t.w, t.r)) : m, 0);
+    if (mine > 0 && prior.length && mine > best(prior)) n++;
+  });
+  return n;
+}
+const histTabs = () => `<div class="row" style="margin-bottom:12px">${[['cal', 'Calendar'], ['week', 'Week'], ['list', 'Workouts']].map(([m, l]) => `<button class="mini${hist.mode === m ? ' on' : ''}" style="flex:1;min-height:44px" data-act="hist-mode" data-m="${m}" aria-pressed="${hist.mode === m}">${l}</button>`).join('')}</div>`;
+function calView() {
+  const first = new Date(hist.y, hist.m, 1), lead = (first.getDay() + 6) % 7, dim = new Date(hist.y, hist.m + 1, 0).getDate(), today = todayKey();
+  const cells = [];
+  for (let i = 0; i < lead; i++) cells.push('<div></div>');
+  let wo = 0, full = 0, stepsSum = 0, stepsN = 0;
+  for (let d = 1; d <= dim; d++) {
+    const k = dkey(new Date(hist.y, hist.m, d)), i = dayInfo(k), r = i.logged ? i.hit / i.of : -1;
+    if (i.ss.length) wo++;
+    if (i.logged && i.hit === i.of) full++;
+    if (i.d.steps != null) { stepsSum += i.d.steps; stepsN++; }
+    const a = r < 0 ? 0 : r >= 1 ? 0.55 : r >= 0.75 ? 0.32 : 0.16;
+    cells.push(`<button class="cal${k === today ? ' tod' : ''}" data-act="open-day" data-k="${k}" aria-label="${kLong(k)}${i.logged ? ', ' + i.hit + ' of ' + i.of + ' targets' : ', nothing logged'}" style="${r >= 0 ? 'background:rgba(56,225,198,' + a + ');' : ''}${r >= 1 ? 'color:#04202a' : ''}"><span>${d}</span><small>${i.logged ? i.hit + '/' + i.of : (k === today ? 'TODAY' : '')}</small></button>`);
+  }
+  const title = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin-bottom:10px"><button class="mini" style="width:44px;height:44px;flex:none" data-act="cal-nav" data-n="-1" aria-label="Previous month">&lsaquo;</button><h2 style="margin:0;font-size:26px;white-space:nowrap">${title}</h2><button class="mini" style="width:44px;height:44px;flex:none" data-act="cal-nav" data-n="1" aria-label="Next month">&rsaquo;</button></div>
+  <div class="card"><div class="calg">${['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(x => `<div class="dh">${x}</div>`).join('')}${cells.join('')}</div>
+  <p style="margin:10px 0 0"><small>Each day shows targets hit: workout (only on days you trained), steps, sleep, protein. Darker teal means more hit. Tap a day for details.</small></p></div>
+  <div class="card three"><div><b>${wo}</b><small>workouts</small></div><div><b>${full}</b><small>days with all targets</small></div><div><b>${stepsN ? Math.round(stepsSum / stepsN).toLocaleString() : '-'}</b><small>avg steps</small></div></div>`;
+}
+function weekView() {
+  const mon = hist.wk || mondayOf(todayKey()), days = [0, 1, 2, 3, 4, 5, 6].map(n => dayInfo(kAdd(mon, n))), today = todayKey();
+  const sel = hist.sel && days.some(x => x.k === hist.sel) ? hist.sel : (days.some(x => x.k === today) ? today : days[0].k);
+  const i = days.find(x => x.k === sel), g = settings.goals;
+  const prevDays = [1, 2, 3, 4, 5, 6, 7].map(n => dayInfo(kAdd(sel, -n))).filter(x => x.logged);
+  const avg = f => { const v = prevDays.map(f).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const cmp = (label, val, a, fmt, unit) => {
+    let tag = '';
+    if (val != null && a != null) { const df = val - a; tag = Math.abs(df) < 0.02 * Math.max(1, a) ? 'SAME' : (df > 0 ? 'UP ' : 'DOWN ') + fmt(Math.abs(df)) + (unit || ''); }
+    return `<div class="cmp"><span>${label}</span><span>${val == null ? '-' : fmt(val) + (unit || '')} <small>${tag}</small></span></div>`;
+  };
+  const ring = (label, txt, sub, pct, hit, note) => `<div class="ringbox"><div class="w"><svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="36" fill="none" stroke="#1f2d4d" stroke-width="9"/><circle cx="44" cy="44" r="36" fill="none" stroke="${hit ? '#38e1c6' : '#ff7ad9'}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(226.2 * Math.min(1, pct)).toFixed(1)} 226.2" transform="rotate(-90 44 44)"/></svg><div class="c"><b>${txt}</b><small>${sub}</small></div></div><div style="font-size:13px;font-weight:600">${label}</div><div class="tg" style="color:${hit ? '#38e1c6' : '#ff7ad9'}">${note}</div></div>`;
+  const s0 = i.ss[0], sets = s0 ? doneCount(s0) : 0, tot = s0 ? totalCount(s0) : 0;
+  const rings = [];
+  if (s0) rings.push(ring('Workout', sets + '/' + tot, 'sets', tot ? sets / tot : 1, true, 'HIT'));
+  rings.push(ring('Steps', i.d.steps == null ? '-' : i.d.steps.toLocaleString(), 'steps', i.d.steps == null ? 0 : i.d.steps / g.steps, i.d.steps >= g.steps, i.d.steps == null ? 'NOT LOGGED' : i.d.steps >= g.steps ? 'HIT' : 'MISSED'));
+  rings.push(ring('Sleep', i.d.sleep == null ? '-' : sleepTxt(i.d.sleep), 'sleep', i.d.sleep == null ? 0 : i.d.sleep / g.sleep, i.d.sleep >= g.sleep, i.d.sleep == null ? 'NOT LOGGED' : i.d.sleep >= g.sleep ? 'HIT' : 'MISSED BY ' + Math.round((g.sleep - i.d.sleep) * 60) + ' MIN'));
+  rings.push(ring('Protein', i.f.p ? Math.round(i.f.p) + ' g' : '-', 'protein', i.f.p / g.protein, i.f.p >= g.protein, !i.f.p ? 'NOT LOGGED' : i.f.p >= g.protein ? 'HIT' : 'MISSED BY ' + Math.round(g.protein - i.f.p) + ' G'));
+  const vol = s0 ? Math.round(volume(s0)) : null, kc = i.f.kcal || null;
+  const nm = x => x == null ? null : x;
+  return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin-bottom:10px"><button class="mini" style="width:44px;height:44px;flex:none" data-act="wk-nav" data-n="-7" aria-label="Previous week">&lsaquo;</button><b>Week of ${kLong(mon)}</b><button class="mini" style="width:44px;height:44px" data-act="wk-nav" data-n="7" aria-label="Next week">&rsaquo;</button></div>
+  <div class="wkrow">${days.map(x => `<button class="wkd${x.k === sel ? ' sel' : ''}" data-act="wk-sel" data-k="${x.k}" aria-label="${kLong(x.k)}"><span>${kDate(x.k).toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase()}</span><b>${kDate(x.k).getDate()}</b><span>${x.logged ? scoreTxt(x) : 'NONE'}</span></button>`).join('')}</div>
+  <div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h3 style="margin:0">${kLong(sel)}</h3><span class="cap" style="margin:0">${i.logged ? i.hit + ' OF ' + i.of + ' HIT' : 'NOTHING LOGGED'}</span></div><div class="rings">${rings.join('')}</div><button class="btn ghost" style="margin-top:14px" data-act="open-day" data-k="${sel}">Open full day</button></div>
+  ${prevDays.length ? `<div class="card"><div class="cap">VS YOUR AVERAGE OF THE PREVIOUS ${prevDays.length} LOGGED DAYS</div>
+  ${cmp('Training volume', vol, avg(x => x.ss[0] ? volume(x.ss[0]) : null), v => Math.round(v).toLocaleString(), ' kg')}
+  ${cmp('Steps', i.d.steps == null ? null : i.d.steps, avg(x => x.d.steps), v => Math.round(v).toLocaleString())}
+  ${cmp('Sleep', i.d.sleep == null ? null : i.d.sleep, avg(x => x.d.sleep), v => sleepTxt(v))}
+  ${cmp('Calories', nm(kc), avg(x => x.f.kcal || null), v => Math.round(v).toLocaleString())}
+  ${cmp('Protein', i.f.p || null, avg(x => x.f.p || null), v => Math.round(v), ' g')}</div>` : ''}`;
+}
 views.history = () => {
+  if (hist.mode === 'cal') return '<h2>History</h2>' + histTabs() + calView();
+  if (hist.mode === 'week') return '<h2>History</h2>' + histTabs() + weekView();
   const l = sortedDesc();
-  if (!l.length) return '<h2>History</h2><div class="card"><p>Finished workouts show up here.</p></div>';
-  return '<h2>History</h2>' + l.map(s => `<div class="card"><button class="item" data-act="open-session" data-id="${s.id}">
+  return '<h2>History</h2>' + histTabs() + (!l.length ? '<div class="card"><p>Finished workouts show up here.</p></div>' : l.map(s => `<div class="card"><button class="item" data-act="open-session" data-id="${s.id}">
   <div><b>${esc(s.name)}</b><small>Week ${s.week} &middot; ${fd(s.finishedAt)}</small></div>
-  <div class="r"><b>${doneCount(s)} sets</b><small>${Math.round(volume(s)).toLocaleString()} kg</small></div></button></div>`).join('');
+  <div class="r"><b>${doneCount(s)} sets</b><small>${Math.round(volume(s)).toLocaleString()} kg</small></div></button></div>`).join(''));
+};
+views.day = p => {
+  const k = p.k, i = dayInfo(k), g = settings.goals, s = i.ss[0], today = todayKey();
+  const tagRow = (lab, ok, extra) => `<span class="pill ${ok ? 'ok' : 'no'}">${lab}: ${ok ? 'HIT' : (extra || 'MISSED')}</span>`;
+  const head = `<div class="row" style="justify-content:space-between;margin-bottom:12px"><button class="mini" style="width:44px;height:44px" data-act="day-nav" data-n="-1" aria-label="Previous day">&lsaquo;</button><div style="text-align:center"><h2 style="margin:0">${kLong(k)}</h2>${s ? `<small>Week ${s.week}, ${esc(s.name)}</small>` : ''}</div><button class="mini" style="width:44px;height:44px" data-act="day-nav" data-n="1" aria-label="Next day"${k >= today ? ' disabled style="width:44px;height:44px;opacity:.4"' : ''}>&rsaquo;</button></div>`;
+  if (!i.logged) return head + '<div class="card"><p>Nothing logged on this day.</p></div><button class="btn ghost" data-go="history">Back to history</button>';
+  const hero = `<div class="card hero"><span class="tag">DAY RESULT</span><div class="big">${i.hit} of ${i.of} targets hit</div><div class="pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">${i.t.map(([l, ok]) => `<span>${l.toUpperCase()}: ${ok ? 'HIT' : 'MISSED'}</span>`).join('')}</div></div>`;
+  const prs = s ? prCount(s) : 0;
+  const train = s ? `<div class="card"><div class="row" style="justify-content:space-between"><span class="cap" style="margin:0">TRAINING</span><small>${fdur(s.finishedAt - s.startedAt)}, ${doneCount(s)} of ${totalCount(s)} sets</small></div>
+  <div class="row" style="gap:24px;margin:8px 0"><div><b style="font-size:28px">${Math.round(volume(s)).toLocaleString()}</b><small style="display:block">kg volume</small></div><div><b style="font-size:28px">${prs}</b><small style="display:block">personal records</small></div></div>
+  ${s.exercises.map(x => { const ex = { noWeight: x.nw != null ? x.nw : (slot[x.slotId] ? slot[x.slotId].noWeight : isNW(x.name)) }; return `<div class="lift"><span>${esc(x.name)}</span><span>${esc(fmtSets(ex, x.sets.filter(t => t.done)))}</span></div>`; }).join('')}
+  <button class="btn ghost" style="margin-top:10px" data-act="open-session" data-id="${s.id}">Open workout</button></div>` : '';
+  const ent = dayFood(k), P = g.protein;
+  const nut = `<div class="card"><div class="cap">NUTRITION</div><div class="brow"><span>Calories</span><span><b>${Math.round(i.f.kcal).toLocaleString()}</b> <small>kcal</small></span></div>
+  <div class="brow"><span>Protein</span><span><b>${Math.round(i.f.p)}</b> <small>g / ${P}</small></span></div><div class="bar"><i style="width:${Math.min(100, i.f.p / P * 100).toFixed(0)}%;background:#2aa7e8"></i></div><div class="tg" style="color:#2aa7e8">${!i.f.p ? 'NOT LOGGED' : i.f.p >= P ? 'GOAL HIT' : 'SHORT BY ' + Math.round(P - i.f.p) + ' G'}</div>
+  <div class="brow" style="margin-top:12px"><span>Carbs</span><span><b>${Math.round(i.f.c)}</b> <small>g</small></span></div>
+  <p style="margin:8px 0 0"><small>${ent.length} ${ent.length === 1 ? 'entry' : 'entries'}${ent.length ? ': ' + ent.map(e => esc(e.name || 'food')).join(', ') : ''}</small></p></div>`;
+  const row = (lab, v, goalTxt, pct, ok, note, col) => `<div style="margin-top:12px"><div class="brow"><span>${lab}</span><span><b>${v}</b> <small>${goalTxt}</small></span></div><div class="bar"><i style="width:${Math.min(100, pct * 100).toFixed(0)}%;background:${col}"></i></div><div class="tg" style="color:${col}">${note}</div></div>`;
+  const ss = `<div class="card"><div class="cap">STEPS AND SLEEP</div>
+  ${row('Steps', i.d.steps == null ? '-' : i.d.steps.toLocaleString(), '/ ' + g.steps.toLocaleString(), i.d.steps == null ? 0 : i.d.steps / g.steps, 0, i.d.steps == null ? 'NOT LOGGED' : i.d.steps >= g.steps ? 'GOAL HIT' : 'SHORT BY ' + (g.steps - i.d.steps).toLocaleString(), COL.steps)}
+  ${row('Sleep', i.d.sleep == null ? '-' : sleepTxt(i.d.sleep), '/ ' + g.sleep + 'h', i.d.sleep == null ? 0 : i.d.sleep / g.sleep, 0, i.d.sleep == null ? 'NOT LOGGED' : i.d.sleep >= g.sleep ? 'GOAL HIT' : 'SHORT BY ' + Math.round((g.sleep - i.d.sleep) * 60) + ' MIN', COL.sleep)}</div>`;
+  return head + hero + train + nut + ss + '<button class="btn ghost" data-go="history">Back to history</button>';
 };
 
 views.session = p => {
@@ -837,6 +938,12 @@ async function act(a, el) {
     }
     case 'summary-done': go('home', {}, true); break;
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
+    case 'hist-mode': hist.mode = el.dataset.m; render(); break;
+    case 'cal-nav': { const d = new Date(hist.y, hist.m + (+el.dataset.n), 1); hist.y = d.getFullYear(); hist.m = d.getMonth(); render(); break; }
+    case 'wk-nav': hist.wk = kAdd(hist.wk || mondayOf(todayKey()), +el.dataset.n); hist.sel = null; render(); break;
+    case 'wk-sel': hist.sel = el.dataset.k; render(); break;
+    case 'open-day': go('day', { k: el.dataset.k }); break;
+    case 'day-nav': { const k = kAdd(view.params.k, +el.dataset.n); if (k <= todayKey()) go('day', { k }, true); break; }
     case 'open-session': go('session', { id: el.dataset.id }); break;
     case 'edit-session': {
       const s = sessions.find(x => x.id === el.dataset.id); if (!s) break;

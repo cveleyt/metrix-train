@@ -185,6 +185,31 @@ td:first-child{color:var(--ink)}
 .card.sm{padding:12px;margin:0}
 #toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-80px);background:var(--s2);border:1px solid var(--acc);border-radius:10px;padding:10px 14px;z-index:50;transition:transform .25s;max-width:90%}
 #toast.show{transform:translate(-50%,0)}
+
+/* day performance */
+.mini.on{border-color:var(--acc);color:var(--acc)}
+.calg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.dh{text-align:center;font-size:11px;color:var(--dim);font-weight:600}
+.cal{height:50px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;line-height:1.15;padding:0}
+.cal small{font-size:10px;font-weight:700;color:inherit}
+.cal.tod{border:2px solid var(--acc)}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;text-align:center}
+.three b{display:block;font-size:26px}
+.wkrow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.wkd{background:var(--s1);border:1px solid var(--line);border-radius:12px;padding:8px 0;text-align:center;font-size:12px;color:var(--ink)}
+.wkd b{display:block;font-size:15px;margin:2px 0}
+.wkd span{display:block;font-size:10px;font-weight:700;letter-spacing:.3px;color:var(--dim)}
+.wkd.sel{border-color:var(--acc)}.wkd.sel span{color:var(--acc)}
+.rings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px}
+.ringbox{text-align:center}.ringbox .w{position:relative;width:88px;height:88px;margin:0 auto 6px}
+.ringbox .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ringbox .c b{font-size:19px;line-height:1}.ringbox .c small{font-size:10.5px;color:var(--dim)}
+.tg{font-size:10.5px;font-weight:700;letter-spacing:.6px;margin-top:4px}
+.cmp{display:flex;justify-content:space-between;font-size:14px;padding:9px 0;border-top:1px solid var(--line)}
+.cmp small{font-size:11px;font-weight:700;color:var(--dim);margin-left:4px}
+.lift{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:7px 0;border-top:1px solid var(--line)}
+.lift span:last-child{text-align:right;color:var(--ink2)}
+.hero .big{font-size:44px;font-weight:700;line-height:.98;text-transform:uppercase;margin-top:4px}
 </style>
 </head>
 <body>
@@ -196,7 +221,7 @@ td:first-child{color:var(--ink)}
   <button data-go="info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>Info</button>
   <button data-go="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</button>
 </nav>
-<script src="program.js?v=1.8.0"></script>
-<script src="app.js?v=1.8.0"></script>
+<script src="program.js?v=1.9.0"></script>
+<script src="app.js?v=1.9.0"></script>
 </body>
 </html>
