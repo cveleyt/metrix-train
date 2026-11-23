@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -32,6 +32,7 @@ let sessions = LSget('mx.sessions', []);        // completed workouts
 let active = LSget('mx.active', null);          // workout in progress
 let editing = null;                             // past session being edited (memory only)
 let settings = Object.assign({ inc: {}, sound: true, vibrate: true, override: null }, LSget('mx.settings', {}));
+settings.goals = Object.assign({ steps: 10000, sleep: 8 }, settings.goals || {});
 let timer = LSget('mx.timer', null);
 let daily = LSget('mx.daily', {});             // {YYYY-MM-DD: {steps, sleep}}
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -214,27 +215,55 @@ function render() {
 const views = {};
 const homeBtn = '<button class="btn ghost" data-go="home">Back to Train</button>';
 
+const dateKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const sleepTxt = h => { const m = Math.round(h * 60); return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm'; };
+const RC = 2 * Math.PI * 40;
+const COL = { steps: '#d4ff3a', sleep: '#a78bfa' };
+function ringHTML(kind) {
+  const t = daily[todayKey()] || {}, v = t[kind], goal = settings.goals[kind];
+  const has = v != null, pct = has && goal > 0 ? v / goal : 0, col = COL[kind];
+  let tag;
+  if (!has) tag = 'NOT LOGGED';
+  else if (kind === 'steps') tag = pct >= 1 ? 'GOAL HIT' : pct >= 0.5 ? 'KEEP GOING' : 'JUST STARTED';
+  else tag = pct >= 0.9 ? 'ON TARGET' : 'SHORT';
+  const big = !has ? '-' : kind === 'steps' ? v.toLocaleString() : sleepTxt(v);
+  const sub = has ? Math.round(pct * 100) + '% of ' + (kind === 'steps' ? goal.toLocaleString() : goal + ' h') : 'Goal ' + (kind === 'steps' ? goal.toLocaleString() : goal + ' h');
+  return `<div class="ringw"><svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><circle cx="48" cy="48" r="40" fill="none" stroke="#262a36" stroke-width="9"/>
+  <circle cx="48" cy="48" r="40" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(Math.min(1, pct) * RC).toFixed(1)} ${RC.toFixed(1)}" transform="rotate(-90 48 48)"/></svg>
+  <div class="ringc"><b>${big}</b><small>${kind}</small></div></div>
+  <div class="rsub">${sub}</div><span class="rtag" style="border-color:${col};color:${col}">${tag}</span>`;
+}
+function refreshRings() { ['steps', 'sleep'].forEach(k => { const e = $('#ring-' + k); if (e) e.innerHTML = ringHTML(k); }); }
 function dailyCard() {
   const t = daily[todayKey()] || {};
-  return `<div class="card"><span class="tag">TODAY</span>
-  <div class="row"><label style="flex:1;margin:0">Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label>
-  <label style="flex:1;margin:0">Sleep (hours)<input data-act="daily-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="0" max="24" value="${t.sleep == null ? '' : t.sleep}" placeholder="0"></label></div>
-  <p style="margin:8px 0 0"><small>From Samsung Health. Saves as you type. Enter last night's sleep today.</small></p></div>`;
+  return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><span class="cap" style="margin:0">TODAY</span><small>From Samsung Health</small></div>
+  <div class="two">
+  <div class="tile"><div id="ring-steps">${ringHTML('steps')}</div><label>Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label></div>
+  <div class="tile"><div id="ring-sleep">${ringHTML('sleep')}</div><label>Sleep (hours)<input data-act="daily-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="0" max="24" value="${t.sleep == null ? '' : t.sleep}" placeholder="0"></label></div>
+  </div><p style="margin:10px 0 0;text-align:center"><small>Type today's numbers. Log last night's sleep in the morning.</small></p></div>`;
+}
+function barsSVG(vals, goal, col, label) {
+  const have = vals.filter(v => v != null), mx = Math.max(goal, ...have) * 1.05, H = 56, top = 10;
+  const gy = H - goal / mx * (H - 4);
+  const bars = vals.map((v, i) => v == null ? '' : `<rect x="${3 + i * 20}" y="${(H - v / mx * (H - 4)).toFixed(1)}" width="14" height="${(v / mx * (H - 4)).toFixed(1)}" rx="3" fill="${col}"/>`).join('');
+  return `<svg class="bars" viewBox="0 0 140 ${H}" role="img" aria-label="${label}"><line x1="0" y1="${gy.toFixed(1)}" x2="140" y2="${gy.toFixed(1)}" stroke="#98a1b3" stroke-dasharray="3 4"/>${bars}</svg>`;
 }
 function dailySection() {
   const keys = Object.keys(daily).sort();
   if (!keys.length) return '';
-  const part = (f, label, unit) => {
-    const r = keys.filter(k => daily[k][f] != null).slice(-14);
-    if (!r.length) return '';
-    const avg = rnd(r.reduce((a, k) => a + daily[k][f], 0) / r.length);
-    return `<div class="card"><b>${label}</b><p>Average of last ${r.length} days: ${avg.toLocaleString()} ${unit}</p>
-    ${r.length >= 2 ? chart(r.map(k => daily[k][f]), r.map(fdk)) : ''}</div>`;
+  const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return dateKey(d); });
+  const card = (f, label, col, fmt, goalTxt) => {
+    const vals = days.map(k => (daily[k] || {})[f]), have = vals.filter(v => v != null);
+    const avg = have.length ? have.reduce((a, b) => a + b, 0) / have.length : null;
+    return `<div class="card sm"><small>Average ${label}</small><div class="big" style="font-size:22px;margin-top:2px">${avg == null ? '-' : fmt(avg)}</div>
+    ${barsSVG(vals, settings.goals[f], col, 'Daily ' + label + ' for the last seven days')}<small>Dashed line: ${goalTxt}</small></div>`;
   };
   const rows = keys.slice(-14).reverse();
-  return `<h2 style="margin-top:18px">Steps and sleep</h2>${part('steps', 'Steps', 'steps')}${part('sleep', 'Sleep', 'hours')}
+  return `<div class="cap" style="margin-top:18px">STEPS AND SLEEP, LAST 7 DAYS</div>
+  <div class="two" style="margin-bottom:12px">${card('steps', 'steps', COL.steps, v => Math.round(v).toLocaleString(), settings.goals.steps.toLocaleString() + ' goal')}
+  ${card('sleep', 'sleep', COL.sleep, sleepTxt, settings.goals.sleep + ' h goal')}</div>
   <div class="card"><table><tr><th>Date</th><th>Steps</th><th>Sleep</th></tr>${rows.map(k =>
-    `<tr><td>${fdk(k)}</td><td>${daily[k].steps == null ? '-' : daily[k].steps.toLocaleString()}</td><td>${daily[k].sleep == null ? '-' : daily[k].sleep + ' h'}</td></tr>`).join('')}</table></div>`;
+    `<tr><td>${fdk(k)}</td><td>${daily[k].steps == null ? '-' : daily[k].steps.toLocaleString()}</td><td>${daily[k].sleep == null ? '-' : sleepTxt(daily[k].sleep)}</td></tr>`).join('')}</table></div>`;
 }
 
 views.home = p => {
@@ -254,14 +283,17 @@ views.home = p => {
     <div class="row"><button class="btn" data-act="pick-apply">Use this</button><button class="btn ghost" data-act="pick-cancel">Cancel</button></div></div>` : '';
   const meso = n.week === P.weeks ? '<p><b>Final week.</b> After it, review bodyweight, waist, photos and performance (see Info).</p>'
     : n.week > P.weeks ? '<p><b>Past week ' + P.weeks + '.</b> Decide whether to keep this setup or adjust it (see Info).</p>' : '';
-  return `<h2>MetriX Train</h2>${resume}
-  <div class="card"><span class="tag">NEXT UP, WEEK ${n.week} OF ${P.weeks}</span><h3 style="font-size:22px">${esc(d.name)}</h3>
-    <p>${esc(d.blurb)}</p>${meso}
-    <ul class="list">${d.exercises.map(e => `<li>${esc(e.name)}<span>${e.sets} x ${e.lo}-${e.hi}${e.side ? ' /side' : ''}</span></li>`).join('')}</ul>
-    <div class="row" style="margin-top:12px"><button class="btn" data-act="start">Start workout</button><button class="btn ghost" data-act="picker">Change</button></div></div>
+  const setTotal = d.exercises.reduce((a, e) => a + e.sets, 0);
+  const more = d.exercises.length - 3;
+  const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+  return `<div class="hdr"><div><small>${esc(date)}</small><h2>Hey Elie</h2></div><span class="wk">WEEK ${n.week} OF ${P.weeks}</span></div>
+  ${resume}${dailyCard()}
+  <div class="card hl"><div class="row" style="justify-content:space-between"><span class="tag">NEXT UP</span><small>${d.exercises.length} exercises, ${setTotal} sets</small></div>
+    <div class="big">${esc(d.name)}</div><p style="margin-top:4px">${esc(d.blurb)}</p>${meso}
+    <div class="pills">${d.exercises.slice(0, 3).map(e => `<span>${esc(e.name)}</span>`).join('')}${more > 0 ? `<span class="m">+${more} more</span>` : ''}</div>
+    <div class="row"><button class="btn" data-act="start">Start workout</button><button class="btn ghost sm" data-act="picker">Change</button></div></div>
   ${picker}
-  ${dailyCard()}
-  <div class="chips">${chips}</div>
+  <div class="cap">THIS WEEK</div><div class="chips">${chips}</div>
   ${l ? `<p>Last workout: ${esc(l.name)} on ${fd(l.finishedAt)}, ${doneCount(l)} sets, ${Math.round(volume(l)).toLocaleString()} kg volume.</p>` : '<p>No workouts logged yet. Your first one sets the baseline.</p>'}`;
 };
 
@@ -304,7 +336,8 @@ views.workout = p => {
   if (!c) return '<div class="card"><h3>No workout open</h3>' + homeBtn + '</div>';
   const edit = !!p.edit;
   return `<div class="wh"><button class="mini" data-act="exit">${edit ? 'Cancel' : 'Exit'}</button>
-  <div><b>${edit ? 'Editing ' : ''}${esc(c.name)}</b><small>Week ${c.week} &middot; ${doneCount(c)}/${totalCount(c)} sets${edit ? ' &middot; ' + fd(c.finishedAt) : ' &middot; <span id="elapsed"></span>'}</small></div></div>
+  <div><b>${edit ? 'Editing ' : ''}${esc(c.name)}</b><small>Week ${c.week} &middot; ${doneCount(c)}/${totalCount(c)} sets${edit ? ' &middot; ' + fd(c.finishedAt) : ' &middot; <span id="elapsed"></span>'}</small></div>
+  <div class="pbar"><i style="width:${totalCount(c) ? Math.round(doneCount(c) / totalCount(c) * 100) : 0}%"></i></div></div>
   <div class="pad">${c.exercises.map((x, i) => exCard(c, x, i, edit)).join('')}
   <button class="btn" data-act="${edit ? 'save-edit' : 'finish'}" style="margin-top:6px">${edit ? 'Save changes' : 'Finish workout'}</button></div>${edit ? '' : timerBar()}`;
 };
@@ -357,8 +390,8 @@ function chart(points, labels) {
   const pl = points.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
   return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Progress chart">
   <line x1="${L}" y1="${y(lo)}" x2="${W - R}" y2="${y(lo)}" stroke="#252e42"/>
-  <polyline points="${pl}" fill="none" stroke="#9b7aff" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-  ${points.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="#9b7aff"/>`).join('')}
+  <polyline points="${pl}" fill="none" stroke="#d4ff3a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  ${points.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="#d4ff3a"/>`).join('')}
   <text x="${L - 6}" y="${y(hi) + 4}" text-anchor="end" fill="#93a0b4" font-size="11">${rnd(mx)}</text>
   <text x="${L - 6}" y="${y(lo) + 4}" text-anchor="end" fill="#93a0b4" font-size="11">${rnd(mn)}</text>
   <text x="${L}" y="${H - 6}" fill="#93a0b4" font-size="11">${esc(labels[0])}</text>
@@ -401,6 +434,9 @@ views.settings = () => `<h2>Settings</h2>
   <div class="row"><button class="btn" data-act="export">Export backup</button><button class="btn ghost" data-act="import-btn">Import</button></div>
   <input id="imp" type="file" accept="application/json,.json" data-act="import-in" style="display:none">
   <p style="margin-top:8px"><small>Storage protection: ${persisted === true ? 'granted' : persisted === false ? 'not granted (browser may clear data if the phone runs low on space)' : 'unknown'}</small></p></div>
+  <div class="card"><h3>Daily goals</h3>
+  <label>Steps goal<input data-act="goal-in" data-f="steps" type="number" inputmode="numeric" min="1" value="${settings.goals.steps}"></label>
+  <label>Sleep goal (hours)<input data-act="goal-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="1" value="${settings.goals.sleep}"></label></div>
   <div class="card"><h3>About</h3><p>MetriX Train ${VERSION}</p><button class="btn ghost" data-act="update">Update app</button></div>
   <button class="btn danger" data-act="reset">Delete all data</button>`;
 
@@ -521,7 +557,11 @@ async function act(a, el) {
       daily[k] = daily[k] || {};
       if (isNaN(v) || v < 0) delete daily[k][f]; else daily[k][f] = f === 'steps' ? Math.round(v) : rnd(v);
       if (!Object.keys(daily[k]).length) delete daily[k];
-      saveDaily(); toast('Saved'); break;
+      saveDaily(); refreshRings(); break;
+    }
+    case 'goal-in': {
+      const f = el.dataset.f, v = parseFloat(String(el.value).replace(',', '.'));
+      settings.goals[f] = v > 0 ? v : (f === 'steps' ? 10000 : 8); saveSettings(); break;
     }
     case 'summary-done': go('home', {}, true); break;
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
@@ -551,7 +591,7 @@ async function act(a, el) {
     case 'reset':
       if (confirm('Delete ALL workouts on this phone? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
         ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily'].forEach(k => localStorage.removeItem(k));
-        sessions = []; daily = {}; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null };
+        sessions = []; daily = {}; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, goals: { steps: 10000, sleep: 8 } };
         toast('All data deleted'); go('home', {}, true);
       }
       break;

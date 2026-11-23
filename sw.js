@@ -1,6 +1,6 @@
 /* Offline cache: serves cached files instantly, refreshes them in the background.
    Workout data lives in localStorage, never in this cache. */
-const V = 'mx-train-v2';
+const V = 'mx-train-v3';
 const FILES = ['./', './index.html', './app.js', './program.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png'];
 
