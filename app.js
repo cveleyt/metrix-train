@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.7.0';
+const VERSION = '1.7.1';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -709,20 +709,26 @@ async function act(a, el) {
       if (!settings.ai.key) { say('Add your free Gemini key in Settings, under AI food estimates.'); break; }
       btn.disabled = true; btn.textContent = 'Estimating...'; say('Asking the AI...');
       try {
-        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 25000);
         const prompt = 'Estimate the total nutrition for this meal or food: "' + txt + '". Use the amounts given. If an amount is missing, assume one typical serving. Cooked weights unless stated otherwise. Return JSON with kcal (calories), protein_g and carbs_g as numbers for the whole thing combined.';
-        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(settings.ai.model) + ':generateContent', {
-          method: 'POST', signal: ctl.signal,
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, responseMimeType: 'application/json',
-              responseSchema: { type: 'OBJECT', properties: { kcal: { type: 'NUMBER' }, protein_g: { type: 'NUMBER' }, carbs_g: { type: 'NUMBER' } }, required: ['kcal', 'protein_g', 'carbs_g'] } }
-          })
+        const body = JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2, responseMimeType: 'application/json',
+            responseSchema: { type: 'OBJECT', properties: { kcal: { type: 'NUMBER' }, protein_g: { type: 'NUMBER' }, carbs_g: { type: 'NUMBER' } }, required: ['kcal', 'protein_g', 'carbs_g'] } }
         });
-        clearTimeout(to);
+        let r = null;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 25000);
+          try {
+            r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(settings.ai.model) + ':generateContent', {
+              method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key }, body
+            });
+          } finally { clearTimeout(to); }
+          if (r.ok || ![429, 500, 502, 503, 504].includes(r.status) || attempt === 3) break;
+          say('The AI is busy, retrying (' + (attempt + 1) + ' of 3)...');
+          await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
+        }
         if (!r.ok) {
-          const why = r.status === 400 || r.status === 403 ? 'The key or model was rejected. Check them in Settings.' : r.status === 429 ? 'Too many requests. Wait a minute and try again.' : 'The AI service returned an error (' + r.status + ').';
+          const why = r.status === 400 || r.status === 403 ? 'The key or model was rejected. Check them in Settings.' : r.status === 429 ? 'Too many requests or the free limit is used up. Wait a minute and try again.' : 'Google\'s AI is overloaded right now (' + r.status + '). Try again in a minute, or type the numbers.';
           throw new Error(why);
         }
         const j = await r.json(), out = JSON.parse(j.candidates[0].content.parts[0].text);
