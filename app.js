@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -384,7 +384,8 @@ views.workout = p => {
   <div><b>${edit ? 'Editing ' : ''}${esc(c.name)}</b><small>Week ${c.week} &middot; ${doneCount(c)}/${totalCount(c)} sets${edit ? ' &middot; ' + fd(c.finishedAt) : ' &middot; <span id="elapsed"></span>'}</small></div>
   <div class="pbar"><i style="width:${totalCount(c) ? Math.round(doneCount(c) / totalCount(c) * 100) : 0}%"></i></div></div>
   <div class="pad">${c.exercises.map((x, i) => exCard(c, x, i, edit)).join('')}
-  <button class="btn" data-act="${edit ? 'save-edit' : 'finish'}" style="margin-top:6px">${edit ? 'Save changes' : 'Finish workout'}</button></div>${edit ? '' : timerBar() + popupHTML()}`;
+  <button class="btn" data-act="${edit ? 'save-edit' : 'finish'}" style="margin-top:6px">${edit ? 'Save changes' : 'Finish workout'}</button>
+  ${edit ? '' : '<button class="btn danger" data-act="cancel-workout" style="margin-top:10px">Cancel workout</button>'}</div>${edit ? '' : timerBar() + popupHTML()}`;
 };
 
 views.summary = p => {
@@ -631,6 +632,11 @@ async function act(a, el) {
       if (name === x.orig) { x.name = x.orig; delete x.orig; delete x.nw; } else { x.name = name; x.nw = $('#rep-nw').checked; }
       replacing = -1; resetSets(x); persist(); render(); break;
     }
+    case 'cancel-workout':
+      if (confirm('Cancel this workout? Everything you logged in it will be deleted.')) {
+        active = null; LSset('mx.active', null); timer = null; saveTimer(); replacing = -1; toast('Workout cancelled'); go('home', {}, true);
+      }
+      break;
     case 'summary-done': go('home', {}, true); break;
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
     case 'open-session': go('session', { id: el.dataset.id }); break;
