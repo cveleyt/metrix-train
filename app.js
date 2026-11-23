@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -32,11 +32,13 @@ let sessions = LSget('mx.sessions', []);        // completed workouts
 let active = LSget('mx.active', null);          // workout in progress
 let editing = null;                             // past session being edited (memory only)
 let settings = Object.assign({ inc: {}, sound: true, vibrate: true, override: null }, LSget('mx.settings', {}));
-settings.goals = Object.assign({ steps: 10000, sleep: 8 }, settings.goals || {});
+settings.goals = Object.assign({ steps: 10000, sleep: 8, protein: 130 }, settings.goals || {});
 let timer = LSget('mx.timer', null);
 let daily = LSget('mx.daily', {});             // {YYYY-MM-DD: {steps, sleep}}
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const saveDaily = () => LSset('mx.daily', daily);
+let food = LSget('mx.food', {});               // {YYYY-MM-DD: [{id, t, name, kcal, p, c}]}
+const saveFood = () => LSset('mx.food', food);
 const fdk = k => { const [y, m, d] = k.split('-'); return fd(new Date(+y, +m - 1, +d).getTime()); };
 let view = { name: 'home', params: {} };
 let open = 0;
@@ -254,10 +256,50 @@ function dailyCard() {
   <p style="margin:10px 0 0;text-align:center"><small>Type today's numbers. Log last night's sleep in the morning.</small></p></div>`;
 }
 function barsSVG(vals, goal, col, label) {
-  const have = vals.filter(v => v != null), mx = Math.max(goal, ...have) * 1.05, H = 56, top = 10;
-  const gy = H - goal / mx * (H - 4);
+  const have = vals.filter(v => v != null), mx = (Math.max(goal || 0, ...have) || 1) * 1.05, H = 56, top = 10;
+  const gy = H - (goal || 0) / mx * (H - 4);
   const bars = vals.map((v, i) => v == null ? '' : `<rect x="${3 + i * 20}" y="${(H - v / mx * (H - 4)).toFixed(1)}" width="14" height="${(v / mx * (H - 4)).toFixed(1)}" rx="3" fill="${col}"/>`).join('');
-  return `<svg class="bars" viewBox="0 0 140 ${H}" role="img" aria-label="${label}"><line x1="0" y1="${gy.toFixed(1)}" x2="140" y2="${gy.toFixed(1)}" stroke="#98a1b3" stroke-dasharray="3 4"/>${bars}</svg>`;
+  return `<svg class="bars" viewBox="0 0 140 ${H}" role="img" aria-label="${label}">${goal > 0 ? `<line x1="0" y1="${gy.toFixed(1)}" x2="140" y2="${gy.toFixed(1)}" stroke="#8b9bb8" stroke-dasharray="3 4"/>` : ''}${bars}</svg>`;
+}
+const FCOL = { kcal: '#ff9d5c', p: '#2aa7e8', c: '#f5c040' };
+const dayFood = k => food[k] || [];
+const foodTot = k => dayFood(k).reduce((a, e) => ({ kcal: a.kcal + e.kcal, p: a.p + e.p, c: a.c + e.c }), { kcal: 0, p: 0, c: 0 });
+function foodRows() {
+  const t = foodTot(todayKey()), g = settings.goals;
+  return [['kcal', 'Calories', 'kcal', 'calories'], ['p', 'Protein', 'g', 'protein'], ['c', 'Carbs', 'g', 'carbs']].map(([k, label, unit, gk]) => {
+    const goal = g[gk], v = Math.round(t[k] * 10) / 10, rem = goal > 0 ? goal - v : null;
+    const tag = goal > 0 ? (rem > 0 ? Math.round(rem) + ' ' + unit.toUpperCase() + ' LEFT' : (k === 'p' || rem === 0 ? 'GOAL HIT' : Math.round(-rem) + ' ' + unit.toUpperCase() + ' OVER')) : '';
+    return `<div><div class="brow"><span>${label}</span><span><b>${v.toLocaleString()}</b> <small>${unit}${goal > 0 ? ' / ' + goal.toLocaleString() : ''}</small></span></div>
+    ${goal > 0 ? `<div class="bar" role="img" aria-label="${label} ${Math.round(Math.min(1, v / goal) * 100)} percent of goal"><i style="width:${(Math.min(1, v / goal) * 100).toFixed(0)}%;background:${FCOL[k]}"></i></div>` : ''}
+    ${tag ? `<div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:${FCOL[k]};margin-top:5px">${tag}</div>` : ''}</div>`;
+  }).join('');
+}
+function foodCard() {
+  const list = dayFood(todayKey());
+  return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><span class="cap" style="margin:0">FOOD TODAY</span><small>${list.length} ${list.length === 1 ? 'entry' : 'entries'}</small></div>
+  <div style="display:flex;flex-direction:column;gap:14px">${foodRows()}</div>
+  <div class="cap" style="margin-top:18px">ADD FOOD</div>
+  <label>What did you eat (optional)<input id="fd-name" type="text" placeholder="e.g. Chicken and rice" autocomplete="off"></label>
+  <div class="three"><label>Calories<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label>
+  <label>Protein (g)<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label>
+  <label>Carbs (g)<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div>
+  <button class="btn" data-act="food-add">Add to today</button>
+  ${list.length ? `<div style="margin-top:14px">${list.slice().reverse().map(e => `<div class="frow"><div><div>${esc(e.name || 'Food')}</div><small>${e.kcal} kcal, ${e.p} g protein, ${e.c} g carbs</small></div><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div>`).join('')}</div>` : ''}</div>`;
+}
+function foodSection() {
+  const keys = Object.keys(food).filter(k => food[k].length).sort();
+  if (!keys.length) return '';
+  const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return dateKey(d); });
+  const card = (f, label, col, unit, goal) => {
+    const vals = days.map(k => (food[k] && food[k].length ? foodTot(k)[f] : null)), have = vals.filter(v => v != null);
+    const avg = have.length ? have.reduce((a, b) => a + b, 0) / have.length : null;
+    return `<div class="card sm"><small>Average ${label}</small><div class="big" style="font-size:26px;margin-top:2px">${avg == null ? '-' : Math.round(avg).toLocaleString() + ' ' + unit}</div>
+    ${barsSVG(vals, goal, col, 'Daily ' + label + ' for the last seven days')}<small>${goal > 0 ? 'Dashed line: ' + goal.toLocaleString() + ' goal' : 'Last 7 days'}</small></div>`;
+  };
+  const rows = keys.slice(-14).reverse();
+  return `<div class="cap" style="margin-top:18px">FOOD, LAST 7 DAYS</div>
+  <div class="two" style="margin-bottom:12px">${card('kcal', 'calories', FCOL.kcal, 'kcal', settings.goals.calories)}${card('p', 'protein', FCOL.p, 'g', settings.goals.protein)}</div>
+  <div class="card"><table><tr><th>Date</th><th>Kcal</th><th>Protein</th><th>Carbs</th></tr>${rows.map(k => { const t = foodTot(k); return `<tr><td>${fdk(k)}</td><td>${Math.round(t.kcal).toLocaleString()}</td><td>${Math.round(t.p)} g</td><td>${Math.round(t.c)} g</td></tr>`; }).join('')}</table></div>`;
 }
 function dailySection() {
   const keys = Object.keys(daily).sort();
@@ -301,10 +343,10 @@ views.home = p => {
   const left = Math.max(0, P.weeks - n.week);
   const segs = [...Array(P.weeks)].map((_, k) => `<i class="${k < n.week ? 'on' : ''}"></i>`).join('');
   return `<div class="hhero"><div class="mt"><small style="letter-spacing:.4px;text-transform:uppercase">${esc(date)}</small><span class="tag" style="margin:0">DAY ${dayIdx} OF ${DAYS.length}</span></div>
-  <div class="tl">Week ${n.week}<br><span class="hi">Let's work.</span></div>
+  <div class="tl">Week ${n.week}</div>
   <div class="seg8" aria-hidden="true">${segs}</div>
   <small style="display:block;margin-top:6px">${P.weeks}-week hypertrophy block, ${n.week > P.weeks ? 'block complete' : left === 0 ? 'final week' : left + ' weeks to go'}</small></div>
-  ${resume}${dailyCard()}
+  ${resume}${dailyCard()}${foodCard()}
   <div class="card hero"><div class="mt" style="font-size:12px;font-weight:700;letter-spacing:1px"><span>NEXT UP</span><span>${d.exercises.length} EXERCISES, ${setTotal} SETS</span></div>
     <div class="name" style="margin:8px 0">${esc(d.name)}</div>
     <p style="font-weight:500;margin-bottom:12px">${d.exercises.slice(0, 3).map(e => esc(e.name)).join(', ')}${more > 0 ? ' and ' + more + ' more' : ''}</p>${meso}
@@ -471,7 +513,7 @@ views.progress = p => {
   ${rows.length ? `<p>Latest: ${rows[rows.length - 1].v} ${m === 'vol' ? (nw ? 'reps' : 'kg total') : (m === 'e1' ? 'kg est. 1RM' : unit)}</p>` : ''}</div>
   ${rows.length ? `<div class="card"><table><tr><th>Date</th><th>Wk</th><th>Sets</th></tr>${rows.slice(-10).reverse().map(r =>
       `<tr><td>${fd(r.s.finishedAt)}</td><td>${r.s.week}</td><td>${esc(fmtSets({ noWeight: nw }, r.sets))}</td></tr>`).join('')}</table></div>` : ''}
-  ${dailySection()}`;
+  ${dailySection()}${foodSection()}`;
 };
 
 views.info = () => '<h2>Program info</h2>' + window.INFO_HTML;
@@ -487,7 +529,10 @@ views.settings = () => `<h2>Settings</h2>
   <p style="margin-top:8px"><small>Storage protection: ${persisted === true ? 'granted' : persisted === false ? 'not granted (browser may clear data if the phone runs low on space)' : 'unknown'}</small></p></div>
   <div class="card"><h3>Daily goals</h3>
   <label>Steps goal<input data-act="goal-in" data-f="steps" type="number" inputmode="numeric" min="1" value="${settings.goals.steps}"></label>
-  <label>Sleep goal (hours)<input data-act="goal-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="1" value="${settings.goals.sleep}"></label></div>
+  <label>Sleep goal (hours)<input data-act="goal-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="1" value="${settings.goals.sleep}"></label>
+  <label>Calories goal (optional)<input data-act="goal-in" data-f="calories" type="number" inputmode="numeric" min="0" value="${settings.goals.calories || ''}" placeholder="No goal"></label>
+  <label>Protein goal (g)<input data-act="goal-in" data-f="protein" type="number" inputmode="decimal" step="any" min="0" value="${settings.goals.protein || ''}" placeholder="No goal"></label>
+  <label>Carbs goal (g, optional)<input data-act="goal-in" data-f="carbs" type="number" inputmode="decimal" step="any" min="0" value="${settings.goals.carbs || ''}" placeholder="No goal"></label></div>
   <div class="card"><h3>About</h3><p>MetriX Train ${VERSION}</p><button class="btn ghost" data-act="update">Update app</button></div>
   <button class="btn danger" data-act="reset">Delete all data</button>`;
 
@@ -495,7 +540,7 @@ views.settings = () => `<h2>Settings</h2>
 function firstIncomplete(c) { const i = c.exercises.findIndex(x => x.sets.some(t => !t.done)); return i < 0 ? 0 : i; }
 
 async function exportData() {
-  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, settings };
+  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, food, settings };
   const name = 'metrix-train-' + new Date().toISOString().slice(0, 10) + '.json';
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   try {
@@ -518,6 +563,10 @@ function importData(file) {
         const i = sessions.findIndex(x => x.id === s.id);
         if (i < 0) { sessions.push(s); add++; } else if ((s.updatedAt || 0) > (sessions[i].updatedAt || 0)) { sessions[i] = s; upd++; }
       });
+      if (d.food && typeof d.food === 'object') {
+        Object.keys(d.food).forEach(k => { if (!Array.isArray(d.food[k])) return; food[k] = food[k] || []; d.food[k].forEach(e => { if (e && e.id && !food[k].some(x => x.id === e.id)) food[k].push(e); }); });
+        saveFood();
+      }
       if (d.daily && typeof d.daily === 'object') { Object.keys(d.daily).forEach(k => { if (!daily[k]) daily[k] = d.daily[k]; }); saveDaily(); }
       saveSessions(); toast('Imported ' + add + ' new, ' + upd + ' updated'); render();
     } catch (e) { toast('Import failed: ' + e.message); }
@@ -620,7 +669,11 @@ async function act(a, el) {
     }
     case 'goal-in': {
       const f = el.dataset.f, v = parseFloat(String(el.value).replace(',', '.'));
-      settings.goals[f] = v > 0 ? v : (f === 'steps' ? 10000 : 8); saveSettings(); break;
+      if (v > 0) settings.goals[f] = v;
+      else if (f === 'steps') settings.goals[f] = 10000;
+      else if (f === 'sleep') settings.goals[f] = 8;
+      else delete settings.goals[f];
+      saveSettings(); break;
     }
     case 'rep-open': replacing = i; render(); break;
     case 'rep-cancel': replacing = -1; render(); break;
@@ -642,6 +695,17 @@ async function act(a, el) {
         active = null; LSset('mx.active', null); timer = null; saveTimer(); replacing = -1; toast('Workout cancelled'); go('home', {}, true);
       }
       break;
+    case 'food-add': {
+      const num = id => { const v = parseFloat(String($('#' + id).value).replace(',', '.')); return isNaN(v) || v < 0 ? 0 : Math.round(v * 10) / 10; };
+      const e = { id: uid(), t: Date.now(), name: ($('#fd-name').value || '').trim(), kcal: Math.round(num('fd-kcal')), p: num('fd-p'), c: num('fd-c') };
+      if (!e.kcal && !e.p && !e.c) { toast('Enter calories, protein or carbs.'); break; }
+      const k = todayKey(); food[k] = food[k] || []; food[k].push(e); saveFood(); toast('Added'); render(); break;
+    }
+    case 'food-del': {
+      const k = todayKey(); food[k] = dayFood(k).filter(e => e.id !== el.dataset.id);
+      if (!food[k].length) delete food[k];
+      saveFood(); render(); break;
+    }
     case 'summary-done': go('home', {}, true); break;
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
     case 'open-session': go('session', { id: el.dataset.id }); break;
@@ -669,8 +733,8 @@ async function act(a, el) {
     }
     case 'reset':
       if (confirm('Delete ALL workouts on this phone? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
-        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily'].forEach(k => localStorage.removeItem(k));
-        sessions = []; daily = {}; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, goals: { steps: 10000, sleep: 8 } };
+        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food'].forEach(k => localStorage.removeItem(k));
+        sessions = []; daily = {}; food = {}; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, goals: { steps: 10000, sleep: 8, protein: 130 } };
         toast('All data deleted'); go('home', {}, true);
       }
       break;
