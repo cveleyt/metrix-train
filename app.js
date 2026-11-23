@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.4.2';
+const VERSION = '1.5.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -233,17 +233,16 @@ const RC = 2 * Math.PI * 40;
 const COL = { steps: '#38e1c6', sleep: '#ff7ad9' };
 function todayVis() {
   const t = daily[todayKey()] || {}, g = settings.goals;
-  const pct = k => (t[k] != null && g[k] > 0 ? t[k] / g[k] : 0);
-  const ps = pct('steps'), pl = pct('sleep'), C1 = 2 * Math.PI * 52, C2 = 2 * Math.PI * 36;
+  const row = (k, label, val, goalTxt, tag) => {
+    const pct = t[k] != null && g[k] > 0 ? Math.min(1, t[k] / g[k]) : 0;
+    return `<div><div class="brow"><span>${label}</span><span><b>${val}</b> <small>/ ${goalTxt}</small></span></div>
+    <div class="bar" role="img" aria-label="${label} ${Math.round(pct * 100)} percent of goal"><i style="width:${(pct * 100).toFixed(0)}%;background:${COL[k]}"></i></div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.6px;color:${COL[k]};margin-top:5px">${tag}</div></div>`;
+  };
+  const ps = t.steps != null && g.steps > 0 ? t.steps / g.steps : 0, pl = t.sleep != null && g.sleep > 0 ? t.sleep / g.sleep : 0;
   const tagS = t.steps == null ? 'NOT LOGGED' : ps >= 1 ? 'GOAL HIT' : ps >= 0.5 ? 'KEEP GOING' : 'JUST STARTED';
   const tagL = t.sleep == null ? 'NOT LOGGED' : pl >= 0.9 ? 'ON TARGET' : 'SHORT';
-  return `<div class="dual"><svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Steps ${Math.round(ps * 100)} percent and sleep ${Math.round(pl * 100)} percent of goal">
-  <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="10"/>
-  <circle cx="60" cy="60" r="52" fill="none" stroke="${COL.steps}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(Math.min(1, ps) * C1).toFixed(1)} ${C1.toFixed(1)}" transform="rotate(-90 60 60)"/>
-  <circle cx="60" cy="60" r="36" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="10"/>
-  <circle cx="60" cy="60" r="36" fill="none" stroke="${COL.sleep}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(Math.min(1, pl) * C2).toFixed(1)} ${C2.toFixed(1)}" transform="rotate(-90 60 60)"/></svg></div>
-  <div class="stats"><div class="stat"><small>Steps</small><b>${t.steps == null ? '-' : t.steps.toLocaleString()} <small>/ ${g.steps.toLocaleString()}</small></b><span class="st" style="color:${COL.steps}">${tagS}</span></div>
-  <div class="stat"><small>Sleep</small><b>${t.sleep == null ? '-' : sleepTxt(t.sleep)} <small>/ ${g.sleep}h</small></b><span class="st" style="color:${COL.sleep}">${tagL}</span></div></div>`;
+  return `<div style="display:flex;flex-direction:column;gap:14px;width:100%">${row('steps', 'Steps', t.steps == null ? '-' : t.steps.toLocaleString(), g.steps.toLocaleString(), tagS)}${row('sleep', 'Sleep', t.sleep == null ? '-' : sleepTxt(t.sleep), g.sleep + 'h', tagL)}</div>`;
 }
 function refreshRings() { const e = $('#today-vis'); if (e) e.innerHTML = todayVis(); }
 function dailyCard() {
@@ -298,11 +297,17 @@ views.home = p => {
   const setTotal = d.exercises.reduce((a, e) => a + e.sets, 0);
   const more = d.exercises.length - 3;
   const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
-  return `<div class="hdr"><div><small>${esc(date)}</small><h2 style="line-height:1.15">Welcome back,<br><span class="hi">Elie</span></h2></div><span class="wk">WEEK ${n.week} OF ${P.weeks}</span></div>
+  const dayIdx = Math.max(0, DAYS.findIndex(x => x.key === n.dayKey)) + 1;
+  const left = Math.max(0, P.weeks - n.week);
+  const segs = [...Array(P.weeks)].map((_, k) => `<i class="${k < n.week ? 'on' : ''}"></i>`).join('');
+  return `<div class="hhero"><div class="mt"><small style="letter-spacing:.4px;text-transform:uppercase">${esc(date)}</small><span class="tag" style="margin:0">DAY ${dayIdx} OF ${DAYS.length}</span></div>
+  <div class="tl">Week ${n.week}<br><span class="hi">Let's work.</span></div>
+  <div class="seg8" aria-hidden="true">${segs}</div>
+  <small style="display:block;margin-top:6px">${P.weeks}-week hypertrophy block, ${n.week > P.weeks ? 'block complete' : left === 0 ? 'final week' : left + ' weeks to go'}</small></div>
   ${resume}${dailyCard()}
-  <div class="card hero"><div class="row" style="justify-content:space-between"><span class="tag">NEXT UP</span><small>${d.exercises.length} exercises, ${setTotal} sets</small></div>
-    <div class="big">${esc(d.name)}</div><p style="margin-top:4px">${esc(d.blurb)}</p>${meso}
-    <div class="pills">${d.exercises.slice(0, 3).map(e => `<span>${esc(e.name)}</span>`).join('')}${more > 0 ? `<span class="m">+${more} more</span>` : ''}</div>
+  <div class="card hero"><div class="mt" style="font-size:12px;font-weight:700;letter-spacing:1px"><span>NEXT UP</span><span>${d.exercises.length} EXERCISES, ${setTotal} SETS</span></div>
+    <div class="name" style="margin:8px 0">${esc(d.name)}</div>
+    <p style="font-weight:500;margin-bottom:12px">${d.exercises.slice(0, 3).map(e => esc(e.name)).join(', ')}${more > 0 ? ' and ' + more + ' more' : ''}</p>${meso}
     <div class="row"><button class="btn" data-act="start">Start workout</button><button class="btn ghost sm" data-act="picker">Change</button></div></div>
   ${picker}
   <div class="cap">THIS WEEK</div><div class="chips">${chips}</div>
