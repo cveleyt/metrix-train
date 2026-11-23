@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -113,14 +113,14 @@ function startSession(sel) {
     })
   };
   settings.override = null; saveSettings(); LSset('mx.active', active);
-  open = 0; go('workout');
+  open = 0; replacing = -1; go('workout');
 }
 
 function finishWorkout() {
   const c = active;
   const s = {
     id: c.id, week: c.week, dayKey: c.dayKey, name: c.name, startedAt: c.startedAt, finishedAt: Date.now(), note: '', updatedAt: Date.now(),
-    exercises: c.exercises.map(x => ({ slotId: x.slotId, name: x.name, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true })) })).filter(x => x.sets.length)
+    exercises: c.exercises.map(x => ({ slotId: x.orig ? null : x.slotId, name: x.name, nw: x.nw, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true })) })).filter(x => x.sets.length)
   };
   sessions.push(s); saveSessions();
   active = null; LSset('mx.active', null);
@@ -307,13 +307,35 @@ function setRow(ex, t, i, j) {
   ${ex.noWeight ? '' : stepper('w', i, j, t.w)}${stepper('r', i, j, t.r)}
   <button class="dn" data-act="done" data-i="${i}" data-j="${j}">${t.done ? 'DONE' : 'Done'}</button></div>`;
 }
+let replacing = -1;
+function exOf(x) {
+  const b = slot[x.slotId] || { name: x.name, sets: x.sets.length, lo: 0, hi: 0, rest: [90, 120], cue: '', noWeight: isNW(x.name) };
+  if (!x.orig && x.nw == null) return b;
+  return Object.assign({}, b, { name: x.name, id: null, noWeight: x.nw != null ? x.nw : b.noWeight, side: x.orig ? false : b.side, cue: x.orig ? '' : b.cue, note: x.orig ? 'replaced for today' : b.note });
+}
+function replacePanel(x, i) {
+  if (replacing !== i) return `<div class="row" style="margin:0 0 8px"><button class="mini" data-act="rep-open" data-i="${i}">Replace exercise</button>${x.orig ? `<button class="mini" data-act="rep-undo" data-i="${i}">Back to ${esc(x.orig)}</button>` : ''}</div>`;
+  const names = [...new Set(DAYS.flatMap(d => d.exercises.map(e => e.name)))].sort();
+  return `<div class="sug"><b>Replace for this workout only</b>
+  <label style="margin:8px 0">New exercise<input id="rep-in" list="exlist" placeholder="Type or pick a name" autocomplete="off"></label>
+  <datalist id="exlist">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+  <label class="chk" style="margin-bottom:8px"><input type="checkbox" id="rep-nw" ${x.nw ? 'checked' : ''}> Reps only, no weight</label>
+  <div class="row" style="margin:0"><button class="mini" data-act="rep-apply" data-i="${i}" style="margin:0;display:inline-block;background:var(--acc);border-color:var(--acc);color:#0b0c10">Replace</button><button class="mini" data-act="rep-cancel" data-i="${i}" style="margin:0;display:inline-block">Cancel</button></div></div>`;
+}
+function resetSets(x) {
+  const ex = exOf(x), prev = prevFor(ex, active && active.id), n = x.sets.length;
+  x.sets = [...Array(n)].map((_, k) => {
+    const p = prev ? (prev.sets[k] || prev.sets[prev.sets.length - 1]) : null;
+    return { w: ex.noWeight ? 0 : (p ? p.w : 0), r: p ? p.r : (ex.lo || 8), done: false };
+  });
+}
 function exCard(c, x, i, edit) {
-  const ex = slot[x.slotId] || { name: x.name, sets: x.sets.length, lo: 0, hi: 0, rest: [90, 120], cue: '' };
+  const ex = exOf(x);
   const isOpen = open === i, dn = x.sets.filter(t => t.done).length, all = dn === x.sets.length;
   let body = '';
   if (isOpen) {
     const prev = prevFor(ex, c.id), sg = suggest(ex, prev);
-    body = `<div class="bd">${ex.cue ? `<div class="cue">${esc(ex.cue)}</div>` : ''}
+    body = `<div class="bd">${edit ? '' : replacePanel(x, i)}${ex.cue ? `<div class="cue">${esc(ex.cue)}</div>` : ''}
     ${edit ? '' : `<div class="sug"><span class="tag">${sg.tag}</span> ${esc(sg.text)}${sg.apply ? `<button class="mini" data-act="apply" data-i="${i}" data-w="${sg.apply}">Use ${sg.apply} kg</button>` : ''}</div>`}
     ${prev ? `<div class="last">Last time (${fd(prev.s.finishedAt)}): ${esc(fmtSets(ex, prev.sets))}</div>` : ''}
     <div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || 'kg')}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>
@@ -323,7 +345,7 @@ function exCard(c, x, i, edit) {
   }
   return `<section class="ex ${isOpen ? 'open' : ''} ${all ? 'complete' : ''}">
   <button class="exh" data-act="toggle" data-i="${i}"><div><b>${esc(x.name)}</b>${ex.note ? ` <small>(${esc(ex.note)})</small>` : ''}
-  <div class="sub">${ex.sets} x ${ex.lo}-${ex.hi}${ex.side ? ' per side' : ''} &middot; rest ${restTxt(ex.rest)}</div></div>
+  <div class="sub">${x.orig ? x.sets.length + ' sets' : ex.sets + ' x ' + ex.lo + '-' + ex.hi}${ex.side ? ' per side' : ''} &middot; rest ${restTxt(ex.rest)}</div></div>
   <span class="cnt">${dn}/${x.sets.length}${all ? ' DONE' : ''}</span></button>${body}</section>`;
 }
 function timerBar() {
@@ -375,7 +397,7 @@ views.session = p => {
   const s = sessions.find(x => x.id === p.id);
   if (!s) return '<div class="card"><h3>Session not found</h3>' + homeBtn + '</div>';
   return `<h2>${esc(s.name)}</h2><p>Week ${s.week} &middot; ${fd(s.finishedAt)} &middot; ${fdur(s.finishedAt - s.startedAt)} &middot; ${Math.round(volume(s)).toLocaleString()} kg volume</p>
-  ${s.exercises.map(x => { const ex = slot[x.slotId] || { noWeight: isNW(x.name) }; return `<div class="card"><b>${esc(x.name)}</b><p>${esc(fmtSets(ex, x.sets))}</p></div>`; }).join('')}
+  ${s.exercises.map(x => { const ex = { noWeight: x.nw != null ? x.nw : (slot[x.slotId] ? slot[x.slotId].noWeight : isNW(x.name)) }; return `<div class="card"><b>${esc(x.name)}</b><p>${esc(fmtSets(ex, x.sets))}</p></div>`; }).join('')}
   ${s.note ? `<div class="card"><span class="tag">NOTES</span><p>${esc(s.note)}</p></div>` : ''}
   <div class="row"><button class="btn" data-act="edit-session" data-id="${s.id}">Edit</button><button class="btn danger" data-act="delete-session" data-id="${s.id}">Delete</button></div>
   <div style="height:8px"></div><button class="btn ghost" data-go="history">Back to history</button>`;
@@ -489,7 +511,7 @@ async function act(a, el) {
       saveSettings(); go('home', {}, true); break;
     case 'toggle': open = open === i ? -1 : i; render(); break;
     case 'w+': case 'w-': {
-      const c = cur(), x = c.exercises[i], ex = slot[x.slotId], inc = ex ? getInc(ex) : 2.5;
+      const c = cur(), x = c.exercises[i], inc = getInc(exOf(x));
       setW(c, i, j, Math.max(0, rnd((x.sets[j].w || 0) + (a === 'w+' ? inc : -inc)))); persist(); render(); break;
     }
     case 'r+': case 'r-': {
@@ -508,7 +530,7 @@ async function act(a, el) {
       let moved = false;
       if (t.done) {
         buzz(20);
-        if (!view.params.edit) { const ex = slot[x.slotId]; if (ex) startTimer(ex.rest[0], ex.rest[1]); }
+        if (!view.params.edit) { const ex = exOf(x); startTimer(ex.rest[0], ex.rest[1]); }
         if (x.sets.every(s => s.done)) { const nx = c.exercises.findIndex((y, k) => k > i && y.sets.some(s => !s.done)); open = nx >= 0 ? nx : i; moved = nx >= 0; }
       }
       persist(); render();
@@ -523,7 +545,7 @@ async function act(a, el) {
       break;
     }
     case 'inc': {
-      const ex = slot[cur().exercises[i].slotId]; if (!ex) break;
+      const ex = exOf(cur().exercises[i]);
       const steps = [1, 1.25, 2.5, 5, 10]; settings.inc[ex.name] = steps[(steps.indexOf(getInc(ex)) + 1) % steps.length];
       saveSettings(); render(); break;
     }
@@ -546,7 +568,7 @@ async function act(a, el) {
     }
     case 'save-edit': {
       const e = editing;
-      const ex = e.exercises.map(x => ({ slotId: x.slotId, name: x.name, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true })) })).filter(x => x.sets.length);
+      const ex = e.exercises.map(x => ({ slotId: x.slotId, name: x.name, nw: x.nw, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true })) })).filter(x => x.sets.length);
       if (!ex.length) { toast('A workout needs at least one done set. Use Delete in History instead.'); break; }
       const k = sessions.findIndex(s => s.id === e.id);
       if (k >= 0) sessions[k] = Object.assign({}, sessions[k], { exercises: ex, updatedAt: Date.now() });
@@ -562,6 +584,21 @@ async function act(a, el) {
     case 'goal-in': {
       const f = el.dataset.f, v = parseFloat(String(el.value).replace(',', '.'));
       settings.goals[f] = v > 0 ? v : (f === 'steps' ? 10000 : 8); saveSettings(); break;
+    }
+    case 'rep-open': replacing = i; render(); break;
+    case 'rep-cancel': replacing = -1; render(); break;
+    case 'rep-undo': {
+      const x = active.exercises[i];
+      if (x.sets.some(t => t.done) && !confirm('Switch back and reset this exercise\'s sets?')) break;
+      x.name = x.orig; delete x.orig; delete x.nw; resetSets(x); persist(); render(); break;
+    }
+    case 'rep-apply': {
+      const x = active.exercises[i], name = ($('#rep-in').value || '').trim();
+      if (!name) { toast('Type the exercise name.'); break; }
+      if (x.sets.some(t => t.done) && !confirm('This resets the sets already marked done for this exercise. Continue?')) break;
+      if (!x.orig) x.orig = x.name;
+      if (name === x.orig) { x.name = x.orig; delete x.orig; delete x.nw; } else { x.name = name; x.nw = $('#rep-nw').checked; }
+      replacing = -1; resetSets(x); persist(); render(); break;
     }
     case 'summary-done': go('home', {}, true); break;
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
