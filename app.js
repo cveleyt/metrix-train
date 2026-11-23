@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.7.2';
+const VERSION = '1.8.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -40,6 +40,9 @@ const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + St
 const saveDaily = () => LSset('mx.daily', daily);
 let food = LSget('mx.food', {});               // {YYYY-MM-DD: [{id, t, name, kcal, p, c}]}
 const saveFood = () => LSset('mx.food', food);
+let myfoods = LSget('mx.myfoods', []);        // [{id, name, kcal, p, c, n, last}]
+const saveMy = () => LSset('mx.myfoods', myfoods);
+let dbRes = [];
 const fdk = k => { const [y, m, d] = k.split('-'); return fd(new Date(+y, +m - 1, +d).getTime()); };
 let view = { name: 'home', params: {} };
 let open = 0;
@@ -265,6 +268,19 @@ function barsSVG(vals, goal, col, label) {
 const FCOL = { kcal: '#ff9d5c', p: '#2aa7e8', c: '#f5c040' };
 const dayFood = k => food[k] || [];
 const foodTot = k => dayFood(k).reduce((a, e) => ({ kcal: a.kcal + e.kcal, p: a.p + e.p, c: a.c + e.c }), { kcal: 0, p: 0, c: 0 });
+function applyDb() {
+  const p = window.__dbp, g = parseFloat(($('#fd-g') || {}).value); if (!p || isNaN(g)) return;
+  const n = p.nutriments, f = g / 100;
+  $('#fd-kcal').value = Math.round((n['energy-kcal_100g'] || 0) * f);
+  $('#fd-p').value = Math.round((n.proteins_100g || 0) * f * 10) / 10;
+  $('#fd-c').value = Math.round((n.carbohydrates_100g || 0) * f * 10) / 10;
+}
+function sugHTML(q) {
+  q = (q || '').trim().toLowerCase();
+  const list = myfoods.filter(f => !q || f.name.toLowerCase().includes(q)).sort((a, b) => (q ? b.n - a.n : b.last - a.last)).slice(0, 5);
+  if (!list.length) return '';
+  return (q ? '' : '<small style="width:100%">Your foods, tap to fill instantly</small>') + list.map(f => `<button data-act="food-pick" data-id="${f.id}">${esc(f.name)} <small>${f.kcal} kcal</small></button>`).join('');
+}
 function foodRows() {
   const t = foodTot(todayKey()), g = settings.goals;
   return [['kcal', 'Calories', 'kcal', 'calories'], ['p', 'Protein', 'g', 'protein'], ['c', 'Carbs', 'g', 'carbs']].map(([k, label, unit, gk]) => {
@@ -281,8 +297,10 @@ function foodCard() {
   <div style="display:flex;flex-direction:column;gap:14px">${foodRows()}</div>
   <div class="cap" style="margin-top:18px">ADD FOOD</div>
   <label>What did you eat<input id="fd-name" type="text" placeholder="e.g. 2 eggs, 150 g cooked rice, chicken breast" autocomplete="off"></label>
-  <button class="btn ghost" data-act="food-ai" id="fd-ai" style="margin-bottom:6px">Estimate with AI</button>
-  <p id="fd-aimsg" style="margin:0 0 10px;min-height:18px"><small>AI fills the numbers below as an estimate. Check them before adding.</small></p>
+  <div class="sugs" id="fd-sug">${sugHTML('')}</div>
+  <div class="row" style="margin-bottom:6px"><button class="btn ghost" data-act="food-ai" id="fd-ai">Estimate with AI</button><button class="btn ghost" data-act="food-db" id="fd-db">Search database</button></div>
+  <p id="fd-aimsg" style="margin:0 0 10px;min-height:18px"><small>Fills the numbers below as an estimate. Check them before adding.</small></p>
+  <div id="fd-res"></div>
   <div class="three"><label>Calories<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label>
   <label>Protein (g)<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label>
   <label>Carbs (g)<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div>
@@ -547,7 +565,7 @@ views.settings = () => `<h2>Settings</h2>
 function firstIncomplete(c) { const i = c.exercises.findIndex(x => x.sets.some(t => !t.done)); return i < 0 ? 0 : i; }
 
 async function exportData() {
-  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, food, settings: Object.assign({}, settings, { ai: undefined }) };
+  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, food, myfoods, settings: Object.assign({}, settings, { ai: undefined }) };
   const name = 'metrix-train-' + new Date().toISOString().slice(0, 10) + '.json';
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   try {
@@ -570,6 +588,7 @@ function importData(file) {
         const i = sessions.findIndex(x => x.id === s.id);
         if (i < 0) { sessions.push(s); add++; } else if ((s.updatedAt || 0) > (sessions[i].updatedAt || 0)) { sessions[i] = s; upd++; }
       });
+      if (Array.isArray(d.myfoods)) { d.myfoods.forEach(f => { if (f && f.name && !myfoods.some(x => x.name.toLowerCase() === f.name.toLowerCase())) myfoods.push(f); }); saveMy(); }
       if (d.food && typeof d.food === 'object') {
         Object.keys(d.food).forEach(k => { if (!Array.isArray(d.food[k])) return; food[k] = food[k] || []; d.food[k].forEach(e => { if (e && e.id && !food[k].some(x => x.id === e.id)) food[k].push(e); }); });
         saveFood();
@@ -706,6 +725,8 @@ async function act(a, el) {
       const txt = ($('#fd-name').value || '').trim(), msg = $('#fd-aimsg'), btn = $('#fd-ai');
       const say = m => { msg.innerHTML = '<small>' + esc(m) + '</small>'; };
       if (!txt) { say('Type what you ate first, with amounts if you know them.'); break; }
+      const hit = myfoods.find(f => f.name.toLowerCase() === txt.toLowerCase());
+      if (hit) { $('#fd-kcal').value = hit.kcal; $('#fd-p').value = hit.p; $('#fd-c').value = hit.c; say('From your foods, instant. Tap Add to today.'); break; }
       if (!settings.ai.key) { say('Add your free Gemini key in Settings, under AI food estimates.'); break; }
       btn.disabled = true; btn.textContent = 'Estimating...'; say('Asking the AI...');
       try {
@@ -716,32 +737,40 @@ async function act(a, el) {
             responseSchema: { type: 'OBJECT', properties: { kcal: { type: 'NUMBER' }, protein_g: { type: 'NUMBER' }, carbs_g: { type: 'NUMBER' } }, required: ['kcal', 'protein_g', 'carbs_g'] } }
         });
         const models = [...new Set([settings.ai.model, 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-flash-latest', 'gemini-2.5-flash'])];
-        let r = null, used = '', keyBad = false;
-        outer: for (let mi = 0; mi < models.length; mi++) {
-          for (let attempt = 0; attempt < 2; attempt++) {
-            const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 20000);
+        const ctls = []; let done = false;
+        const sleep = ms => new Promise(res => setTimeout(res, ms));
+        const tryModel = async m => {
+          let last = 0;
+          for (let a = 0; a < 2; a++) {
+            const ctl = new AbortController(); ctls.push(ctl); const to = setTimeout(() => ctl.abort(), 15000);
+            let r;
             try {
-              r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(models[mi]) + ':generateContent', {
+              r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent', {
                 method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key }, body
               });
-            } catch (err) { if (err.name === 'AbortError') { r = { ok: false, status: 504 }; } else throw err; } finally { clearTimeout(to); }
-            if (r.ok) { used = models[mi]; break outer; }
-            if (r.status === 403 || r.status === 400) {
-              const txt = await r.clone().text().catch(() => '');
-              if (/api key|API_KEY|permission/i.test(txt)) { keyBad = true; break outer; }
-              break; // model problem: try the next model
+            } catch (err) { if (done) throw err; last = 0; continue; } finally { clearTimeout(to); }
+            if (r.ok) { const j = await r.json(); return { m, j }; }
+            last = r.status;
+            if (r.status === 400 || r.status === 403) {
+              const t = await r.clone().text().catch(() => ''); const e = new Error('x'); e.key = /api key|API_KEY|permission/i.test(t); e.status = r.status; throw e;
             }
-            if (r.status === 404) break;
-            if (![429, 500, 502, 503, 504].includes(r.status)) break;
-            if (attempt === 0) await new Promise(res => setTimeout(res, 1200));
+            if (r.status === 404) { const e = new Error('x'); e.status = 404; throw e; }
+            if (a === 0) await sleep(800);
           }
-          if (mi < models.length - 1) say('That AI model is busy, trying another (' + (mi + 2) + ' of ' + models.length + ')...');
+          const e = new Error('x'); e.status = last || 503; throw e;
+        };
+        const race = async list => {
+          try { const w = await Promise.any(list.map(tryModel)); done = true; ctls.forEach(c => c.abort()); return w; }
+          catch (agg) { return agg; }
+        };
+        let w = await race(models.slice(0, 3));
+        if (w instanceof AggregateError && !w.errors.some(x => x.key)) { say('Those models are busy, trying others...'); w = await race(models.slice(3)); }
+        if (w instanceof AggregateError) {
+          const keyBad = w.errors.some(x => x.key), st = Math.max(0, ...w.errors.map(x => x.status || 0));
+          throw new Error(keyBad ? 'Google rejected the key. Check it in Settings.' : st === 429 ? 'Free limit reached or too many requests. Wait a minute and try again.' : 'Google\'s AI is overloaded on every model right now. Try the database search, or type the numbers.');
         }
-        if (!r.ok) {
-          const why = keyBad ? 'Google rejected the key. Check it in Settings.' : r.status === 429 ? 'Free limit reached or too many requests. Wait a minute and try again.' : 'Google\'s AI is overloaded on every model right now (' + r.status + '). Try again in a few minutes, or type the numbers.';
-          throw new Error(why);
-        }
-        const j = await r.json(), out = JSON.parse(j.candidates[0].content.parts[0].text);
+        const used = w.m;
+        const out = JSON.parse(w.j.candidates[0].content.parts[0].text);
         const k = Math.round(+out.kcal), p = Math.round(+out.protein_g * 10) / 10, c = Math.round(+out.carbs_g * 10) / 10;
         if ([k, p, c].some(v => isNaN(v) || v < 0)) throw new Error('The AI gave an unusable answer. Try rewording.');
         $('#fd-kcal').value = k; $('#fd-p').value = p; $('#fd-c').value = c;
@@ -754,11 +783,52 @@ async function act(a, el) {
     }
     case 'ai-key-in': settings.ai.key = el.value.trim(); saveSettings(); toast(settings.ai.key ? 'Key saved on this phone' : 'Key removed'); break;
     case 'ai-model-in': settings.ai.model = el.value.trim() || 'gemini-3.1-flash-lite'; saveSettings(); break;
+    case 'food-pick': {
+      const f = myfoods.find(x => x.id === el.dataset.id); if (!f) break;
+      $('#fd-name').value = f.name; $('#fd-kcal').value = f.kcal; $('#fd-p').value = f.p; $('#fd-c').value = f.c;
+      $('#fd-aimsg').innerHTML = '<small>From your foods. Tap Add to today.</small>'; $('#fd-res').innerHTML = ''; break;
+    }
+    case 'food-db': {
+      const q = ($('#fd-name').value || '').trim(), msg = $('#fd-aimsg'), box = $('#fd-res'), btn = $('#fd-db');
+      if (!q) { msg.innerHTML = '<small>Type a food or product name first.</small>'; break; }
+      btn.disabled = true; btn.textContent = 'Searching...'; msg.innerHTML = '<small>Searching Open Food Facts...</small>'; box.innerHTML = '';
+      try {
+        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+        const r = await fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(q) + '&search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,nutriments,serving_quantity', { signal: ctl.signal });
+        clearTimeout(to);
+        if (!r.ok) throw new Error('The database returned an error (' + r.status + ').');
+        const j = await r.json();
+        dbRes = (j.products || []).filter(p => p.product_name && p.nutriments && p.nutriments['energy-kcal_100g'] != null).slice(0, 5);
+        if (!dbRes.length) msg.innerHTML = '<small>No matches. Try the AI estimate or type the numbers.</small>';
+        else {
+          msg.innerHTML = '<small>Pick one, then set the grams you ate. Values are per 100 g from the database.</small>';
+          box.innerHTML = dbRes.map((p, k) => `<button class="dbr" data-act="food-db-pick" data-i="${k}"><b>${esc(p.product_name)}</b>${p.brands ? ' <small>' + esc(p.brands.split(',')[0]) + '</small>' : ''}<small>${Math.round(p.nutriments['energy-kcal_100g'])} kcal, ${Math.round((p.nutriments.proteins_100g || 0) * 10) / 10} g protein, ${Math.round((p.nutriments.carbohydrates_100g || 0) * 10) / 10} g carbs per 100 g</small></button>`).join('');
+        }
+      } catch (err) {
+        msg.innerHTML = '<small>' + esc(err.name === 'AbortError' ? 'The database is slow right now. Try the AI estimate or type the numbers.' : err instanceof TypeError ? 'No connection.' : err.message) + '</small>';
+      }
+      btn.disabled = false; btn.textContent = 'Search database';
+      break;
+    }
+    case 'food-db-pick': {
+      const p = dbRes[i]; if (!p) break;
+      $('#fd-res').innerHTML = `<div class="card sm" style="margin-bottom:10px"><b>${esc(p.product_name)}</b><label style="margin:8px 0 0">Grams eaten<input id="fd-g" type="number" inputmode="decimal" min="0" value="${Math.round(p.serving_quantity) || 100}"></label></div>`;
+      window.__dbp = p; if (!$('#fd-name').value.trim()) $('#fd-name').value = p.product_name;
+      applyDb(); $('#fd-aimsg').innerHTML = '<small>Numbers fill from the database. Change the grams if needed, then tap Add to today.</small>';
+      break;
+    }
     case 'food-add': {
       const num = id => { const v = parseFloat(String($('#' + id).value).replace(',', '.')); return isNaN(v) || v < 0 ? 0 : Math.round(v * 10) / 10; };
       const e = { id: uid(), t: Date.now(), name: ($('#fd-name').value || '').trim(), kcal: Math.round(num('fd-kcal')), p: num('fd-p'), c: num('fd-c') };
       if (!e.kcal && !e.p && !e.c) { toast('Enter calories, protein or carbs.'); break; }
-      const k = todayKey(); food[k] = food[k] || []; food[k].push(e); saveFood(); toast('Added'); render(); break;
+      const k = todayKey(); food[k] = food[k] || []; food[k].push(e); saveFood();
+      if (e.name) {
+        const m = myfoods.find(f => f.name.toLowerCase() === e.name.toLowerCase());
+        if (m) { m.kcal = e.kcal; m.p = e.p; m.c = e.c; m.n++; m.last = Date.now(); }
+        else { myfoods.push({ id: uid(), name: e.name, kcal: e.kcal, p: e.p, c: e.c, n: 1, last: Date.now() }); if (myfoods.length > 300) myfoods.sort((a, b) => b.last - a.last).length = 300; }
+        saveMy();
+      }
+      toast('Added'); render(); break;
     }
     case 'food-del': {
       const k = todayKey(); food[k] = dayFood(k).filter(e => e.id !== el.dataset.id);
@@ -792,8 +862,8 @@ async function act(a, el) {
     }
     case 'reset':
       if (confirm('Delete ALL workouts on this phone? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
-        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food'].forEach(k => localStorage.removeItem(k));
-        sessions = []; daily = {}; food = {}; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, goals: { steps: 10000, sleep: 8, protein: 130 }, ai: { key: '', model: 'gemini-3.1-flash-lite' } };
+        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food', 'mx.myfoods'].forEach(k => localStorage.removeItem(k));
+        sessions = []; daily = {}; food = {}; myfoods = []; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, goals: { steps: 10000, sleep: 8, protein: 130 }, ai: { key: '', model: 'gemini-3.1-flash-lite' } };
         toast('All data deleted'); go('home', {}, true);
       }
       break;
@@ -810,6 +880,10 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   const a = e.target.closest('[data-act]');
   if (a && ['INPUT', 'SELECT', 'TEXTAREA'].includes(a.tagName)) act(a.dataset.act, a);
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'fd-name') { const b = $('#fd-sug'); if (b) b.innerHTML = sugHTML(e.target.value); }
+  else if (e.target.id === 'fd-g') applyDb();
 });
 document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { wake(); tick(); } });
