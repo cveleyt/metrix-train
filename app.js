@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -143,7 +143,7 @@ function syncInputs(i) {
 }
 
 /* ---------- rest timer ---------- */
-function startTimer(min, max) { timer = { start: Date.now(), min, max, f1: 0, f2: 0 }; saveTimer(); }
+function startTimer(min, max, next) { timer = { start: Date.now(), min, max, f1: 0, f2: 0, pop: true, next: next || '' }; saveTimer(); }
 let actx = null;
 function unlockAudio() {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {}
@@ -167,8 +167,20 @@ function tick() {
   if (el && c) el.textContent = fdur(Date.now() - c.startedAt);
   if (!timer) return;
   const s = (Date.now() - timer.start) / 1000;
-  if (!timer.f1 && s >= timer.min) { timer.f1 = 1; saveTimer(); alertUser(1); }
+  if (!timer.f1 && s >= timer.min) {
+    timer.f1 = 1; timer.pop = true; saveTimer(); alertUser(1);
+    if (view.name === 'workout' && !view.params.edit) { render(); return; }
+  }
   if (!timer.f2 && timer.max > timer.min && s >= timer.max) { timer.f2 = 1; saveTimer(); alertUser(2); }
+  const pp = $('#pp-time');
+  if (pp) {
+    const ready = s >= timer.min, rem = Math.max(0, timer.min - s);
+    pp.textContent = ready ? 'GO' : fdur(Math.ceil(rem) * 1000);
+    $('#pp-label').textContent = ready ? 'READY FOR THE NEXT SET' : 'REST';
+    $('#pp-sub').textContent = ready ? (timer.max > timer.min && s < timer.max ? 'up to ' + fdur(timer.max * 1000) : 'Rest complete') : 'ready at ' + fdur(timer.min * 1000);
+    $('#pp-ring').style.strokeDashoffset = ready ? 0 : (553 * (1 - rem / timer.min)).toFixed(1);
+    $('#pp-card').classList.toggle('ready', ready);
+  }
   const m = $('#tmr-main'); if (!m) return;
   const rem = timer.min - s;
   m.textContent = rem > 0 ? fdur(Math.ceil(rem) * 1000) : '+' + fdur(-rem * 1000);
@@ -218,29 +230,29 @@ const homeBtn = '<button class="btn ghost" data-go="home">Back to Train</button>
 const dateKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const sleepTxt = h => { const m = Math.round(h * 60); return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm'; };
 const RC = 2 * Math.PI * 40;
-const COL = { steps: '#d4ff3a', sleep: '#a78bfa' };
-function ringHTML(kind) {
-  const t = daily[todayKey()] || {}, v = t[kind], goal = settings.goals[kind];
-  const has = v != null, pct = has && goal > 0 ? v / goal : 0, col = COL[kind];
-  let tag;
-  if (!has) tag = 'NOT LOGGED';
-  else if (kind === 'steps') tag = pct >= 1 ? 'GOAL HIT' : pct >= 0.5 ? 'KEEP GOING' : 'JUST STARTED';
-  else tag = pct >= 0.9 ? 'ON TARGET' : 'SHORT';
-  const big = !has ? '-' : kind === 'steps' ? v.toLocaleString() : sleepTxt(v);
-  const sub = has ? Math.round(pct * 100) + '% of ' + (kind === 'steps' ? goal.toLocaleString() : goal + ' h') : 'Goal ' + (kind === 'steps' ? goal.toLocaleString() : goal + ' h');
-  return `<div class="ringw"><svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><circle cx="48" cy="48" r="40" fill="none" stroke="#262a36" stroke-width="9"/>
-  <circle cx="48" cy="48" r="40" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${(Math.min(1, pct) * RC).toFixed(1)} ${RC.toFixed(1)}" transform="rotate(-90 48 48)"/></svg>
-  <div class="ringc"><b>${big}</b><small>${kind}</small></div></div>
-  <div class="rsub">${sub}</div><span class="rtag" style="border-color:${col};color:${col}">${tag}</span>`;
+const COL = { steps: '#38e1c6', sleep: '#ff7ad9' };
+function todayVis() {
+  const t = daily[todayKey()] || {}, g = settings.goals;
+  const pct = k => (t[k] != null && g[k] > 0 ? t[k] / g[k] : 0);
+  const ps = pct('steps'), pl = pct('sleep'), C1 = 2 * Math.PI * 52, C2 = 2 * Math.PI * 36;
+  const tagS = t.steps == null ? 'NOT LOGGED' : ps >= 1 ? 'GOAL HIT' : ps >= 0.5 ? 'KEEP GOING' : 'JUST STARTED';
+  const tagL = t.sleep == null ? 'NOT LOGGED' : pl >= 0.9 ? 'ON TARGET' : 'SHORT';
+  return `<div class="dual"><svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Steps ${Math.round(ps * 100)} percent and sleep ${Math.round(pl * 100)} percent of goal">
+  <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="10"/>
+  <circle cx="60" cy="60" r="52" fill="none" stroke="${COL.steps}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(Math.min(1, ps) * C1).toFixed(1)} ${C1.toFixed(1)}" transform="rotate(-90 60 60)"/>
+  <circle cx="60" cy="60" r="36" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="10"/>
+  <circle cx="60" cy="60" r="36" fill="none" stroke="${COL.sleep}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(Math.min(1, pl) * C2).toFixed(1)} ${C2.toFixed(1)}" transform="rotate(-90 60 60)"/></svg></div>
+  <div class="stats"><div class="stat"><small>Steps</small><b>${t.steps == null ? '-' : t.steps.toLocaleString()} <small>/ ${g.steps.toLocaleString()}</small></b><span class="st" style="color:${COL.steps}">${tagS}</span></div>
+  <div class="stat"><small>Sleep</small><b>${t.sleep == null ? '-' : sleepTxt(t.sleep)} <small>/ ${g.sleep}h</small></b><span class="st" style="color:${COL.sleep}">${tagL}</span></div></div>`;
 }
-function refreshRings() { ['steps', 'sleep'].forEach(k => { const e = $('#ring-' + k); if (e) e.innerHTML = ringHTML(k); }); }
+function refreshRings() { const e = $('#today-vis'); if (e) e.innerHTML = todayVis(); }
 function dailyCard() {
   const t = daily[todayKey()] || {};
-  return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:10px"><span class="cap" style="margin:0">TODAY</span><small>From Samsung Health</small></div>
-  <div class="two">
-  <div class="tile"><div id="ring-steps">${ringHTML('steps')}</div><label>Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label></div>
-  <div class="tile"><div id="ring-sleep">${ringHTML('sleep')}</div><label>Sleep (hours)<input data-act="daily-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="0" max="24" value="${t.sleep == null ? '' : t.sleep}" placeholder="0"></label></div>
-  </div><p style="margin:10px 0 0;text-align:center"><small>Type today's numbers. Log last night's sleep in the morning.</small></p></div>`;
+  return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><span class="cap" style="margin:0">TODAY</span><small>From Samsung Health</small></div>
+  <div class="today" id="today-vis">${todayVis()}</div>
+  <div class="ins"><label>Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label>
+  <label>Sleep (hours)<input data-act="daily-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="0" max="24" value="${t.sleep == null ? '' : t.sleep}" placeholder="0"></label></div>
+  <p style="margin:10px 0 0;text-align:center"><small>Type today's numbers. Log last night's sleep in the morning.</small></p></div>`;
 }
 function barsSVG(vals, goal, col, label) {
   const have = vals.filter(v => v != null), mx = Math.max(goal, ...have) * 1.05, H = 56, top = 10;
@@ -286,9 +298,9 @@ views.home = p => {
   const setTotal = d.exercises.reduce((a, e) => a + e.sets, 0);
   const more = d.exercises.length - 3;
   const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
-  return `<div class="hdr"><div><small>${esc(date)}</small><h2>Hey Elie</h2></div><span class="wk">WEEK ${n.week} OF ${P.weeks}</span></div>
+  return `<div class="hdr"><div><small>${esc(date)}</small><h2 style="line-height:1.15">Welcome back,<br><span class="hi">Elie</span></h2></div><span class="wk">WEEK ${n.week} OF ${P.weeks}</span></div>
   ${resume}${dailyCard()}
-  <div class="card hl"><div class="row" style="justify-content:space-between"><span class="tag">NEXT UP</span><small>${d.exercises.length} exercises, ${setTotal} sets</small></div>
+  <div class="card hero"><div class="row" style="justify-content:space-between"><span class="tag">NEXT UP</span><small>${d.exercises.length} exercises, ${setTotal} sets</small></div>
     <div class="big">${esc(d.name)}</div><p style="margin-top:4px">${esc(d.blurb)}</p>${meso}
     <div class="pills">${d.exercises.slice(0, 3).map(e => `<span>${esc(e.name)}</span>`).join('')}${more > 0 ? `<span class="m">+${more} more</span>` : ''}</div>
     <div class="row"><button class="btn" data-act="start">Start workout</button><button class="btn ghost sm" data-act="picker">Change</button></div></div>
@@ -348,9 +360,20 @@ function exCard(c, x, i, edit) {
   <div class="sub">${x.orig ? x.sets.length + ' sets' : ex.sets + ' x ' + ex.lo + '-' + ex.hi}${ex.side ? ' per side' : ''} &middot; rest ${restTxt(ex.rest)}</div></div>
   <span class="cnt">${dn}/${x.sets.length}${all ? ' DONE' : ''}</span></button>${body}</section>`;
 }
+function popupHTML() {
+  if (!timer || !timer.pop) return '';
+  return `<div class="ovl" data-act="tmin"></div>
+  <div class="tpop" id="pp-card" role="dialog" aria-label="Rest timer"><button class="mini hide" data-act="tmin">Hide</button>
+  <div class="pl" id="pp-label">REST</div>
+  <div class="pw"><svg width="200" height="200" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="88" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="12"/>
+  <circle id="pp-ring" cx="100" cy="100" r="88" fill="none" stroke="#38e1c6" stroke-width="12" stroke-linecap="round" stroke-dasharray="553" stroke-dashoffset="0" transform="rotate(-90 100 100)"/></svg>
+  <div class="pc"><b id="pp-time">0:00</b><small id="pp-sub"></small></div></div>
+  ${timer.next ? `<div class="pn">Next: ${esc(timer.next)}</div>` : ''}
+  <div class="row"><button class="btn ghost" data-act="t+30">+30s</button><button class="btn" data-act="tskip">Skip rest</button></div></div>`;
+}
 function timerBar() {
   if (timer) return `<div class="tbar"><div id="tmr-fill" class="fill"></div><div class="tin"><div><b id="tmr-main">0:00</b><small id="tmr-lab"></small></div>
-    <div class="row"><button class="mini" data-act="t+30">+30s</button><button class="mini" data-act="tskip">Skip</button></div></div></div>`;
+    <div class="row"><button class="mini" data-act="tshow">Expand</button><button class="mini" data-act="t+30">+30s</button><button class="mini" data-act="tskip">Skip</button></div></div></div>`;
   return `<div class="tbar"><div class="tin"><small>Rest timer</small><div class="row">${[60, 90, 120, 180].map(s => `<button class="mini" data-act="tpre" data-s="${s}">${fdur(s * 1000)}</button>`).join('')}</div></div></div>`;
 }
 views.workout = p => {
@@ -361,7 +384,7 @@ views.workout = p => {
   <div><b>${edit ? 'Editing ' : ''}${esc(c.name)}</b><small>Week ${c.week} &middot; ${doneCount(c)}/${totalCount(c)} sets${edit ? ' &middot; ' + fd(c.finishedAt) : ' &middot; <span id="elapsed"></span>'}</small></div>
   <div class="pbar"><i style="width:${totalCount(c) ? Math.round(doneCount(c) / totalCount(c) * 100) : 0}%"></i></div></div>
   <div class="pad">${c.exercises.map((x, i) => exCard(c, x, i, edit)).join('')}
-  <button class="btn" data-act="${edit ? 'save-edit' : 'finish'}" style="margin-top:6px">${edit ? 'Save changes' : 'Finish workout'}</button></div>${edit ? '' : timerBar()}`;
+  <button class="btn" data-act="${edit ? 'save-edit' : 'finish'}" style="margin-top:6px">${edit ? 'Save changes' : 'Finish workout'}</button></div>${edit ? '' : timerBar() + popupHTML()}`;
 };
 
 views.summary = p => {
@@ -411,13 +434,13 @@ function chart(points, labels) {
   const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
   const pl = points.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
   return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Progress chart">
-  <line x1="${L}" y1="${y(lo)}" x2="${W - R}" y2="${y(lo)}" stroke="#252e42"/>
-  <polyline points="${pl}" fill="none" stroke="#d4ff3a" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-  ${points.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="#d4ff3a"/>`).join('')}
-  <text x="${L - 6}" y="${y(hi) + 4}" text-anchor="end" fill="#93a0b4" font-size="11">${rnd(mx)}</text>
-  <text x="${L - 6}" y="${y(lo) + 4}" text-anchor="end" fill="#93a0b4" font-size="11">${rnd(mn)}</text>
-  <text x="${L}" y="${H - 6}" fill="#93a0b4" font-size="11">${esc(labels[0])}</text>
-  <text x="${W - R}" y="${H - 6}" text-anchor="end" fill="#93a0b4" font-size="11">${esc(labels[labels.length - 1])}</text></svg>`;
+  <line x1="${L}" y1="${y(lo)}" x2="${W - R}" y2="${y(lo)}" stroke="#2a3550"/>
+  <polyline points="${pl}" fill="none" stroke="#38e1c6" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  ${points.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" fill="#38e1c6"/>`).join('')}
+  <text x="${L - 6}" y="${y(hi) + 4}" text-anchor="end" fill="#8b9bb8" font-size="11">${rnd(mx)}</text>
+  <text x="${L - 6}" y="${y(lo) + 4}" text-anchor="end" fill="#8b9bb8" font-size="11">${rnd(mn)}</text>
+  <text x="${L}" y="${H - 6}" fill="#8b9bb8" font-size="11">${esc(labels[0])}</text>
+  <text x="${W - R}" y="${H - 6}" text-anchor="end" fill="#8b9bb8" font-size="11">${esc(labels[labels.length - 1])}</text></svg>`;
 }
 views.progress = p => {
   const names = [...new Set(DAYS.flatMap(d => d.exercises.map(e => e.name)))].sort();
@@ -530,7 +553,13 @@ async function act(a, el) {
       let moved = false;
       if (t.done) {
         buzz(20);
-        if (!view.params.edit) { const ex = exOf(x); startTimer(ex.rest[0], ex.rest[1]); }
+        if (!view.params.edit) {
+          const ex = exOf(x), k = x.sets.findIndex(q => !q.done);
+          let nt;
+          if (k >= 0) nt = 'set ' + (k + 1) + ', ' + x.name;
+          else { const n2 = c.exercises.findIndex(y => y.sets.some(q => !q.done)); nt = n2 >= 0 ? c.exercises[n2].name + ', set ' + (c.exercises[n2].sets.findIndex(q => !q.done) + 1) : 'all sets done, tap Finish'; }
+          startTimer(ex.rest[0], ex.rest[1], nt);
+        }
         if (x.sets.every(s => s.done)) { const nx = c.exercises.findIndex((y, k) => k > i && y.sets.some(s => !s.done)); open = nx >= 0 ? nx : i; moved = nx >= 0; }
       }
       persist(); render();
@@ -551,10 +580,12 @@ async function act(a, el) {
     }
     case 'tpre': startTimer(+el.dataset.s, +el.dataset.s); render(); break;
     case 'tskip': timer = null; saveTimer(); render(); break;
+    case 'tmin': if (timer) { timer.pop = false; saveTimer(); } render(); break;
+    case 'tshow': if (timer) { timer.pop = true; saveTimer(); } render(); break;
     case 't+30': {
       timer.min += 30; timer.max += 30;
       const s = (Date.now() - timer.start) / 1000; timer.f1 = s >= timer.min ? 1 : 0; timer.f2 = s >= timer.max ? 1 : 0;
-      saveTimer(); render(); break;
+      saveTimer(); tick(); break;
     }
     case 'exit':
       if (view.params.edit) { if (!confirm('Discard your edits?')) return; const id = editing.id; editing = null; go('session', { id }, true); }
