@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '1.9.0';
+const VERSION = '1.9.1';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -216,8 +216,28 @@ function go(name, params, replace) {
 window.addEventListener('popstate', e => { view = e.state || { name: 'home', params: {} }; render(); });
 const tabOf = n => ({ workout: 'home', summary: 'home', session: 'history', day: 'history' }[n] || n);
 
+/* ---------- login gate (device lock, not server security) ---------- */
+const AUTH_HASH = '0123ff82cefb4c6119472a6f8fcf5bc0e5a5e518a0258a530becf887baf78f0f';
+const isAuthed = () => { try { return localStorage.getItem('mx.auth') === AUTH_HASH; } catch (e) { return false; } };
+async function sha256(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+const loginHTML = err => `<form id="login" autocomplete="on" style="padding-top:12vh">
+  <span class="tag">MetriX Train</span><h2 style="margin:6px 0 4px">Log in</h2><p>Enter your username and password to continue.</p>
+  <div class="card"><label>Username<input id="lg-u" name="username" autocomplete="username" autocapitalize="none" required></label>
+  <label>Password<input id="lg-p" name="password" type="password" autocomplete="current-password" required></label>
+  ${err ? '<p role="alert" style="color:#ff7ad9;font-weight:700;margin:8px 0 0">WRONG USERNAME OR PASSWORD</p>' : ''}</div>
+  <button class="btn" type="submit">Log in</button></form>`;
+document.addEventListener('submit', async e => {
+  if (e.target.id !== 'login') return;
+  e.preventDefault();
+  const u = $('#lg-u').value.trim().toLowerCase(), p = $('#lg-p').value;
+  let h = ''; try { h = await sha256('mx-train|' + u + '|' + p); } catch (x) {}
+  if (h === AUTH_HASH) { try { localStorage.setItem('mx.auth', AUTH_HASH); } catch (x) {} render(); }
+  else { $('#app').innerHTML = loginHTML(true); }
+});
+
 function render() {
   const app = $('#app');
+  if (!isAuthed()) { app.innerHTML = loginHTML(false); $('#tabs').style.display = 'none'; return; }
   try {
     app.innerHTML = views[view.name](view.params);
     $('#tabs').style.display = (view.name === 'workout' || view.name === 'summary') ? 'none' : 'flex';
@@ -659,7 +679,7 @@ views.settings = () => `<h2>Settings</h2>
   <p>Type what you ate in the Food card and the AI fills in calories, protein and carbs. It uses Google's Gemini. Get a free key at aistudio.google.com, then paste it here. The key stays on this phone and is never included in backups. What you type is sent to Google to get the estimate.</p>
   <label>Gemini API key<input data-act="ai-key-in" type="password" autocomplete="off" value="${esc(settings.ai.key)}" placeholder="Paste key"></label>
   <label>Model<input data-act="ai-model-in" type="text" autocomplete="off" value="${esc(settings.ai.model)}"></label></div>
-  <div class="card"><h3>About</h3><p>MetriX Train ${VERSION}</p><button class="btn ghost" data-act="update">Update app</button></div>
+  <div class="card"><h3>About</h3><p>MetriX Train ${VERSION}</p><button class="btn ghost" data-act="update">Update app</button><div style="height:8px"></div><button class="btn ghost" data-act="logout">Log out</button></div>
   <button class="btn danger" data-act="reset">Delete all data</button>`;
 
 /* ---------- actions ---------- */
@@ -960,6 +980,7 @@ async function act(a, el) {
     case 'export': exportData(); break;
     case 'import-btn': $('#imp').click(); break;
     case 'import-in': if (el.files && el.files[0]) importData(el.files[0]); break;
+    case 'logout': try { localStorage.removeItem('mx.auth'); } catch (x) {} render(); break;
     case 'update': {
       try {
         if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
