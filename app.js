@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '2.2.0';
+const VERSION = '2.3.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -364,7 +364,6 @@ function tilesHTML() {
   ${tile('RS', 'var(--rest)', 'REST', t.sleep == null ? '-' : sleepTxt(t.sleep), '', 'Goal ' + g.sleep + ' h, last night', t.sleep == null ? 'NOT LOGGED' : t.sleep >= g.sleep ? 'HIT' : 'SHORT', miniBars(ds.map(k => (daily[k] || {}).sleep), 'var(--rest)', 130, 40, g.sleep, 'Sleep, last 7 days'))}</div>`;
 }
 const tilesAll = () => tilesHTML() + bodyTile();
-function refreshRings() { const a = $('#score-box'), b = $('#tiles'); if (a) a.innerHTML = scoreCard(); if (b) b.innerHTML = tilesAll(); }
 function weekStrip() {
   const mon = mondayOf(todayKey()), tk = todayKey();
   return `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:16px 0">${[0, 1, 2, 3, 4, 5, 6].map(n => {
@@ -398,13 +397,30 @@ function nextHero(withChange) {
   <div class="row"><button class="btn" data-act="start">Start workout</button>${withChange ? '<button class="btn ghost sm" data-act="picker">Change</button>' : ''}</div></div>`;
 }
 const programStrip = () => { const n = nextWorkout(); return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">${P.weeks} WEEK PROGRAM</span><span class="m">WEEK ${Math.min(n.week, P.weeks)} OF ${P.weeks}</span></div><div style="display:grid;grid-template-columns:repeat(${P.weeks},1fr);gap:4px;margin-top:12px">${[...Array(P.weeks)].map((_, k) => `<i style="height:8px;border-radius:2px;background:${k < n.week ? 'var(--acc)' : 'var(--bar)'}"></i>`).join('')}</div></div>`; };
+function nextCompact() {
+  const n = nextWorkout(), d = dayOf(n.dayKey) || DAYS[0], dayIdx = Math.max(0, DAYS.findIndex(x => x.key === n.dayKey)) + 1, wk = Math.min(n.week, P.weeks);
+  const strip = [...Array(P.weeks)].map((_, k) => `<i style="height:6px;border-radius:2px;background:${k < wk - 1 ? '#fff' : k === wk - 1 ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.22)'}"></i>`).join('');
+  const top = active ? `<div><div class="m">IN PROGRESS, ${doneCount(active)}/${totalCount(active)} SETS</div><div class="n" style="font-size:44px;margin-top:4px;text-transform:uppercase">${esc(active.name)}</div></div><button class="cbtn" data-act="resume">Resume</button>`
+    : `<div><div class="m">NEXT UP, DAY ${dayIdx} OF ${DAYS.length}</div><div class="n" style="font-size:44px;margin-top:4px;text-transform:uppercase">${esc(d.name)}</div></div><button class="cbtn" data-act="start">Start</button>`;
+  return `<div class="hero" style="padding:14px 16px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:12px">${top}</div>
+  <div class="row" style="justify-content:space-between;margin-top:12px"><span class="m">${P.weeks} WEEK PROGRAM</span><span class="m">WEEK ${wk} OF ${P.weeks}</span></div><div style="display:grid;grid-template-columns:repeat(${P.weeks},1fr);gap:4px;margin-top:8px">${strip}</div></div>`;
+}
+function scoreCompact() {
+  const k = todayKey(), i = dayInfo(k), g = settings.goals, d = daily[k] || {}, f = foodTot(k);
+  const row = (lab, tag, col) => `<div class="row" style="justify-content:space-between;margin-top:7px;flex-wrap:nowrap"><span style="font-size:13px">${lab}</span><span class="t" style="color:${col}">${tag}</span></div>`;
+  const rows = row('Rest ' + (d.sleep == null ? '' : sleepTxt(d.sleep)), d.sleep == null ? 'NOT LOGGED' : d.sleep >= g.sleep ? 'HIT' : 'MISSED', 'var(--rest)')
+    + row('Move ' + (d.steps == null ? '' : d.steps.toLocaleString()), d.steps == null ? 'NOT LOGGED' : d.steps >= g.steps ? 'HIT' : Math.round(d.steps / g.steps * 100) + '%', 'var(--move)')
+    + row('Protein ' + (f.p ? Math.round(f.p) + ' g' : ''), !f.p ? 'NOT LOGGED' : g.protein > 0 && f.p >= g.protein ? 'HIT' : g.protein > 0 ? Math.round(f.p / g.protein * 100) + '%' : 'LOGGED', 'var(--prot)')
+    + row('Train ' + (i.ss.length ? '' : active ? '' : (nextWorkout().dayKey ? (dayOf(nextWorkout().dayKey) || DAYS[0]).name : '')), i.ss.length ? 'DONE' : active ? 'IN PROGRESS' : 'NEXT', 'var(--acct)');
+  return `<div class="cut" style="padding:14px 16px"><div class="row" style="gap:14px;flex-wrap:nowrap">${tickRing(120, i.of ? i.hit / i.of : 0, 'var(--acc)', `<div class="n" style="font-size:42px">${i.hit}<span style="font-size:20px;color:var(--dim)">/${i.of}</span></div>`, 48, 3, 10)}<div style="flex:1;min-width:0"><div class="m">DAY SCORE</div>${rows}</div></div></div>`;
+}
+function refreshRings() { const a = $('#score-box'), b = $('#tiles'); if (a) a.innerHTML = scoreCompact(); if (b) b.innerHTML = tilesAll(); }
 views.home = () => {
   const date = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Today</h2></div>
   <button data-go="me" aria-label="Open Me" style="width:46px;height:46px;border-radius:15px;background:var(--g3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span class="n" style="font-size:24px">E</span></button></div>
-  ${weekStrip()}<div id="score-box">${scoreCard()}</div>
-  <div style="height:12px"></div>${active ? resumeCard() : nextHero(false)}
-  ${'<div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div>'}<div id="tiles">${tilesAll()}</div>${logCard()}${fuelSummary()}${programStrip()}`;
+  <div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}<div id="score-box">${scoreCompact()}</div>
+  <div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div><div id="tiles">${tilesAll()}</div>${logCard()}${weekStrip()}`;
 };
 views.train = p => {
   const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), l = sortedDesc()[0];
@@ -426,15 +442,14 @@ views.fuel = () => {
     ? `<div style="display:flex;align-items:center;gap:18px;margin-top:10px">${tickRing(150, t.kcal / g.calories, 'var(--carb)', `<div class="n" style="font-size:36px">${Math.round(t.kcal).toLocaleString()}</div><div class="m">KCAL</div>`, 60, 3, 12)}<div style="flex:1"><div class="m">${g.calories - t.kcal >= 0 ? 'REMAINING' : 'OVER BY'}</div><div class="n" style="font-size:40px;margin:4px 0 8px">${Math.abs(Math.round(g.calories - t.kcal)).toLocaleString()}</div><span class="t" style="color:var(--carb)">${Math.round(t.kcal / g.calories * 100)}% OF GOAL</span></div></div>`
     : `<div class="n" style="font-size:56px;margin:8px 0 4px">${Math.round(t.kcal).toLocaleString()} <span style="font-size:18px;color:var(--dim)">kcal</span></div><small>Set an energy goal in Me, Goals and targets, to see a ring here.</small>`;
   return `<div class="row" style="justify-content:space-between"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Fuel</h2></div><span class="t" style="color:var(--dim)">${list.length} ${list.length === 1 ? 'ENTRY' : 'ENTRIES'}</span></div>
-  <div class="cut" style="margin-top:16px"><div class="row" style="justify-content:space-between"><span class="m">ENERGY</span><span class="m">${g.calories > 0 ? 'GOAL ' + g.calories.toLocaleString() + ' KCAL' : 'NO GOAL'}</span></div>${energy}</div>
-  <div class="card" style="padding:4px 16px 12px">${MAC.map(([kk, l, gk, col], ix) => macroRow(kk, l, 'g', t[kk], g[gk], col).replace(ix === 0 ? 'border-top:1px solid var(--line)' : '@@', '')).join('')}</div>
-  <div class="dl"><b></b><span class="m">LOG A MEAL</span><b></b></div>
-  <div class="card"><label>What did you eat<input id="fd-name" type="text" placeholder="e.g. 200 g chicken breast, rice and a salad" autocomplete="off"></label>
+  <div class="cut foodbox" style="margin-top:16px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="n" style="font-size:32px;text-transform:uppercase">What did you eat?</span><span class="t" style="color:var(--move)">${settings.ai && settings.ai.key ? 'AI READY' : 'NO AI KEY'}</span></div><p class="dim" style="margin:4px 0 12px;font-size:13px">Type it the way you would say it. We estimate kcal, protein, carbs, fat and fiber.</p><textarea id="fd-name" rows="4" class="big" placeholder="e.g. 200 g grilled chicken breast, a cup of rice and a green salad with olive oil" autocomplete="off"></textarea>
   <div class="sugs" id="fd-sug">${sugHTML('')}</div>
-  <div class="row" style="margin-bottom:6px"><button class="btn ghost" data-act="food-db" id="fd-db">Search database</button><button class="btn" data-act="food-ai" id="fd-ai">Estimate with AI</button></div>
+  <div class="row" style="margin-bottom:6px"><button class="btn ghost" data-act="food-db" id="fd-db">Search database</button><button class="btn" data-act="food-ai" id="fd-ai">Estimate</button></div>
   <p id="fd-aimsg" style="margin:0 0 10px;min-height:18px"><small>Fills the numbers below as an estimate. Check them before adding.</small></p><div id="fd-res"></div>
   <div class="five"><label>Kcal<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label><label style="color:var(--prot)">Prot<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--carb)">Carb<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fat)">Fat<input id="fd-f" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fib)">Fiber<input id="fd-fi" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div>
   <button class="btn" data-act="food-add">Add to today</button></div>
+  <div class="cut" style="margin-top:0"><div class="row" style="justify-content:space-between"><span class="m">ENERGY</span><span class="m">${g.calories > 0 ? 'GOAL ' + g.calories.toLocaleString() + ' KCAL' : 'NO GOAL'}</span></div>${energy}</div>
+  <div class="card" style="padding:4px 16px 12px">${MAC.map(([kk, l, gk, col], ix) => macroRow(kk, l, 'g', t[kk], g[gk], col).replace(ix === 0 ? 'border-top:1px solid var(--line)' : '@@', '')).join('')}</div>
   ${list.length ? `<div class="dl"><b></b><span class="m">TODAY</span><b></b></div><div class="card" style="padding:4px 16px">${list.slice().reverse().map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>` : ''}`;
 };
 
