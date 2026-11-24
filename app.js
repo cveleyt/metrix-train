@@ -1,8 +1,19 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '2.4.0';
-const P = window.PROGRAM, DAYS = P.days;
+const VERSION = '2.5.0';
+const CHANGELOG = [
+  { v: '2.5.0', items: ['Users: each person logs in to their own program and their own data', 'Profile and AI recommendations for steps, calories, protein, carbs, fat, fiber and sleep', 'Update now asks first, then shows what is new'] },
+  { v: '2.4.0', items: ['Meals: breakfast, snacks, lunch and dinner, picked from your text or with a tap'] },
+  { v: '2.3.0', items: ['Today reworked: Fuel first, Next up with the program, compact Day Score', 'Bigger food box'] },
+  { v: '2.2.0', items: ['Rest timer: adjust, start, pause, stop and log the rest'] }
+];
+const USERS = window.USERS || [];
+let USER = null;
+try { const id = localStorage.getItem('mx.user') || '', h = localStorage.getItem('mx.auth'); USER = USERS.find(u => u.id === id && u.hash === h) || (!id && USERS[0] && USERS[0].hash === h ? USERS[0] : null); } catch (e) {}
+const KP = USER && !USER.legacy ? 'mx.' + USER.id + '.' : 'mx.';
+const K = k => KP + k.slice(3);
+const P = (USER && window.PROGRAMS && window.PROGRAMS[USER.program]) || window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -15,9 +26,9 @@ function fdur(ms) {
   const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
   return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0');
 }
-function LSget(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function LSget(k, d) { try { const v = localStorage.getItem(K(k)); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
 function LSset(k, v) {
-  try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  try { localStorage.setItem(K(k), JSON.stringify(v)); return true; }
   catch (e) { toast('Could not save. Storage may be full or blocked.'); return false; }
 }
 function toast(m) {
@@ -236,15 +247,14 @@ function go(name, params, replace) {
 }
 window.addEventListener('popstate', e => { view = e.state || { name: 'home', params: {} }; render(); });
 const ALIAS = { history: 'trends', progress: 'trends', settings: 'me' };
-const tabOf = n => ({ workout: 'train', summary: 'train', info: 'train', session: 'trends', day: 'trends', goals: 'me' }[n] || n);
+const tabOf = n => ({ workout: 'train', summary: 'train', info: 'train', session: 'trends', day: 'trends', goals: 'me', profile: 'me' }[n] || n);
 
 /* ---------- login gate (device lock, not server security) ---------- */
-const AUTH_HASH = '0123ff82cefb4c6119472a6f8fcf5bc0e5a5e518a0258a530becf887baf78f0f';
-const isAuthed = () => { try { return localStorage.getItem('mx.auth') === AUTH_HASH; } catch (e) { return false; } };
+const isAuthed = () => !!USER;
 async function sha256(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
 const loginHTML = err => `<form id="login" autocomplete="on" style="padding-top:8vh;text-align:center">
   <div style="display:flex;justify-content:center">${tickRing(150, 1, 'var(--acc)', '<div class="n" style="font-size:54px;color:var(--acct)">MX</div>', 60, 3, 12)}</div>
-  <h2 style="margin:18px 0 4px;font-size:46px">MetriX Train</h2><p>Log in to continue</p>
+  <h2 style="margin:18px 0 4px;font-size:46px">MetriX Train</h2><p>Log in to your own program</p>
   <div style="text-align:left;margin-top:22px"><label>Username<input id="lg-u" name="username" autocomplete="username" autocapitalize="none" required style="height:54px"></label>
   <label>Password<input id="lg-p" name="password" type="password" autocomplete="current-password" required style="height:54px"></label>
   ${err ? '<p role="alert" class="tg" style="color:var(--rest);margin:8px 0 12px">WRONG USERNAME OR PASSWORD</p>' : ''}</div>
@@ -254,7 +264,8 @@ document.addEventListener('submit', async e => {
   e.preventDefault();
   const u = $('#lg-u').value.trim().toLowerCase(), p = $('#lg-p').value;
   let h = ''; try { h = await sha256('mx-train|' + u + '|' + p); } catch (x) {}
-  if (h === AUTH_HASH) { try { localStorage.setItem('mx.auth', AUTH_HASH); } catch (x) {} render(); }
+  const u2 = USERS.find(x => x.hash === h);
+  if (h && u2) { try { localStorage.setItem('mx.auth', h); localStorage.setItem('mx.user', u2.id); localStorage.setItem('mx.pfx', u2.legacy ? 'mx.' : 'mx.' + u2.id + '.'); } catch (x) {} location.replace(location.pathname); }
   else { $('#app').innerHTML = loginHTML(true); }
 });
 
@@ -435,7 +446,7 @@ function refreshRings() { const a = $('#score-box'), b = $('#tiles'); if (a) a.i
 views.home = () => {
   const date = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Today</h2></div>
-  <button data-go="me" aria-label="Open Me" style="width:46px;height:46px;border-radius:15px;background:var(--g3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span class="n" style="font-size:24px">E</span></button></div>
+  <button data-go="me" aria-label="Open Me" style="width:46px;height:46px;border-radius:15px;background:var(--g3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span class="n" style="font-size:24px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></button></div>
   <div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}<div id="score-box">${scoreCompact()}</div>
   <div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div><div id="tiles">${tilesAll()}</div>${logCard()}${weekStrip()}`;
 };
@@ -778,7 +789,7 @@ function chart(points, labels) {
   <text x="${L}" y="${H - 6}" style="fill:var(--dim)" font-size="11">${esc(labels[0])}</text>
   <text x="${W - R}" y="${H - 6}" text-anchor="end" style="fill:var(--dim)" font-size="11">${esc(labels[labels.length - 1])}</text></svg>`;
 }
-views.info = () => '<div class="m">TRAIN</div><h2 style="font-size:46px">Program guide</h2>' + window.INFO_HTML + '<button class="btn ghost" data-go="train">Back to Train</button>';
+views.info = () => '<div class="m">TRAIN</div><h2 style="font-size:46px">Program guide</h2>' + (P.info || (P === window.PROGRAM ? window.INFO_HTML : '<p>No guide for this program yet.</p>')) + '<button class="btn ghost" data-go="train">Back to Train</button>';
 
 /* ---------- me ---------- */
 const CHEV = '<svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg>';
@@ -789,7 +800,8 @@ views.me = () => {
   const g = settings.goals, n = nextWorkout(), th = settings.theme || 'system', sc = scoreCfg();
   const gv = (v, u) => v > 0 ? v.toLocaleString() + (u ? ' ' + u : '') : 'Not set';
   return `<h2 style="font-size:52px">Me</h2>
-  <div class="cut" style="display:flex;align-items:center;gap:14px;flex-wrap:nowrap"><div style="width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;display:flex;align-items:center;justify-content:center;flex:none"><span class="n" style="font-size:34px">E</span></div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:18px">Elie</div><div class="dim" style="font-size:13px;margin-top:2px">${P.weeks} week hypertrophy, week ${Math.min(n.week, P.weeks)}</div></div><span class="t" style="color:var(--acct)">LOCAL ACCOUNT</span></div>
+  <div class="cut" style="display:flex;align-items:center;gap:14px;flex-wrap:nowrap"><div style="width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;display:flex;align-items:center;justify-content:center;flex:none"><span class="n" style="font-size:34px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:18px">${esc(USER ? USER.name : 'Elie')}</div><div class="dim" style="font-size:13px;margin-top:2px">${P.weeks} week hypertrophy, week ${Math.min(n.week, P.weeks)}</div></div><span class="t" style="color:var(--acct)">${USER && USER.owner ? 'OWNER' : 'USER'}</span></div>
+  ${grp('PROFILE', lrow('Profile and recommendations', ((settings.profile || {}).h ? '' : 'Set up'), 'profile'))}
   ${grp('GOALS AND TARGETS', lrow('Daily steps', gv(g.steps), 'goals') + lrow('Sleep', g.sleep + ' h', 'goals') + lrow('Target weight', gv(g.weight, 'kg'), 'goals') + lrow('Energy', gv(g.calories, 'kcal'), 'goals') + lrow('Protein', gv(g.protein, 'g'), 'goals') + lrow('Carbs', gv(g.carbs, 'g'), 'goals') + lrow('Fat', gv(g.fat, 'g'), 'goals') + lrow('Fiber', gv(g.fiber, 'g'), 'goals') + lrow('Targets that count for Day Score', Object.keys(sc).filter(k => sc[k]).length + ' on', 'goals'))}
   <div class="dl"><b></b><span class="m">APPEARANCE</span><b></b></div><div class="seg" role="group" aria-label="Theme">${[['system', 'System'], ['dark', 'Dark'], ['light', 'Light']].map(([v, l]) => `<button class="mini${th === v ? ' on' : ''}" data-act="theme-set" data-v="${v}" aria-pressed="${th === v}">${l}</button>`).join('')}</div>
   <div class="m" style="margin:2px 0 8px">TEXT AND SCREEN SIZE</div><div class="seg" role="group" aria-label="Text size">${[[0.72, 'Small'], [0.8, 'Medium'], [0.9, 'Large']].map(([v, l]) => `<button class="mini${(settings.scale || 0.8) === v ? ' on' : ''}" data-act="scale-set" data-v="${v}" aria-pressed="${(settings.scale || 0.8) === v}">${l}</button>`).join('')}</div>
@@ -804,6 +816,65 @@ views.me = () => {
   ${grp('APP', `<div class="li"><span>Version</span><span>${VERSION}</span></div>` + `<button class="li" data-act="update"><span>Update app</span><span>${CHEV}</span></button><button class="li" data-act="logout"><span>Log out</span><span>${CHEV}</span></button>`)}
   <div style="height:16px"></div><button class="btn danger" data-act="reset">Delete all data</button>`;
 };
+/* ---------- profile and recommendations ---------- */
+const ACT = { low: 1.4, med: 1.55, high: 1.7 };
+function weightNow() { const ks = Object.keys(daily).filter(k => daily[k] && daily[k].weight > 0).sort(); return ks.length ? daily[ks[ks.length - 1]].weight : ((settings.profile || {}).w || 0); }
+function recCalc() {
+  const p = settings.profile || {}, w = weightNow(), h = +p.h, a = +p.age;
+  if (!(w >= 30 && w <= 300 && h >= 120 && h <= 230 && a >= 14 && a <= 90) || !p.sex || !p.goal || !p.act) return { err: 'Fill in height, weight, age, sex, goal and activity first.' };
+  if (a < 18) return { err: 'Targets for under 18 should come from a doctor or coach, so none are calculated here.' };
+  const bmr = 10 * w + 6.25 * h - 5 * a + (p.sex === 'm' ? 5 : -161), tdee = bmr * ACT[p.act];
+  let kcal = p.goal === 'lose' ? Math.max(tdee * 0.8, bmr * 1.1) : p.goal === 'gain' ? tdee * 1.1 : tdee;
+  kcal = Math.round(kcal / 10) * 10;
+  const protein = Math.round(w * (p.goal === 'lose' ? 2.2 : p.goal === 'gain' ? 2.0 : 1.8)), fat = Math.round(w * (p.goal === 'lose' ? 0.8 : 0.9));
+  const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4)), fiber = Math.min(40, Math.round(14 * kcal / 1000));
+  return { w, tdee: Math.round(tdee), vals: { steps: p.goal === 'lose' ? 10000 : p.goal === 'gain' ? 9000 : 8000, calories: kcal, protein, carbs, fat, fiber, sleep: 8 } };
+}
+const RECS = [['steps', 'Steps', ' /day'], ['calories', 'Calories', ' kcal'], ['protein', 'Protein', ' g'], ['carbs', 'Carbs', ' g'], ['fat', 'Fat', ' g'], ['fiber', 'Fiber', ' g'], ['sleep', 'Sleep', ' h']];
+const GOALTXT = { lose: 'losing fat', gain: 'building muscle', maintain: 'staying at the same weight' };
+async function aiWhy(r) {
+  const p = settings.profile, v = r.vals;
+  const prompt = 'In 2 or 3 short plain sentences, explain why these daily targets suit this person. No lists, no dashes, no medical claims. Person: ' + p.age + ' years, ' + (p.sex === 'm' ? 'male' : 'female') + ', ' + p.h + ' cm, ' + r.w + ' kg, goal ' + GOALTXT[p.goal] + ', does strength training. Estimated daily burn ' + r.tdee + ' kcal. Targets: ' + v.calories + ' kcal, ' + v.protein + ' g protein, ' + v.carbs + ' g carbs, ' + v.fat + ' g fat, ' + v.fiber + ' g fiber, ' + v.steps + ' steps, ' + v.sleep + ' h sleep.';
+  const models = [...new Set([settings.ai.model, 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'])];
+  for (const m of models) {
+    try {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 12000);
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4 } }) });
+      clearTimeout(to);
+      if (res.status === 400 || res.status === 403) return '';
+      if (!res.ok) continue;
+      const j = await res.json(); const t = j.candidates && j.candidates[0] && j.candidates[0].content.parts[0].text;
+      if (t) return t.replace(/[–—]/g, ',').trim();
+    } catch (e) { /* try next model */ }
+  }
+  return '';
+}
+function recBlock() {
+  const rc = settings.rec; if (!rc) return '';
+  const g = settings.goals, fmt = (k, v) => v > 0 ? v.toLocaleString() : 'not set';
+  const rows = RECS.map(([k, l, u]) => `<div class="li" style="padding:12px 0"><span><b>${l}</b><br><small>Now ${fmt(k, g[k])}</small></span><span><span class="n" style="font-size:26px;color:var(--ink)">${rc.vals[k].toLocaleString()}</span><small>${u}</small>${g[k] === rc.vals[k] ? '<span class="t" style="color:var(--ok)">SET</span>' : `<button class="mini" data-act="rec-use" data-k="${k}">Use</button>`}</span></div>`).join('');
+  return `<div class="cut"><div class="row" style="justify-content:space-between"><span class="m">RECOMMENDED DAILY TARGETS</span><span class="t" style="color:var(--move)">${rc.why ? 'AI' : 'FORMULA'}</span></div>
+  <p style="margin:8px 0 4px;font-size:12.5px">${esc(rc.why || 'Calculated from standard formulas using your profile. Add a Gemini key in Me to get a written reason.')}</p>${rows}
+  <button class="btn" data-act="rec-all" style="margin-top:8px">Use all targets</button><p style="font-size:11.5px;margin:12px 0 0"><small>A starting point from standard formulas, not medical advice. Check your progress after 2 to 3 weeks and adjust.</small></p></div>`;
+}
+views.profile = () => {
+  const p = settings.profile || {}, w = weightNow();
+  const seg = (f, opts) => `<div class="seg" role="group">${opts.map(([v, l]) => `<button class="mini${p[f] === v ? ' on' : ''}" data-act="prof-set" data-f="${f}" data-v="${v}" aria-pressed="${p[f] === v}">${l}</button>`).join('')}</div>`;
+  const dailyW = Object.keys(daily).some(k => daily[k] && daily[k].weight > 0);
+  return `<div class="m">ME</div><h2 style="margin:4px 0 14px;font-size:52px">Profile</h2>
+  <div class="card" style="padding:6px 16px"><div class="li"><span>User</span><span>${esc(USER ? USER.name : '')} ${USER && USER.owner ? '<span class="t" style="color:var(--acct)">OWNER</span>' : ''}</span></div><div class="li"><span>Program</span><span>${esc(P.name)}</span></div></div>
+  <div class="card"><span class="m">ABOUT YOU</span><div class="three" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px">
+  <label>Height (cm)<input data-act="prof-in" data-f="h" type="number" inputmode="numeric" min="0" value="${p.h || ''}" placeholder="0"></label>
+  <label>Weight (kg)<input data-act="prof-in" data-f="w" type="number" inputmode="decimal" step="any" min="0" value="${w || ''}" placeholder="0" ${dailyW ? 'disabled' : ''}></label>
+  <label>Age<input data-act="prof-in" data-f="age" type="number" inputmode="numeric" min="0" value="${p.age || ''}" placeholder="0"></label></div>
+  ${dailyW ? '<p style="margin:0 0 10px"><small>Weight follows your latest daily weigh-in.</small></p>' : ''}
+  <div class="m" style="margin:6px 0 6px">SEX</div>${seg('sex', [['m', 'Male'], ['f', 'Female']])}
+  <div class="m" style="margin:6px 0 6px">GOAL</div>${seg('goal', [['lose', 'Lose fat'], ['gain', 'Build muscle'], ['maintain', 'Maintain']])}
+  <div class="m" style="margin:6px 0 6px">DAILY ACTIVITY OUTSIDE TRAINING</div>${seg('act', [['low', 'Low'], ['med', 'Medium'], ['high', 'High']])}
+  <p id="rec-msg" style="margin:0 0 10px;min-height:18px"><small></small></p><button class="btn" data-act="rec-go" id="rec-btn">Get recommendations</button></div>
+  <div id="rec-box">${recBlock()}</div>`;
+};
+
 views.goals = () => {
   const g = settings.goals, sc = scoreCfg();
   const stp = (f, l, u, step, min, v, col) => `<div style="padding:14px 0;border-top:1px solid var(--line)"><div style="font-weight:600;font-size:15px;margin-bottom:8px;color:${col}">${l}</div>
@@ -1136,17 +1207,37 @@ async function act(a, el) {
     case 'export': exportData(); break;
     case 'import-btn': $('#imp').click(); break;
     case 'import-in': if (el.files && el.files[0]) importData(el.files[0]); break;
-    case 'logout': try { localStorage.removeItem('mx.auth'); } catch (x) {} render(); break;
-    case 'update': {
+    case 'prof-in': { settings.profile = settings.profile || {}; const v = parseFloat(String(el.value).replace(',', '.')); settings.profile[el.dataset.f] = isNaN(v) || v < 0 ? 0 : v; saveSettings(); break; }
+    case 'prof-set': { settings.profile = settings.profile || {}; settings.profile[el.dataset.f] = el.dataset.v; saveSettings(); render(); break; }
+    case 'rec-go': {
+      const r = recCalc(), msg = $('#rec-msg');
+      if (r.err) { msg.innerHTML = '<small style="color:var(--rest)">' + esc(r.err) + '</small>'; break; }
+      settings.rec = { vals: r.vals, why: '', at: Date.now() }; saveSettings(); $('#rec-box').innerHTML = recBlock();
+      if (settings.ai.key) {
+        const b = $('#rec-btn'); b.disabled = true; b.textContent = 'Writing the reason...';
+        const why = await aiWhy(r); b.disabled = false; b.textContent = 'Get recommendations';
+        if (why) { settings.rec.why = why; saveSettings(); }
+      }
+      if ($('#rec-box')) $('#rec-box').innerHTML = recBlock();
+      break;
+    }
+    case 'rec-use': { if (settings.rec) { settings.goals[el.dataset.k] = settings.rec.vals[el.dataset.k]; saveSettings(); toast('Target updated'); $('#rec-box').innerHTML = recBlock(); } break; }
+    case 'rec-all': { if (settings.rec) { Object.assign(settings.goals, settings.rec.vals); saveSettings(); toast('All targets updated'); $('#rec-box').innerHTML = recBlock(); } break; }
+    case 'logout': try { ['mx.auth', 'mx.user', 'mx.pfx'].forEach(k => localStorage.removeItem(k)); } catch (x) {} location.replace(location.pathname); break;
+    case 'update': showModal(`<div class="m" style="color:var(--acct)">UPDATE APP</div><div class="n" style="font-size:38px;margin:8px 0;text-transform:uppercase">Are you sure?</div><p>The app reloads and gets the newest version. Your workouts, food and settings stay on this phone.</p><div class="mrow"><button class="btn ghost" data-act="mdl-close">Cancel</button><button class="btn" data-act="update-yes">Yes, update</button></div>`); break;
+    case 'update-yes': {
+      try { localStorage.setItem('mx.fromVer', VERSION); } catch (e) {}
       try {
         if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
         if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
       } catch (e) {}
       location.replace(location.pathname + '?r=' + Date.now()); break;
     }
+    case 'mdl-close': closeModal(); break;
+    case 'whatsnew-ok': try { localStorage.setItem('mx.seenVer', VERSION); localStorage.removeItem('mx.fromVer'); } catch (e) {} closeModal(); break;
     case 'reset':
       if (confirm('Delete ALL workouts on this phone? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
-        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food', 'mx.myfoods'].forEach(k => localStorage.removeItem(k));
+        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food', 'mx.myfoods'].forEach(k => localStorage.removeItem(K(k)));
         sessions = []; daily = {}; food = {}; myfoods = []; active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, theme: 'system', goals: { steps: 10000, sleep: 8, protein: 130 }, ai: { key: '', model: 'gemini-3.1-flash-lite' } };
         toast('All data deleted'); go('home', {}, true);
       }
@@ -1172,6 +1263,25 @@ document.addEventListener('input', e => {
 document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { wake(); tick(); } });
 
+/* ---------- modal and what's new ---------- */
+function showModal(html) {
+  let m = $('#mdl'); if (!m) { m = document.createElement('div'); m.id = 'mdl'; document.body.appendChild(m); }
+  m.innerHTML = '<div class="mdl-bg"></div><div class="mdl-box" role="dialog" aria-modal="true">' + html + '</div>';
+}
+function closeModal() { const m = $('#mdl'); if (m) m.remove(); }
+const vnum = v => v.split('.').reduce((a, x) => a * 1000 + (+x || 0), 0);
+function whatsNew() {
+  if (!USER) return;
+  let seen = null; try { seen = localStorage.getItem('mx.seenVer') || localStorage.getItem('mx.fromVer'); } catch (e) {}
+  if (!seen) seen = vnum(VERSION) > vnum('2.4.0') ? '2.4.0' : VERSION;
+  if (seen === VERSION) { try { localStorage.setItem('mx.seenVer', VERSION); } catch (e) {} return; }
+  const list = CHANGELOG.filter(c => vnum(c.v) > vnum(seen));
+  if (!list.length) { try { localStorage.setItem('mx.seenVer', VERSION); } catch (e) {} return; }
+  showModal(`<div class="m" style="color:var(--acct)">UPDATED</div><div class="n" style="font-size:38px;margin:8px 0 2px;text-transform:uppercase">Version ${VERSION}</div><p style="margin:0 0 6px"><small>You came from ${esc(seen)}. Here is what is new.</small></p>
+  ${list.map((c, i) => `<div style="padding:12px 0;border-top:1px solid var(--line)"><div class="row" style="justify-content:space-between"><span class="n" style="font-size:24px">${c.v}</span><span class="t" style="color:${i === 0 ? 'var(--acct)' : 'var(--dim)'}">${i === 0 ? 'NEW' : 'BEFORE'}</span></div>${c.items.map(t => `<div style="font-size:13.5px;line-height:1.45;margin-top:6px">- ${esc(t)}</div>`).join('')}</div>`).join('')}
+  <button class="btn" data-act="whatsnew-ok" style="margin-top:14px">Got it</button>`);
+}
+
 /* ---------- init ---------- */
 (function init() {
   applyTheme();
@@ -1184,6 +1294,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   try { history.replaceState({ name: view.name, params: view.params }, ''); } catch (e) {}
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(r => { persisted = r; }).catch(() => {});
   render();
+  whatsNew();
   setInterval(tick, 500);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 })();

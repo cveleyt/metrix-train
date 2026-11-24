@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
-<script>try{var s=JSON.parse(localStorage.getItem("mx.settings")||"{}"),t=s.theme||"system";if(t==="system")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";document.documentElement.dataset.theme=t;document.documentElement.style.zoom=s.scale||0.8}catch(e){}</script>
+<script>try{var s=JSON.parse(localStorage.getItem((localStorage.getItem("mx.pfx")||"mx.")+"settings")||"{}"),t=s.theme||"system";if(t==="system")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";document.documentElement.dataset.theme=t;document.documentElement.style.zoom=s.scale||0.8}catch(e){}</script>
 <style>
 :root{color-scheme:dark;--bg:#080a14;--g1:rgba(255,255,255,.06);--g2:rgba(255,255,255,.1);--g3:rgba(255,255,255,.12);--line:rgba(255,255,255,.12);--line2:rgba(255,255,255,.22);--ink:#f2f5f8;--ink2:#c9d1de;--dim:#8d98a8;--acc:#8f8bff;--acc2:#b78cff;--acct:#a9a6ff;--onacc:#fff;--move:#38e1c6;--rest:#ff7ad9;--prot:#6aa8ff;--carb:#ff9f5a;--fat:#ff7a6b;--fib:#8be36b;--body:#4cc9f0;--ok:#7de3a0;--warn:#f5c040;--bar:rgba(255,255,255,.12);--tab:rgba(12,14,26,.68);--solid:#12142c;--hero:linear-gradient(135deg,rgba(143,139,255,.62),rgba(183,140,255,.34));--glow1:rgba(143,139,255,.40);--glow2:rgba(56,225,198,.20);--glow3:rgba(255,122,217,.16);--dbg:rgba(255,100,100,.14);--dtx:#ff9a9a;--disp:"Barlow Condensed",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
 :root[data-theme=light]{color-scheme:light;--bg:#eef1fa;--g1:rgba(255,255,255,.74);--g2:rgba(255,255,255,.92);--g3:rgba(15,23,42,.07);--line:rgba(15,23,42,.1);--line2:rgba(15,23,42,.22);--ink:#0f1424;--ink2:#2b3447;--dim:#5f6b80;--acct:#5b55e0;--move:#0fa58f;--rest:#e0489f;--prot:#2f6fe0;--carb:#e07b1f;--fat:#e0483a;--fib:#3fa31f;--body:#0b86b3;--ok:#1f9d55;--warn:#b7791f;--bar:rgba(15,23,42,.1);--tab:rgba(255,255,255,.82);--solid:#ffffff;--hero:linear-gradient(135deg,#7f7bf5,#a578f5);--glow1:rgba(143,139,255,.30);--glow2:rgba(56,225,198,.16);--glow3:rgba(255,122,217,.12);--dbg:rgba(224,72,58,.1);--dtx:#c0392b}
@@ -75,6 +75,7 @@ button.li{width:100%}
 .swl input:focus-visible+.sw{outline:2px solid var(--acct);outline-offset:2px}
 .hero{background:var(--hero);border:0;color:#fff;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%);padding:16px;margin-bottom:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
 .cbtn{flex:none;border:0;background:rgba(255,255,255,.95);color:#4a45d6;height:48px;padding:0 20px;border-radius:12px;font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:1px;text-transform:uppercase}
+#mdl{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}.mdl-bg{position:absolute;inset:0;background:rgba(4,5,12,.66);backdrop-filter:blur(6px)}.mdl-box{position:relative;width:100%;max-width:420px;max-height:88vh;overflow:auto;background:var(--solid);border:1px solid var(--line2);border-radius:24px;padding:22px 18px 18px;box-shadow:0 24px 60px rgba(0,0,0,.55)}.mrow{display:grid;grid-template-columns:1fr 1.3fr;gap:10px;margin-top:18px}
 .mchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}.mchips button{font-family:var(--mono);font-weight:600;font-size:10px;letter-spacing:.8px;text-transform:uppercase;border:1px solid var(--line);border-radius:6px;padding:6px 9px;color:var(--dim);background:transparent}.mchips button.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .foodbox{background:linear-gradient(160deg,rgba(143,139,255,.26),var(--g1))}
 textarea.big{margin:0 0 10px;min-height:132px;font-size:17px;line-height:1.4;border:1.5px solid var(--acc);border-radius:18px;padding:14px 16px;box-shadow:0 0 0 4px rgba(143,139,255,.14)}
@@ -172,7 +173,8 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left
   <button data-go="trends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg>Trends</button>
   <button data-go="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Me</button>
 </nav>
-<script src="program.js?v=2.4.0"></script>
-<script src="app.js?v=2.4.0"></script>
+<script src="program.js?v=2.5.0"></script>
+<script src="users.js?v=2.5.0"></script>
+<script src="app.js?v=2.5.0"></script>
 </body>
 </html>
