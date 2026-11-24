@@ -1,7 +1,7 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '2.3.0';
+const VERSION = '2.4.0';
 const P = window.PROGRAM, DAYS = P.days;
 
 /* ---------- helpers ---------- */
@@ -329,6 +329,23 @@ function applyDb() {
   $('#fd-f').value = r1((n.fat_100g || 0) * f);
   $('#fd-fi').value = r1((n.fiber_100g || 0) * f);
 }
+const MEALS = [['b', 'Breakfast'], ['s1', 'Snack AM'], ['l', 'Lunch'], ['s2', 'Snack PM'], ['d', 'Dinner'], ['s3', 'Snack night']];
+let mealSel = 'auto';
+function mealByTime(t) { const h = new Date(t).getHours() + new Date(t).getMinutes() / 60; return h < 10.5 ? 'b' : h < 12 ? 's1' : h < 15 ? 'l' : h < 18 ? 's2' : h < 21 ? 'd' : 's3'; }
+const MEAL_RE = /^\s*(?:(morning|am|afternoon|pm|evening|night|late)\s+)?(breakfast|brunch|lunch|dinner|supper|snack)\s*(?:[:\-]\s*)?/i;
+function mealParse(txt) {
+  const m = MEAL_RE.exec(txt || ''); if (!m) return { key: null, clean: (txt || '').trim() };
+  const w = m[2].toLowerCase(), q = (m[1] || '').toLowerCase(); let key;
+  if (w === 'breakfast' || w === 'brunch') key = 'b'; else if (w === 'lunch') key = 'l'; else if (w === 'dinner' || w === 'supper') key = 'd';
+  else key = q === 'morning' || q === 'am' ? 's1' : q === 'afternoon' || q === 'pm' ? 's2' : q === 'evening' || q === 'night' || q === 'late' ? 's3' : null;
+  const rest = txt.slice(m[0].length).trim();
+  if (w === 'snack' && !key) key = '*';
+  return { key, clean: rest || txt.trim() };
+}
+const mealOf = e => e.m || mealByTime(e.t);
+function mealChips() {
+  return `<div class="mchips" id="fd-meals" role="group" aria-label="Meal">${[['auto', 'Auto']].concat(MEALS).map(([k, l]) => `<button type="button" data-act="meal-set" data-m="${k}" class="${mealSel === k ? 'on' : ''}" aria-pressed="${mealSel === k}">${l}</button>`).join('')}</div>`;
+}
 function sugHTML(q) {
   q = (q || '').trim().toLowerCase();
   const list = myfoods.filter(f => !q || f.name.toLowerCase().includes(q)).sort((a, b) => (q ? b.n - a.n : b.last - a.last)).slice(0, 5);
@@ -442,7 +459,7 @@ views.fuel = () => {
     ? `<div style="display:flex;align-items:center;gap:18px;margin-top:10px">${tickRing(150, t.kcal / g.calories, 'var(--carb)', `<div class="n" style="font-size:36px">${Math.round(t.kcal).toLocaleString()}</div><div class="m">KCAL</div>`, 60, 3, 12)}<div style="flex:1"><div class="m">${g.calories - t.kcal >= 0 ? 'REMAINING' : 'OVER BY'}</div><div class="n" style="font-size:40px;margin:4px 0 8px">${Math.abs(Math.round(g.calories - t.kcal)).toLocaleString()}</div><span class="t" style="color:var(--carb)">${Math.round(t.kcal / g.calories * 100)}% OF GOAL</span></div></div>`
     : `<div class="n" style="font-size:56px;margin:8px 0 4px">${Math.round(t.kcal).toLocaleString()} <span style="font-size:18px;color:var(--dim)">kcal</span></div><small>Set an energy goal in Me, Goals and targets, to see a ring here.</small>`;
   return `<div class="row" style="justify-content:space-between"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Fuel</h2></div><span class="t" style="color:var(--dim)">${list.length} ${list.length === 1 ? 'ENTRY' : 'ENTRIES'}</span></div>
-  <div class="cut foodbox" style="margin-top:16px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="n" style="font-size:32px;text-transform:uppercase">What did you eat?</span><span class="t" style="color:var(--move)">${settings.ai && settings.ai.key ? 'AI READY' : 'NO AI KEY'}</span></div><p class="dim" style="margin:4px 0 12px;font-size:13px">Type it the way you would say it. We estimate kcal, protein, carbs, fat and fiber.</p><textarea id="fd-name" rows="4" class="big" placeholder="e.g. 200 g grilled chicken breast, a cup of rice and a green salad with olive oil" autocomplete="off"></textarea>
+  <div class="cut foodbox" style="margin-top:16px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="n" style="font-size:32px;text-transform:uppercase">What did you eat?</span><span class="t" style="color:var(--move)">${settings.ai && settings.ai.key ? 'AI READY' : 'NO AI KEY'}</span></div><p class="dim" style="margin:4px 0 12px;font-size:13px">Say the meal in your text, like "lunch: chicken and rice", or tap one below. No order needed.</p><textarea id="fd-name" rows="4" class="big" placeholder="e.g. 200 g grilled chicken breast, a cup of rice and a green salad with olive oil" autocomplete="off"></textarea>${mealChips()}<p class="m" style="margin:0 0 10px;font-size:9.5px">AUTO PICKS FROM YOUR TEXT, OR FROM THE TIME OF DAY</p>
   <div class="sugs" id="fd-sug">${sugHTML('')}</div>
   <div class="row" style="margin-bottom:6px"><button class="btn ghost" data-act="food-db" id="fd-db">Search database</button><button class="btn" data-act="food-ai" id="fd-ai">Estimate</button></div>
   <p id="fd-aimsg" style="margin:0 0 10px;min-height:18px"><small>Fills the numbers below as an estimate. Check them before adding.</small></p><div id="fd-res"></div>
@@ -450,7 +467,12 @@ views.fuel = () => {
   <button class="btn" data-act="food-add">Add to today</button></div>
   <div class="cut" style="margin-top:0"><div class="row" style="justify-content:space-between"><span class="m">ENERGY</span><span class="m">${g.calories > 0 ? 'GOAL ' + g.calories.toLocaleString() + ' KCAL' : 'NO GOAL'}</span></div>${energy}</div>
   <div class="card" style="padding:4px 16px 12px">${MAC.map(([kk, l, gk, col], ix) => macroRow(kk, l, 'g', t[kk], g[gk], col).replace(ix === 0 ? 'border-top:1px solid var(--line)' : '@@', '')).join('')}</div>
-  ${list.length ? `<div class="dl"><b></b><span class="m">TODAY</span><b></b></div><div class="card" style="padding:4px 16px">${list.slice().reverse().map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>` : ''}`;
+  ${'<div class="dl"><b></b><span class="m">TODAY BY MEAL</span><b></b></div>'}${MEALS.map(([mk, ml]) => {
+    const es = list.filter(e => mealOf(e) === mk).sort((x, y) => x.t - y.t);
+    if (!es.length) return `<div class="card" style="padding:12px 16px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="t" style="color:var(--dim)">EMPTY</span></div></div>`;
+    const kc = es.reduce((a, e) => a + (e.kcal || 0), 0);
+    return `<div class="card" style="padding:12px 16px 4px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="n" style="font-size:20px">${Math.round(kc)}<span style="font-size:11px;color:var(--dim)"> kcal</span></span></div>${es.map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>`;
+  }).join('')}`;
 };
 
 function stepper(k, i, j, v) {
@@ -965,7 +987,7 @@ async function act(a, el) {
       }
       break;
     case 'food-ai': {
-      const txt = ($('#fd-name').value || '').trim(), msg = $('#fd-aimsg'), btn = $('#fd-ai');
+      const txt = mealParse(($('#fd-name').value || '').trim()).clean, msg = $('#fd-aimsg'), btn = $('#fd-ai');
       const say = m => { msg.innerHTML = '<small>' + esc(m) + '</small>'; };
       if (!txt) { say('Type what you ate first, with amounts if you know them.'); break; }
       const hit = myfoods.find(f => f.name.toLowerCase() === txt.toLowerCase());
@@ -1021,11 +1043,12 @@ async function act(a, el) {
       } catch (e) {
         say(e.name === 'AbortError' ? 'Timed out. Check your connection and try again.' : (e instanceof TypeError ? 'No connection. You can still type the numbers yourself.' : e.message));
       }
-      btn.disabled = false; btn.textContent = 'Estimate with AI';
+      btn.disabled = false; btn.textContent = 'Estimate';
       break;
     }
     case 'ai-key-in': settings.ai.key = el.value.trim(); saveSettings(); toast(settings.ai.key ? 'Key saved on this phone' : 'Key removed'); break;
     case 'ai-model-in': settings.ai.model = el.value.trim() || 'gemini-3.1-flash-lite'; saveSettings(); break;
+    case 'meal-set': { mealSel = el.dataset.m; document.querySelectorAll('#fd-meals button').forEach(b => { const on = b.dataset.m === mealSel; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); break; }
     case 'food-pick': {
       const f = myfoods.find(x => x.id === el.dataset.id); if (!f) break;
       $('#fd-name').value = f.name; $('#fd-kcal').value = f.kcal; $('#fd-p').value = f.p; $('#fd-c').value = f.c; $('#fd-f').value = f.f || 0; $('#fd-fi').value = f.fi || 0;
@@ -1062,7 +1085,8 @@ async function act(a, el) {
     }
     case 'food-add': {
       const num = id => { const v = parseFloat(String($('#' + id).value).replace(',', '.')); return isNaN(v) || v < 0 ? 0 : Math.round(v * 10) / 10; };
-      const e = { id: uid(), t: Date.now(), name: ($('#fd-name').value || '').trim(), kcal: Math.round(num('fd-kcal')), p: num('fd-p'), c: num('fd-c'), f: num('fd-f'), fi: num('fd-fi') };
+      const mp = mealParse(($('#fd-name').value || '').trim()), now = Date.now(), mk = mealSel !== 'auto' ? mealSel : (mp.key && mp.key !== '*' ? mp.key : mealByTime(now));
+      const e = { id: uid(), t: now, m: mk, name: mp.clean, kcal: Math.round(num('fd-kcal')), p: num('fd-p'), c: num('fd-c'), f: num('fd-f'), fi: num('fd-fi') };
       if (!e.kcal && !e.p && !e.c && !e.f && !e.fi) { toast('Enter calories or a nutrient.'); break; }
       const k = todayKey(); food[k] = food[k] || []; food[k].push(e); saveFood();
       if (e.name) {
@@ -1071,7 +1095,7 @@ async function act(a, el) {
         else { myfoods.push({ id: uid(), name: e.name, kcal: e.kcal, p: e.p, c: e.c, f: e.f, fi: e.fi, n: 1, last: Date.now() }); if (myfoods.length > 300) myfoods.sort((a, b) => b.last - a.last).length = 300; }
         saveMy();
       }
-      toast('Added'); render(); break;
+      toast('Added to ' + (MEALS.find(x => x[0] === mk) || [0, 'today'])[1].toLowerCase()); mealSel = 'auto'; render(); break;
     }
     case 'food-del': {
       const k = todayKey(); food[k] = dayFood(k).filter(e => e.id !== el.dataset.id);
