@@ -98,3 +98,8 @@ drop policy if exists "own photos" on storage.objects;
 create policy "own photos" on storage.objects for all to authenticated
   using (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- 6. Table permissions for logged-in users (new Supabase projects need these explicitly) ---
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.sessions, public.day_logs, public.kv to authenticated;
+grant select on public.profiles, public.programs to authenticated;
