@@ -49,7 +49,7 @@ function importData(file) {
 async function act(a, el) {
   const i = +el.dataset.i, j = +el.dataset.j;
   track('a:' + a);
-  if (dailyAct(a, el) || usageAct(a, el)) return;
+  if (dailyAct(a, el) || usageAct(a, el) || progAct(a, el)) return;
   switch (a) {
     case 'start':
       if (active && !confirm('You have a workout in progress. Replace it?')) return;

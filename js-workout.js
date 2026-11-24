@@ -45,7 +45,7 @@ function exCard(c, x, i, edit) {
     ${edit ? '' : `<div class="sug"><span class="tag">${sg.tag}</span> ${esc(sg.text)}${sg.apply ? `<button class="mini" data-act="apply" data-i="${i}" data-w="${sg.apply}">Use ${r1(dw(sg.apply))} ${UW()}</button>` : ''}</div>`}
     ${prev ? `<div class="last">Last time (${fd(prev.s.finishedAt)}): ${esc(fmtSets(ex, prev.sets))}</div>` : ''}
     <div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || UW())}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>
-    ${edit ? '' : (x.warm || []).map((t, j) => warmRow(ex, t, i, j)).join('')}${x.sets.map((t, j) => setRow(ex, t, i, j)).join('')}
+    ${edit ? '' : (x.warm || []).map((t, j) => warmRow(ex, t, i, j)).join('')}${x.sets.map((t, j) => setRow(ex, t, i, j) + (edit ? '' : ghostHint(sg, t, i, j))).join('')}
     <div class="row"><button class="mini" data-act="addset" data-i="${i}">+ Set</button><button class="mini" data-act="rmset" data-i="${i}">- Set</button>${edit ? '' : `<button class="mini" data-act="warm-add" data-i="${i}">+ Warm-up</button>${(x.warm || []).length ? `<button class="mini" data-act="warm-rm" data-i="${i}">- Warm-up</button>` : ''}`}
     ${ex.noWeight ? '' : `<button class="mini" data-act="inc" data-i="${i}">Step: ${incD(ex)} ${UW()}</button>`}${edit ? '' : `<button class="mini" data-act="skip-open" data-i="${i}">Skip exercise</button>`}</div></div>`;
   }

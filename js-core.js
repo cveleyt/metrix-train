@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.3.0';
+const VERSION = '3.4.0';
 const CHANGELOG = [
+  { v: '3.4.0', items: ['Program editor in Me: rename, reorder, add and remove days and exercises, change sets, reps and rest. Past workouts are never changed', 'Workout log: when last time hit the top of the rep range, a grey try-weight shows under each set. Tap it to use it'] },
   { v: '3.3.0', items: ['Supplements: new Before workout and During workout timing, and a Tick it for me setting (Manual, Training days, Every day). Auto ticks show an AUTO tag and you can untick them. Every day only ticks today, never past days'] },
   { v: '3.2.0', items: ['Today is shorter: check-in, supplements and sleep are in one folded Daily section', 'Water tracking removed. Sleep is now typed as bed and wake times only', 'Only the training streak is kept', 'New Me, Usage: a private count of what you use, to decide what stays', 'After each workout you can leave a quick note about anything that annoyed you'] },
   { v: '3.1.2', items: ['Fuel: your saved foods are folded into one row you can open, with a search box. Matching foods still pop up while you type'] },
@@ -25,6 +26,7 @@ try { const id = localStorage.getItem('mx.user') || '', h = localStorage.getItem
 const KP = USER && !USER.legacy ? 'mx.' + USER.id + '.' : 'mx.';
 const K = k => KP + k.slice(3);
 const P = (USER && window.PROGRAMS && window.PROGRAMS[USER.program]) || window.PROGRAM, DAYS = P.days;
+const PROG_ORIG = JSON.parse(JSON.stringify({ weeks: P.weeks, days: P.days }));
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -75,7 +77,8 @@ let open = 0;
 let persisted = null;
 
 const slot = {};
-DAYS.forEach(d => d.exercises.forEach((e, n) => { e.id = d.key + '-' + n; slot[e.id] = e; }));
+if (settings.prog && settings.prog.days && settings.prog.days.length) { P.weeks = settings.prog.weeks; DAYS.length = 0; settings.prog.days.forEach(d => DAYS.push(JSON.parse(JSON.stringify(d)))); }
+DAYS.forEach(d => d.exercises.forEach((e, n) => { e.id = e.id || (d.key + '-' + n); slot[e.id] = e; }));
 const dayOf = k => DAYS.find(d => d.key === k);
 const isNW = name => DAYS.some(d => d.exercises.some(e => e.name === name && e.noWeight));
 const saveSessions = () => LSset('mx.sessions', sessions);
@@ -266,5 +269,5 @@ function go(name, params, replace) {
 }
 window.addEventListener('popstate', e => { view = e.state || { name: 'home', params: {} }; render(); });
 const ALIAS = { history: 'trends', progress: 'trends', settings: 'me' };
-const tabOf = n => ({ workout: 'train', summary: 'train', info: 'train', session: 'trends', day: 'trends', goals: 'me', profile: 'me', usage: 'me' }[n] || n);
+const tabOf = n => ({ workout: 'train', summary: 'train', info: 'train', session: 'trends', day: 'trends', goals: 'me', profile: 'me', usage: 'me', prog: 'me', progday: 'me' }[n] || n);
 
