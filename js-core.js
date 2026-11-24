@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.0.0';
+const VERSION = '3.1.0';
 const CHANGELOG = [
+  { v: '3.1.0', items: ['Daily check-in on Today: energy, soreness, stress and sleep quality, each on a 1 to 5 scale with words. Anytime, skip freely', 'Water tracking with quick add and undo, goal set in Goals', 'Supplements: add your own with dose and timing, tick them off each day', 'Sleep: type bed and wake time and the hours fill in', 'Streaks: days logged, training weeks and water goal days'] },
   { v: '3.0.0', items: ['Internal clean-up: the app code is split into several files so new features come faster and safer. Nothing should look different', 'Accessibility: clearer focus outlines and labels'] },
   { v: '2.9.0', items: ['Cloud accounts: log in with your username and password on any phone, and your data is backed up and synced automatically. You will need to log in once more after this update', 'Me shows the sync status and a Sync now button. Delete all data now also deletes your cloud copy'] },
   { v: '2.8.0', items: ['Notes on every exercise: a note dot, quick tags (Too heavy, Too easy, Pain, Form check, Change machine) and machine settings. They show up next time, and a new Notes tab in Trends lists them all', 'Rest timer: hiding it now shrinks it to a small round button you can drag. It keeps running and opens when tapped. Stop is only inside the open timer', 'Skip an exercise (with a reason) or add an exercise to today\'s workout'] },
@@ -50,7 +51,7 @@ let active = LSget('mx.active', null);          // workout in progress
 let editing = null;                             // past session being edited (memory only)
 let settings = Object.assign({ inc: {}, sound: true, vibrate: true, override: null }, LSget('mx.settings', {}));
 settings.ai = Object.assign({ key: '', model: 'gemini-3.1-flash-lite' }, settings.ai || {});
-settings.goals = Object.assign({ steps: 10000, sleep: 8, protein: 130 }, settings.goals || {});
+settings.goals = Object.assign({ steps: 10000, sleep: 8, protein: 130, water: 2500 }, settings.goals || {});
 let timer = LSget('mx.timer', null);
 let daily = LSget('mx.daily', {});             // {YYYY-MM-DD: {steps, sleep}}
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };

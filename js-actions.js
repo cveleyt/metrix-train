@@ -47,6 +47,7 @@ function importData(file) {
 
 async function act(a, el) {
   const i = +el.dataset.i, j = +el.dataset.j;
+  if (dailyAct(a, el)) return;
   switch (a) {
     case 'start':
       if (active && !confirm('You have a workout in progress. Replace it?')) return;
@@ -223,6 +224,7 @@ async function act(a, el) {
       if (v > 0) settings.goals[f] = f === 'weight' ? rnd(fw(v)) : v;
       else if (f === 'steps') settings.goals[f] = 10000;
       else if (f === 'sleep') settings.goals[f] = 8;
+      else if (f === 'water') settings.goals[f] = 2500;
       else delete settings.goals[f];
       saveSettings(); break;
     }
@@ -387,7 +389,7 @@ async function act(a, el) {
     case 'theme-set': settings.theme = el.dataset.v; saveSettings(); applyTheme(); render(); break;
     case 'score-in': settings.score = Object.assign({}, settings.score || {}, { [el.dataset.k]: el.checked }); saveSettings(); break;
     case 'goal-step': {
-      const f = el.dataset.f, lw = Object.keys(daily).sort().map(k => daily[k].weight).filter(v => v != null).pop(), cur = settings.goals[f] || (f === 'weight' ? (lw || 70) - parseFloat(el.dataset.d) : 0), min = (f === 'steps' || f === 'sleep') ? 1 : 0;
+      const f = el.dataset.f, lw = Object.keys(daily).sort().map(k => daily[k].weight).filter(v => v != null).pop(), cur = settings.goals[f] || (f === 'weight' ? (lw || 70) - parseFloat(el.dataset.d) : 0), min = (f === 'steps' || f === 'sleep' || f === 'water') ? 1 : 0;
       if (f === 'weight') {
         const d = parseFloat(el.dataset.d), cd = settings.goals.weight ? dw(settings.goals.weight) : dw(lw || 70) - d, nd = Math.max(0, Math.round((cd + d) * 10) / 10);
         if (nd > 0) settings.goals.weight = rnd(fw(nd)); else delete settings.goals.weight;

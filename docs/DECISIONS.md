@@ -36,3 +36,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 
 ## Feedback log
 - 2026-11-24, first gym session: wanted notes per exercise, timer that survives closing, add and skip exercise. All built in 2.8.
+| 3.1 | Daily inputs: check-in (card on Today, anytime), water, supplements, sleep bed/wake, streaks. Stored inside daily[day] and settings.supps so sync needs no change. Readiness line moved to 3.4 |

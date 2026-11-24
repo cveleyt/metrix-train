@@ -70,8 +70,8 @@ views.home = () => {
   const date = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Today</h2></div>
   <button data-go="me" aria-label="Open Me" style="width:46px;height:46px;border-radius:15px;background:var(--g3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span class="n" style="font-size:24px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></button></div>
-  ${backupBanner()}<div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}${deloadCard()}<div id="score-box">${scoreCompact()}</div>
-  <div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div><div id="tiles">${tilesAll()}</div>${logCard()}${weekStrip()}`;
+  ${backupBanner()}<div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}${deloadCard()}${checkinCard()}<div id="score-box">${scoreCompact()}</div>
+  <div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div><div id="tiles">${tilesAll()}</div>${waterCard()}${stackCard()}${sleepCard()}${logCard()}${streakCard()}${weekStrip()}`;
 };
 views.train = p => {
   const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), l = sortedDesc()[0];
