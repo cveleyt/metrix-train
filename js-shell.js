@@ -119,9 +119,20 @@ function mealChips() {
 }
 function sugHTML(q) {
   q = (q || '').trim().toLowerCase();
-  const list = myfoods.filter(f => !q || f.name.toLowerCase().includes(q)).sort((a, b) => (q ? b.n - a.n : b.last - a.last)).slice(0, 5);
+  const list = q ? myfoods.filter(f => f.name.toLowerCase().includes(q)).sort((a, b) => b.n - a.n).slice(0, 5) : [];
   if (!list.length) return '';
-  return (q ? '' : '<small style="width:100%">Your foods, tap to fill instantly</small>') + list.map(f => `<button data-act="food-pick" data-id="${f.id}">${esc(f.name)} <small>${f.kcal} kcal</small></button>`).join('');
+  return (q ? '' : '') + list.map(f => `<button data-act="food-pick" data-id="${f.id}">${esc(f.name)} <small>${f.kcal} kcal</small></button>`).join('');
+}
+let foodsOpen = false;
+function foodsList(q) {
+  q = (q || '').trim().toLowerCase();
+  const l = myfoods.filter(f => !q || f.name.toLowerCase().includes(q)).sort((a, b) => b.last - a.last).slice(0, 40);
+  return l.length ? l.map(f => `<button class="li" data-act="food-pick" data-id="${f.id}" style="width:100%;padding:10px 0;text-align:left"><span style="font-size:14px">${esc(f.name)}</span><span class="dim" style="font-size:12px;flex:none;margin-left:10px">${f.kcal} kcal</span></button>`).join('') : '<small>No match.</small>';
+}
+function foodsFold() {
+  if (!myfoods.length) return '';
+  return `<button data-act="foods-toggle" aria-expanded="${foodsOpen}" style="display:flex;width:100%;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--g1);margin:0 0 10px"><span><b>Your foods</b> <small>${myfoods.length} saved</small></span><span aria-hidden="true">${foodsOpen ? '&#9652;' : '&#9662;'}</span></button>
+  ${foodsOpen ? `<div style="border:1px solid var(--line);border-radius:14px;padding:10px 14px 4px;margin:-4px 0 10px"><input id="fd-fq" type="search" autocomplete="off" placeholder="Search your foods" aria-label="Search your foods" style="width:100%;margin-bottom:6px"><div id="fd-fl" style="max-height:300px;overflow:auto">${foodsList('')}</div><small style="display:block;padding:6px 0 8px">Tap one to fill the numbers instantly.</small></div>` : ''}`;
 }
 function macroRow(k, label, unit, val, goal, col) {
   const rem = goal > 0 ? goal - val : null, hit = k === 'p' || k === 'fi';

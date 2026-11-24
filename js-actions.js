@@ -312,10 +312,11 @@ async function act(a, el) {
     case 'ai-key-in': settings.ai.key = el.value.trim(); saveSettings(); toast(settings.ai.key ? 'Key saved on this phone' : 'Key removed'); break;
     case 'ai-model-in': settings.ai.model = el.value.trim() || 'gemini-3.1-flash-lite'; saveSettings(); break;
     case 'meal-set': { mealSel = el.dataset.m; document.querySelectorAll('#fd-meals button').forEach(b => { const on = b.dataset.m === mealSel; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); break; }
+    case 'foods-toggle': foodsOpen = !foodsOpen; $('#fd-fold').innerHTML = foodsFold(); break;
     case 'food-pick': {
       const f = myfoods.find(x => x.id === el.dataset.id); if (!f) break;
       $('#fd-name').value = f.name; $('#fd-kcal').value = f.kcal; $('#fd-p').value = f.p; $('#fd-c').value = f.c; $('#fd-f').value = f.f || 0; $('#fd-fi').value = f.fi || 0;
-      $('#fd-aimsg').innerHTML = '<small>From your foods. Tap Add to today.</small>'; $('#fd-res').innerHTML = ''; break;
+      $('#fd-aimsg').innerHTML = '<small>From your foods. Tap Add to today.</small>'; $('#fd-res').innerHTML = ''; if (foodsOpen) { foodsOpen = false; $('#fd-fold').innerHTML = foodsFold(); } break;
     }
     case 'food-db': {
       const q = ($('#fd-name').value || '').trim(), msg = $('#fd-aimsg'), box = $('#fd-res'), btn = $('#fd-db');
@@ -467,6 +468,7 @@ document.addEventListener('change', e => {
 document.addEventListener('input', e => {
   if (e.target.id === 'fd-name') { const b = $('#fd-sug'); if (b) b.innerHTML = sugHTML(e.target.value); }
   else if (e.target.id === 'fd-g') applyDb();
+  else if (e.target.id === 'fd-fq') { $('#fd-fl').innerHTML = foodsList(e.target.value); }
   else if (e.target.id === 'nt-q') act('nq-in', e.target);
 });
 window.addEventListener('mxsync', () => { const e = $('#sync-st'); if (e && window.MXSYNC) e.textContent = MXSYNC.label(); });
