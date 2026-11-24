@@ -1,8 +1,9 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '2.8.0';
+const VERSION = '2.9.0';
 const CHANGELOG = [
+  { v: '2.9.0', items: ['Cloud accounts: log in with your username and password on any phone, and your data is backed up and synced automatically. You will need to log in once more after this update', 'Me shows the sync status and a Sync now button. Delete all data now also deletes your cloud copy'] },
   { v: '2.8.0', items: ['Notes on every exercise: a note dot, quick tags (Too heavy, Too easy, Pain, Form check, Change machine) and machine settings. They show up next time, and a new Notes tab in Trends lists them all', 'Rest timer: hiding it now shrinks it to a small round button you can drag. It keeps running and opens when tapped. Stop is only inside the open timer', 'Skip an exercise (with a reason) or add an exercise to today\'s workout'] },
   { v: '2.7.0', items: ['Trends: new Muscles tab (hard sets per muscle each week), Body tab (measurements and progress photos) and Review tab (weekly numbers, tips and an optional AI coach note)', 'Warm-up sets, optional how-hard rating per set (turn on in Me), and a deload week suggestion', 'Scan a barcode in Fuel to find a product', 'Switch between kg and lb, cm and inches in Me', 'Export workouts, food and body as CSV', 'Home screen shortcuts: hold the app icon'] },
   { v: '2.6.0', items: ['Goal can be both Lose fat and Build muscle (body recomposition)', 'Safer recommendations: calorie floor, health check and an option to hide calories', 'AI asks your OK before sending anything to Google', 'Backup reminder every week, fonts now stored in the app, easier keyboard and screen reader use'] },
@@ -13,7 +14,7 @@ const CHANGELOG = [
 ];
 const USERS = window.USERS || [];
 let USER = null;
-try { const id = localStorage.getItem('mx.user') || '', h = localStorage.getItem('mx.auth'); USER = USERS.find(u => u.id === id && u.hash === h) || (!id && USERS[0] && USERS[0].hash === h ? USERS[0] : null); } catch (e) {}
+try { const id = localStorage.getItem('mx.user') || '', h = localStorage.getItem('mx.auth'); USER = window.MXSYNC ? (window.MXSYNC.has() ? USERS.find(u => u.id === id) || null : null) : (USERS.find(u => u.id === id && u.hash === h) || (!id && USERS[0] && USERS[0].hash === h ? USERS[0] : null)); } catch (e) {}
 const KP = USER && !USER.legacy ? 'mx.' + USER.id + '.' : 'mx.';
 const K = k => KP + k.slice(3);
 const P = (USER && window.PROGRAMS && window.PROGRAMS[USER.program]) || window.PROGRAM, DAYS = P.days;
@@ -262,17 +263,28 @@ const tabOf = n => ({ workout: 'train', summary: 'train', info: 'train', session
 /* ---------- login gate (device lock, not server security) ---------- */
 const isAuthed = () => !!USER;
 async function sha256(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
-const loginHTML = err => `<form id="login" autocomplete="on" style="padding-top:8vh;text-align:center">
+const loginHTML = (err, msg) => `<form id="login" autocomplete="on" style="padding-top:8vh;text-align:center">
   <div style="display:flex;justify-content:center">${tickRing(150, 1, 'var(--acc)', '<div class="n" style="font-size:54px;color:var(--acct)">MX</div>', 60, 3, 12)}</div>
   <h2 style="margin:18px 0 4px;font-size:46px">MetriX Train</h2><p>Log in to your own program</p>
   <div style="text-align:left;margin-top:22px"><label>Username<input id="lg-u" name="username" autocomplete="username" autocapitalize="none" required style="height:54px"></label>
   <label>Password<input id="lg-p" name="password" type="password" autocomplete="current-password" required style="height:54px"></label>
-  ${err ? '<p role="alert" class="tg" style="color:var(--rest);margin:8px 0 12px">WRONG USERNAME OR PASSWORD</p>' : ''}</div>
+  ${err ? '<p role="alert" class="tg" style="color:var(--rest);margin:8px 0 12px">' + ({ net: 'NO CONNECTION, TRY AGAIN', noprog: 'NO PROGRAM ASSIGNED TO THIS USER YET' }[err] || 'WRONG USERNAME OR PASSWORD') + '</p>' + (msg && !/invalid login credentials/i.test(msg) ? '<p style="margin:0 0 10px"><small>' + esc(msg) + '</small></p>' : '') : ''}</div>
   <button class="btn" type="submit">Log in</button></form>`;
 document.addEventListener('submit', async e => {
   if (e.target.id !== 'login') return;
   e.preventDefault();
   const u = $('#lg-u').value.trim().toLowerCase(), p = $('#lg-p').value;
+  if (window.MXSYNC) {
+    const b = e.target.querySelector('button[type=submit]'); if (b) { b.disabled = true; b.textContent = 'Logging in...'; }
+    try {
+      await window.MXSYNC.login(u, p);
+      const u2 = USERS.find(x => x.id === u);
+      if (!u2) { window.MXSYNC.logout(); $('#app').innerHTML = loginHTML('noprog'); return; }
+      localStorage.setItem('mx.auth', 'cloud'); localStorage.setItem('mx.user', u2.id); localStorage.setItem('mx.pfx', u2.legacy ? 'mx.' : 'mx.' + u2.id + '.');
+      location.replace(location.pathname);
+    } catch (x) { $('#app').innerHTML = loginHTML(x && x.net ? 'net' : 'bad', x && x.message); }
+    return;
+  }
   let h = ''; try { h = await sha256('mx-train|' + u + '|' + p); } catch (x) {}
   const u2 = USERS.find(x => x.hash === h);
   if (h && u2) { try { localStorage.setItem('mx.auth', h); localStorage.setItem('mx.user', u2.id); localStorage.setItem('mx.pfx', u2.legacy ? 'mx.' : 'mx.' + u2.id + '.'); } catch (x) {} location.replace(location.pathname); }
@@ -818,7 +830,7 @@ views.me = () => {
   <div class="row" style="margin-top:10px"><span class="t" style="color:${settings.ai.key ? 'var(--ok)' : 'var(--dim)'}">${settings.ai.key ? 'KEY SAVED' : 'NO KEY'}</span><span class="t" style="color:var(--dim)">${myfoods.length} FOODS SAVED</span></div></div>
   <div class="dl"><b></b><span class="m">DATA AND SYNC</span><b></b></div><div class="card"><p>${sessions.length} workouts saved on this phone. Export a backup now and then.</p>
   <div class="row"><button class="btn" data-act="export">Export backup</button><button class="btn ghost" data-act="import-btn">Import</button></div><div class="m" style="margin:14px 0 6px">EXPORT AS CSV, FOR EXCEL</div><div class="row"><button class="mini" data-act="csv" data-k="workouts">Workouts</button><button class="mini" data-act="csv" data-k="food">Food</button><button class="mini" data-act="csv" data-k="body">Body</button></div><input id="imp" type="file" accept="application/json,.json" data-act="import-in" style="display:none">
-  <div class="li" style="margin-top:6px"><span>Protected storage</span><span>${persisted === true ? 'Granted' : persisted === false ? 'Not granted' : 'Unknown'}</span></div><div class="li"><span>Cloud sync</span><span>Off, coming with accounts</span></div></div>
+  <div class="li" style="margin-top:6px"><span>Protected storage</span><span>${persisted === true ? 'Granted' : persisted === false ? 'Not granted' : 'Unknown'}</span></div><div class="li"><span>Cloud sync</span><span id="sync-st">${window.MXSYNC && MXSYNC.has() ? MXSYNC.label() : 'OFF'}</span></div>${window.MXSYNC && MXSYNC.has() ? `<div class="li"><span>Signed in as</span><span>${esc(MXSYNC.user())}</span></div><button class="li" data-act="sync-now"><span>Sync now</span><span>${CHEV}</span></button>` : ''}</div>
   ${grp('APP', `<div class="li"><span>Version</span><span>${VERSION}</span></div>` + `<button class="li" data-act="update"><span>Update app</span><span>${CHEV}</span></button><button class="li" data-act="logout"><span>Log out</span><span>${CHEV}</span></button>`)}
   <div style="height:16px"></div><button class="btn danger" data-act="reset">Delete all data</button>`;
 };
@@ -1646,7 +1658,8 @@ async function act(a, el) {
     }
     case 'rec-use': { if (settings.rec) { settings.goals[el.dataset.k] = settings.rec.vals[el.dataset.k]; saveSettings(); toast('Target updated'); $('#rec-box').innerHTML = recBlock(); } break; }
     case 'rec-all': { if (settings.rec) { Object.assign(settings.goals, settings.rec.vals); saveSettings(); toast('All targets updated'); $('#rec-box').innerHTML = recBlock(); } break; }
-    case 'logout': try { ['mx.auth', 'mx.user', 'mx.pfx'].forEach(k => localStorage.removeItem(k)); } catch (x) {} location.replace(location.pathname); break;
+    case 'sync-now': if (window.MXSYNC) { toast('Syncing...'); window.MXSYNC.now(); } break;
+    case 'logout': try { if (window.MXSYNC) window.MXSYNC.logout(); ['mx.auth', 'mx.user', 'mx.pfx'].forEach(k => localStorage.removeItem(k)); } catch (x) {} location.replace(location.pathname); break;
     case 'update': showModal(`<div class="m" style="color:var(--acct)">UPDATE APP</div><div class="n" style="font-size:38px;margin:8px 0;text-transform:uppercase">Are you sure?</div><p>The app reloads and gets the newest version. Your workouts, food and settings stay on this phone.</p><div class="mrow"><button class="btn ghost" data-act="mdl-close">Cancel</button><button class="btn" data-act="update-yes">Yes, update</button></div>`); break;
     case 'update-yes': {
       try { localStorage.setItem('mx.fromVer', VERSION); } catch (e) {}
@@ -1659,7 +1672,7 @@ async function act(a, el) {
     case 'mdl-close': closeModal(); break;
     case 'whatsnew-ok': try { localStorage.setItem('mx.seenVer', VERSION); localStorage.removeItem('mx.fromVer'); } catch (e) {} closeModal(); break;
     case 'reset':
-      if (confirm('Delete ALL workouts on this phone? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
+      if (confirm('Delete ALL your data on this phone and your cloud copy? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
         ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food', 'mx.myfoods', 'mx.meas', 'mx.notes', 'mx.notelog'].forEach(k => localStorage.removeItem(K(k)));
         sessions = []; daily = {}; food = {}; myfoods = []; meas = {}; notes = {}; notelog = []; phKeys = []; try { indexedDB.deleteDatabase('mx-photos-' + (USER ? USER.id : 'x')); } catch (e) {} active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, theme: 'system', goals: { steps: 10000, sleep: 8, protein: 130 }, ai: { key: '', model: 'gemini-3.1-flash-lite' } };
         toast('All data deleted'); go('home', {}, true);
@@ -1684,6 +1697,7 @@ document.addEventListener('input', e => {
   else if (e.target.id === 'fd-g') applyDb();
   else if (e.target.id === 'nt-q') act('nq-in', e.target);
 });
+window.addEventListener('mxsync', () => { const e = $('#sync-st'); if (e && window.MXSYNC) e.textContent = MXSYNC.label(); });
 document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { wake(); tick(); } });
 

@@ -22,9 +22,10 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 2.7 | Muscle volume, body measurements and photos, weekly review, warm-ups, RPE, deload, barcode, units, CSV, shortcuts | KEPT | RPE default off |
 | 2.8 | Exercise notes, quick tags, machine settings, skip and add exercise | KEPT | First gym test feedback |
 | - | Calorie burn estimate | DROPPED | Brainstormed, not wanted for now |
+| 2.9 | Cloud accounts and sync (Supabase) | KEPT | Login by username, local first, merge by record. Photos not synced yet |
 | - | Text size setting | ON HOLD | |
-| - | Password hardening | ON HOLD | Replaced by Supabase Auth |
-| - | Automatic backup and sync | ON HOLD | Needs Supabase |
+| - | Password hardening | CHANGED | Replaced by Supabase Auth in 2.9 |
+| 2.9 | Automatic backup and sync | KEPT | Done through Supabase |
 | - | Locked-phone timer alarm, automatic steps and sleep | PARKED | Needs the Android wrapper (Capacitor) and Health Connect |
 
 ## Open questions for the rebuild

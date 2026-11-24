@@ -1,7 +1,7 @@
 /* Offline cache: serves cached files instantly, refreshes them in the background.
    Workout data lives in localStorage, never in this cache. */
-const V = 'mx-train-v25';
-const FILES = ['./', './index.html', './app.js', './program.js', './users.js', './manifest.webmanifest',
+const V = 'mx-train-v26';
+const FILES = ['./', './index.html', './app.js', './program.js', './users.js', './sync.js', './manifest.webmanifest',
   './icons/icon-192.png', './fonts/inter-latin-400-normal.woff2', './fonts/inter-latin-500-normal.woff2', './fonts/inter-latin-600-normal.woff2', './fonts/inter-latin-700-normal.woff2', './fonts/barlow-condensed-latin-600-normal.woff2', './fonts/barlow-condensed-latin-700-normal.woff2', './fonts/barlow-condensed-latin-800-normal.woff2', './fonts/jetbrains-mono-latin-500-normal.woff2', './fonts/jetbrains-mono-latin-600-normal.woff2', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
