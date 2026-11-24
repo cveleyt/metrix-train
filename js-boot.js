@@ -40,7 +40,7 @@ function whatsNew() {
     const s = tel(timer);
     if (timer.state === 'run' && s > timer.max + 900) { timer = null; saveTimer(); } else { timer.f1 = timer.state === 'run' && s >= timer.min ? 1 : 0; timer.f2 = timer.state === 'run' && s >= timer.max ? 1 : 0; }
   }
-  phLoad();
+  phLoad(); autoSupps('daily');
   let goScan = false;
   try {
     const q = new URLSearchParams(location.search).get('go'), M = { train: 'train', fuel: 'fuel', scan: 'fuel', weight: 'home' };

@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.2.0';
+const VERSION = '3.3.0';
 const CHANGELOG = [
+  { v: '3.3.0', items: ['Supplements: new Before workout and During workout timing, and a Tick it for me setting (Manual, Training days, Every day). Auto ticks show an AUTO tag and you can untick them. Every day only ticks today, never past days'] },
   { v: '3.2.0', items: ['Today is shorter: check-in, supplements and sleep are in one folded Daily section', 'Water tracking removed. Sleep is now typed as bed and wake times only', 'Only the training streak is kept', 'New Me, Usage: a private count of what you use, to decide what stays', 'After each workout you can leave a quick note about anything that annoyed you'] },
   { v: '3.1.2', items: ['Fuel: your saved foods are folded into one row you can open, with a search box. Matching foods still pop up while you type'] },
   { v: '3.1.1', items: ['Supplements: type the product and how much you take, and the AI looks up the label and works out what one dose gives you (caffeine, citrulline and so on). Check and edit before saving. Caffeine today shows on the stack'] },
@@ -157,6 +158,7 @@ function finishWorkout() {
   active = null; LSset('mx.active', null);
   timer = null; saveTimer();
   settings.override = null; saveSettings();
+  if (typeof autoSupps === 'function') autoSupps('train');
   go('summary', { id: s.id }, true);
 }
 

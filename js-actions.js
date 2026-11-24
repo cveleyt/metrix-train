@@ -474,5 +474,5 @@ document.addEventListener('input', e => {
 });
 window.addEventListener('mxsync', () => { const e = $('#sync-st'); if (e && window.MXSYNC) e.textContent = MXSYNC.label(); });
 document.addEventListener('pointerdown', unlockAudio);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { wake(); tick(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { wake(); tick(); autoSupps('daily'); } });
 

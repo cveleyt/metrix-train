@@ -7,7 +7,15 @@ const CI = [
   ['st', 'STRESS', ['Calm', 'Low', 'OK', 'High', 'Maxed']],
   ['q', 'SLEEP QUALITY', ['Awful', 'Poor', 'OK', 'Good', 'Great']]
 ];
-const SUPP_WHEN = ['Morning', 'With a meal', 'After workout', 'Evening', 'Any time'];
+const SUPP_WHEN = ['Morning', 'With a meal', 'Before workout', 'During workout', 'After workout', 'Evening', 'Any time'];
+const SUPP_AUTO = [['manual', 'Manual'], ['train', 'Training days'], ['daily', 'Every day']];
+/* daily[day].supp[id]: 1 = you ticked it, 2 = assumed by the auto setting. daily[day].suppAuto[id] marks that auto already ran, so an untick sticks. */
+function autoSupps(mode) {
+  const k = todayKey(), l = suppList().filter(s => s.auto === 'daily' || (mode === 'train' && s.auto === 'train')); if (!l.length) return;
+  const d = ensureDay(k); let ch = false;
+  l.forEach(s => { d.suppAuto = d.suppAuto || {}; if (d.suppAuto[s.id]) return; d.suppAuto[s.id] = 1; d.supp = d.supp || {}; if (!d.supp[s.id]) d.supp[s.id] = 2; ch = true; });
+  if (ch) saveDaily(); else tidyDay(k);
+}
 const dayD = k => daily[k] || {};
 function ensureDay(k) { daily[k] = daily[k] || {}; return daily[k]; }
 function tidyDay(k) { const d = daily[k]; if (d && !Object.keys(d).length) delete daily[k]; }
@@ -27,7 +35,7 @@ function stackCard() {
   const l = suppList(), t = dayD(todayKey()).supp || {}, n = l.filter(s => t[s.id]).length;
   if (!l.length) return `<div class="card" style="margin-top:12px"><span class="m">SUPPLEMENTS</span><p style="margin:8px 0 12px">Track creatine, whey, vitamins or anything you take daily. You choose the names, doses and timing.</p><button class="btn ghost" data-act="supp-edit" data-i="-1">Add supplement</button></div>`;
   return `<div class="card" style="margin-top:12px;padding-bottom:6px"><div class="row" style="justify-content:space-between"><span class="m">SUPPLEMENTS</span><span class="t" style="color:var(--dim)">${n} OF ${l.length} TAKEN</span></div>
-  ${l.map((s, i) => `<div class="li" style="padding:11px 0"><button data-act="supp-edit" data-i="${i}" style="text-align:left;flex:1" aria-label="Edit ${esc(s.name)}"><span style="font-weight:600">${esc(s.name)}</span><br><span class="dim" style="font-size:12px">${esc([s.dose, s.when].filter(Boolean).join(', '))}</span>${(s.facts || []).length ? `<br><span class="dim" style="font-size:11.5px">${esc(s.facts.slice(0, 3).join(', '))}</span>` : ''}</button>
+  ${l.map((s, i) => `<div class="li" style="padding:11px 0"><button data-act="supp-edit" data-i="${i}" style="text-align:left;flex:1" aria-label="Edit ${esc(s.name)}"><span style="font-weight:600">${esc(s.name)}</span>${t[s.id] === 2 ? ' <span class="t" style="color:var(--acct)">AUTO</span>' : ''}<br><span class="dim" style="font-size:12px">${esc([s.dose, s.when, s.auto === 'train' ? 'auto on training days' : s.auto === 'daily' ? 'auto every day' : ''].filter(Boolean).join(', '))}</span>${(s.facts || []).length ? `<br><span class="dim" style="font-size:11.5px">${esc(s.facts.slice(0, 3).join(', '))}</span>` : ''}</button>
   <button data-act="supp-tick" data-id="${s.id}" role="checkbox" aria-checked="${!!t[s.id]}" aria-label="${esc(s.name)} taken" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${t[s.id] ? 'var(--acct)' : 'var(--line2)'};background:${t[s.id] ? 'var(--acct)' : 'transparent'};color:#fff;font-weight:700">${t[s.id] ? '&#10003;' : ''}</button></div>`).join('')}
   ${caffToday() ? `<div class="row" style="justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)"><span class="m">CAFFEINE TODAY</span><span><span class="n" style="font-size:22px">${Math.round(caffToday())}</span><span class="dim"> of 400 mg suggested limit</span> <span class="t" style="color:${caffToday() > 400 ? 'var(--acct)' : 'var(--dim)'}">${caffToday() > 400 ? 'OVER' : 'OK'}</span></span></div>` : ''}
   <button class="mini" data-act="supp-edit" data-i="-1" style="margin:4px 0 8px">+ Add supplement</button></div>`;
@@ -79,6 +87,7 @@ function suppModal(i, dr) {
   showModal(`<div class="m" style="color:var(--acct)">SUPPLEMENT</div><div class="n" style="font-size:30px;margin:6px 0 10px;text-transform:uppercase">${i >= 0 ? 'Edit' : 'Add'}</div>
   <label>Name and brand<input id="sp-name" type="text" autocomplete="off" value="${esc(s.name)}" placeholder="Pre-workout, Ghost Legend"></label><label>How much per dose<input id="sp-dose" type="text" autocomplete="off" value="${esc(s.dose)}" placeholder="2 scoops, or 5 g"></label>
   <div class="m" style="margin:10px 0 6px">WHEN</div><div class="mchips" role="group" aria-label="When">${SUPP_WHEN.map(w => `<button type="button" class="ntg${s.when === w ? ' on' : ''}" data-act="sp-when" aria-pressed="${s.when === w}">${w}</button>`).join('')}</div>
+  <div class="m" style="margin:12px 0 6px">TICK IT FOR ME</div><div class="mchips" role="group" aria-label="Tick it for me">${SUPP_AUTO.map(([v, l]) => `<button type="button" class="ntg au${(s.auto || 'manual') === v ? ' on' : ''}" data-act="sp-auto" data-v="${v}" aria-pressed="${(s.auto || 'manual') === v}">${l}</button>`).join('')}</div><small style="display:block;margin-top:4px">Training days: ticked when you save a workout. Every day: ticked when you open the app. You can still untick it.</small>
   <button class="btn ghost" id="sp-look" data-act="sp-look" style="margin-top:10px">Look it up with AI</button>
   <p id="sp-msg" style="margin:6px 0;min-height:18px"><small>Finds what one dose gives you, such as caffeine. You check it before saving.</small></p>
   <div id="sp-facts-box" ${facts ? '' : 'hidden'}><label>What one dose gives you, one per line<textarea id="sp-facts" class="big" placeholder="Caffeine 300 mg">${esc(facts)}</textarea></label><p id="sp-src" style="margin:0 0 6px"><small>${esc(s.src || '')}</small></p></div>
@@ -116,15 +125,15 @@ function dailyAct(a, el) {
     case 'supp-tick': { const d = ensureDay(k); d.supp = d.supp || {}; if (d.supp[el.dataset.id]) delete d.supp[el.dataset.id]; else d.supp[el.dataset.id] = 1; if (!Object.keys(d.supp).length) delete d.supp; tidyDay(k); saveDaily(); render(); return true; }
     case 'supp-edit': suppModal(+el.dataset.i); return true;
     case 'sp-look': {
-      const i = +($('#mdl [data-act=supp-save]') || { dataset: { i: -1 } }).dataset.i, w = document.querySelector('#mdl .ntg.on');
-      if (settings.ai.key && !settings.aiOk) { spDraft = { i, s: { name: $('#sp-name').value, dose: $('#sp-dose').value, when: w ? w.textContent : 'Any time', facts: [], src: '' } }; askAi('sp-resume'); return true; }
+      const i = +($('#mdl [data-act=supp-save]') || { dataset: { i: -1 } }).dataset.i, w = document.querySelector('#mdl .ntg:not(.au).on');
+      if (settings.ai.key && !settings.aiOk) { spDraft = { i, s: { name: $('#sp-name').value, dose: $('#sp-dose').value, when: w ? w.textContent : 'Any time', auto: (document.querySelector('#mdl .ntg.au.on') || { dataset: {} }).dataset.v || 'manual', facts: [], src: '' } }; askAi('sp-resume'); return true; }
       suppLook(i); return true;
     }
     case 'sp-resume': if (spDraft) { suppModal(spDraft.i, spDraft.s); spDraft = null; suppLook(0); } return true;
-    case 'sp-when': el.parentNode.querySelectorAll('.ntg').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); }); el.classList.add('on'); el.setAttribute('aria-pressed', 'true'); return true;
+    case 'sp-when': case 'sp-auto': el.parentNode.querySelectorAll('.ntg').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); }); el.classList.add('on'); el.setAttribute('aria-pressed', 'true'); return true;
     case 'supp-save': {
       const name = ($('#sp-name').value || '').trim(); if (!name) { toast('Give it a name'); return true; }
-      const w = document.querySelector('#mdl .ntg.on'), s = { name, dose: ($('#sp-dose').value || '').trim(), when: w ? w.textContent : 'Any time', facts: ($('#sp-facts') ? $('#sp-facts').value : '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 12), src: ($('#sp-src') ? $('#sp-src').textContent : '').trim() }, i = +el.dataset.i;
+      const w = document.querySelector('#mdl .ntg:not(.au).on'), s = { name, dose: ($('#sp-dose').value || '').trim(), when: w ? w.textContent : 'Any time', auto: (document.querySelector('#mdl .ntg.au.on') || { dataset: {} }).dataset.v || 'manual', facts: ($('#sp-facts') ? $('#sp-facts').value : '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 12), src: ($('#sp-src') ? $('#sp-src').textContent : '').trim() }, i = +el.dataset.i;
       const l = suppList().slice(); if (i >= 0) l[i] = Object.assign({}, l[i], s); else l.push(Object.assign({ id: 's' + Date.now().toString(36) }, s));
       settings.supps = l; saveSettings(); closeModal(); render(); return true;
     }
