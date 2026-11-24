@@ -25,8 +25,7 @@ function fuelSummary() {
 function logCard() {
   const t = daily[todayKey()] || {};
   return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">LOG TODAY</span><small>From Samsung Health</small></div>
-  <div class="ins" style="grid-template-columns:repeat(3,minmax(0,1fr))"><label>Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label>
-  <label>Sleep (h)<input data-act="daily-in" data-f="sleep" type="number" inputmode="decimal" step="any" min="0" max="24" value="${t.sleep == null ? '' : t.sleep}" placeholder="0"></label>
+  <div class="ins" style="grid-template-columns:repeat(2,minmax(0,1fr))"><label>Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label>
   <label>Weight (${UW()})<input data-act="daily-in" data-f="weight" type="number" inputmode="decimal" step="any" min="0" max="400" value="${t.weight == null ? '' : r1(dw(t.weight))}" placeholder="0"></label></div>
   <p style="margin:10px 0 0;text-align:center"><small>Type today's numbers. Weigh yourself the same way each morning for a clean trend.</small></p></div>`;
 }
@@ -70,8 +69,8 @@ views.home = () => {
   const date = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Today</h2></div>
   <button data-go="me" aria-label="Open Me" style="width:46px;height:46px;border-radius:15px;background:var(--g3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span class="n" style="font-size:24px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></button></div>
-  ${backupBanner()}<div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}${deloadCard()}${checkinCard()}<div id="score-box">${scoreCompact()}</div>
-  <div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div><div id="tiles">${tilesAll()}</div>${waterCard()}${stackCard()}${sleepCard()}${logCard()}${streakCard()}${weekStrip()}`;
+  ${backupBanner()}<div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}${deloadCard()}<div id="score-box">${scoreCompact()}</div>${dailyCard()}
+  <div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div><div id="tiles">${tilesAll()}</div>${logCard()}${streakCard()}${weekStrip()}`;
 };
 views.train = p => {
   const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), l = sortedDesc()[0];

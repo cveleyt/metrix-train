@@ -5,7 +5,7 @@ function firstIncomplete(c) { const i = c.exercises.findIndex(x => !x.skipped &&
 
 async function exportData() {
   settings.lastBackup = Date.now(); saveSettings();
-  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, food, myfoods, meas, notes, notelog, settings: Object.assign({}, settings, { ai: undefined }) };
+  const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, food, myfoods, meas, notes, notelog, feedback, settings: Object.assign({}, settings, { ai: undefined }) };
   const name = 'metrix-train-' + new Date().toISOString().slice(0, 10) + '.json';
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   try {
@@ -37,6 +37,7 @@ function importData(file) {
       if (d.notes && typeof d.notes === 'object') { Object.keys(d.notes).forEach(k => { if (!notes[k]) notes[k] = d.notes[k]; }); }
       if (Array.isArray(d.notelog)) { d.notelog.forEach(n => { if (n && n.t && !notelog.some(x => x.t === n.t && x.name === n.name)) notelog.push(n); }); notelog.sort((a, b) => a.t - b.t); }
       saveNotes();
+      if (Array.isArray(d.feedback)) { d.feedback.forEach(n => { if (n && n.t && !feedback.some(x => x.t === n.t)) feedback.push(n); }); feedback.sort((a, b) => a.t - b.t); saveFeedback(); }
       if (d.meas && typeof d.meas === 'object') { Object.keys(d.meas).forEach(k => { if (!meas[k]) meas[k] = d.meas[k]; }); saveMeas(); }
       if (d.daily && typeof d.daily === 'object') { Object.keys(d.daily).forEach(k => { if (!daily[k]) daily[k] = d.daily[k]; }); saveDaily(); }
       saveSessions(); toast('Imported ' + add + ' new, ' + upd + ' updated'); render();
@@ -47,7 +48,8 @@ function importData(file) {
 
 async function act(a, el) {
   const i = +el.dataset.i, j = +el.dataset.j;
-  if (dailyAct(a, el)) return;
+  track('a:' + a);
+  if (dailyAct(a, el) || usageAct(a, el)) return;
   switch (a) {
     case 'start':
       if (active && !confirm('You have a workout in progress. Replace it?')) return;
@@ -224,7 +226,6 @@ async function act(a, el) {
       if (v > 0) settings.goals[f] = f === 'weight' ? rnd(fw(v)) : v;
       else if (f === 'steps') settings.goals[f] = 10000;
       else if (f === 'sleep') settings.goals[f] = 8;
-      else if (f === 'water') settings.goals[f] = 2500;
       else delete settings.goals[f];
       saveSettings(); break;
     }
@@ -390,7 +391,7 @@ async function act(a, el) {
     case 'theme-set': settings.theme = el.dataset.v; saveSettings(); applyTheme(); render(); break;
     case 'score-in': settings.score = Object.assign({}, settings.score || {}, { [el.dataset.k]: el.checked }); saveSettings(); break;
     case 'goal-step': {
-      const f = el.dataset.f, lw = Object.keys(daily).sort().map(k => daily[k].weight).filter(v => v != null).pop(), cur = settings.goals[f] || (f === 'weight' ? (lw || 70) - parseFloat(el.dataset.d) : 0), min = (f === 'steps' || f === 'sleep' || f === 'water') ? 1 : 0;
+      const f = el.dataset.f, lw = Object.keys(daily).sort().map(k => daily[k].weight).filter(v => v != null).pop(), cur = settings.goals[f] || (f === 'weight' ? (lw || 70) - parseFloat(el.dataset.d) : 0), min = (f === 'steps' || f === 'sleep') ? 1 : 0;
       if (f === 'weight') {
         const d = parseFloat(el.dataset.d), cd = settings.goals.weight ? dw(settings.goals.weight) : dw(lw || 70) - d, nd = Math.max(0, Math.round((cd + d) * 10) / 10);
         if (nd > 0) settings.goals.weight = rnd(fw(nd)); else delete settings.goals.weight;
@@ -446,8 +447,8 @@ async function act(a, el) {
     case 'whatsnew-ok': try { localStorage.setItem('mx.seenVer', VERSION); localStorage.removeItem('mx.fromVer'); } catch (e) {} closeModal(); break;
     case 'reset':
       if (confirm('Delete ALL your data on this phone and your cloud copy? Export a backup first.') && confirm('Really delete everything? This cannot be undone.')) {
-        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food', 'mx.myfoods', 'mx.meas', 'mx.notes', 'mx.notelog'].forEach(k => localStorage.removeItem(K(k)));
-        sessions = []; daily = {}; food = {}; myfoods = []; meas = {}; notes = {}; notelog = []; phKeys = []; try { indexedDB.deleteDatabase('mx-photos-' + (USER ? USER.id : 'x')); } catch (e) {} active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, theme: 'system', goals: { steps: 10000, sleep: 8, protein: 130 }, ai: { key: '', model: 'gemini-3.1-flash-lite' } };
+        ['mx.sessions', 'mx.active', 'mx.settings', 'mx.timer', 'mx.daily', 'mx.food', 'mx.myfoods', 'mx.meas', 'mx.notes', 'mx.notelog', 'mx.feedback', 'mx.usage'].forEach(k => localStorage.removeItem(K(k)));
+        sessions = []; daily = {}; food = {}; myfoods = []; meas = {}; notes = {}; notelog = []; feedback = []; phKeys = []; try { indexedDB.deleteDatabase('mx-photos-' + (USER ? USER.id : 'x')); } catch (e) {} active = null; timer = null; settings = { inc: {}, sound: true, vibrate: true, override: null, theme: 'system', goals: { steps: 10000, sleep: 8, protein: 130 }, ai: { key: '', model: 'gemini-3.1-flash-lite' } };
         toast('All data deleted'); go('home', {}, true);
       }
       break;

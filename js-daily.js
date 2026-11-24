@@ -1,6 +1,6 @@
-/* MetriX Train: Daily inputs (check-in, water, supplements, sleep times, streaks). Classic script, shares one global scope with the other app files. Load order matters. */
+/* MetriX Train: Daily inputs (check-in, supplements, sleep times, streaks). Classic script, shares one global scope with the other app files. Load order matters. */
 'use strict';
-/* Data lives inside daily[day]: ci {e,s,st,q}, water (ml), waterLog [[t,ml]], supp {id:1}, bed, wake ('HH:MM'). Supplement list is settings.supps. Both already sync. */
+/* Data lives inside daily[day]: ci {e,s,st,q}, supp {id:1}, bed, wake ('HH:MM'). Supplement list is settings.supps. Both already sync. */
 const CI = [
   ['e', 'ENERGY', ['Drained', 'Low', 'OK', 'Good', 'Great']],
   ['s', 'MUSCLE SORENESS', ['None', 'Light', 'Some', 'Sore', 'Wrecked']],
@@ -8,8 +8,6 @@ const CI = [
   ['q', 'SLEEP QUALITY', ['Awful', 'Poor', 'OK', 'Good', 'Great']]
 ];
 const SUPP_WHEN = ['Morning', 'With a meal', 'After workout', 'Evening', 'Any time'];
-const waterGoal = () => settings.goals.water || 2500;
-const lit = ml => (ml / 1000).toFixed(ml % 100 ? 2 : 1).replace(/0$/, '').replace(/\.$/, '');
 const dayD = k => daily[k] || {};
 function ensureDay(k) { daily[k] = daily[k] || {}; return daily[k]; }
 function tidyDay(k) { const d = daily[k]; if (d && !Object.keys(d).length) delete daily[k]; }
@@ -24,14 +22,6 @@ function checkinCard() {
   }
   return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">CHECK-IN</span><span class="t" style="color:var(--acct)">${n ? n + ' OF 4' : '30 SECONDS'}</span></div>
   <p style="margin:8px 0 12px">How do you feel today? Four taps. It helps the coach and your weekly review.</p><button class="btn" data-act="ci-open">${n ? 'Continue check-in' : 'Start check-in'}</button></div>`;
-}
-function waterCard() {
-  const d = dayD(todayKey()), w = d.water || 0, g = waterGoal(), log = d.waterLog || [];
-  const last = log.length ? log[log.length - 1] : null;
-  return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">WATER</span><span class="t" style="color:var(--dim)">${w >= g ? 'GOAL HIT' : Math.round(w / g * 100) + '%'}</span></div>
-  <div class="row" style="justify-content:space-between;flex-wrap:nowrap;align-items:center;margin-top:6px"><div><span class="n" style="font-size:40px">${lit(w)}</span><span class="dim"> of ${lit(g)} L</span></div>${tickRing(78, Math.min(1, w / g), 'var(--rest)', `<span class="n" style="font-size:18px">${Math.round(w / g * 100)}%</span>`, 40, 3, 8)}</div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">${[250, 500, 750].map(v => `<button class="mini" style="height:46px;font-size:15px;text-align:center" data-act="water-add" data-v="${v}" aria-label="Add ${v} millilitres of water">+${v} ml</button>`).join('')}</div>
-  <div class="row" style="justify-content:space-between;margin-top:10px;flex-wrap:nowrap"><small>${last ? 'Last: ' + last[1] + ' ml at ' + new Date(last[0]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Nothing logged yet'}</small>${last ? '<button class="mini" data-act="water-undo">Undo</button>' : ''}</div></div>`;
 }
 function stackCard() {
   const l = suppList(), t = dayD(todayKey()).supp || {}, n = l.filter(s => t[s.id]).length;
@@ -51,7 +41,7 @@ function sleepCard() {
   <div style="margin-top:12px">${miniBars(v.map(x => x || null), 'var(--rest)', 330, 56, g, 'Sleep last 7 nights')}</div><small>${have.length ? 'Last 7 nights, average ' + sleepTxt(avg) : 'Enter bed and wake times and the hours fill in by themselves.'}</small></div>`;
 }
 /* ---------- streaks ---------- */
-function dayHas(k) { const d = dayD(k); return !!(dayInfo(k).logged || d.water || d.ci || (d.supp && Object.keys(d.supp).length)); }
+function dayHas(k) { const d = dayD(k); return !!(dayInfo(k).logged || d.ci || (d.supp && Object.keys(d.supp).length)); }
 function streakDays(test) {
   let k = todayKey(), n = 0;
   if (!test(k)) k = kAdd(k, -1);
@@ -66,10 +56,14 @@ function streakWeeks() {
   return n;
 }
 function streakCard() {
-  const a = streakDays(dayHas), b = streakWeeks(), c = streakDays(k => dayD(k).water >= waterGoal());
-  const cell = (v, l) => `<div style="text-align:center"><div class="n" style="font-size:32px">${v}</div><div class="m" style="font-size:9px;margin-top:2px">${l}</div></div>`;
-  return `<div class="card" style="margin-top:12px"><span class="m">STREAKS</span><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">${cell(a, 'DAYS LOGGED')}${cell(b, 'TRAINING WEEKS')}${cell(c, 'WATER GOAL DAYS')}</div>
-  <p style="margin:12px 0 0"><small>A rest day does not break the training streak, only a week with no workout does. A missed day just starts the count again.</small></p></div>`;
+  const b = streakWeeks();
+  return `<div class="row" style="justify-content:space-between;margin-top:12px;padding:0 4px"><span class="m">TRAINING STREAK</span><span><span class="n" style="font-size:24px">${b}</span><span class="dim" style="font-size:12px"> week${b === 1 ? '' : 's'} in a row</span></span></div>`;
+}
+let dailyOpen = false;
+function dailyCard() {
+  const d = dayD(todayKey()), c = d.ci ? CI.filter(([f]) => d.ci[f]).length : 0, l = suppList(), t = d.supp || {}, n = l.filter(s => t[s.id]).length;
+  const sum = ['Check-in ' + c + ' of 4', l.length ? 'Stack ' + n + ' of ' + l.length : 'No supplements', 'Sleep ' + (d.sleep == null ? 'not logged' : sleepTxt(d.sleep))].join('  /  ');
+  return `<div class="card" style="margin-top:12px;padding:12px 14px"><button data-act="daily-toggle" aria-expanded="${dailyOpen}" style="display:block;width:100%;text-align:left"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span><b>Daily</b> <small>${dailyOpen ? '' : 'tap to open'}</small></span><span aria-hidden="true">${dailyOpen ? '&#9652;' : '&#9662;'}</span></div>${dailyOpen ? '' : `<small style="display:block;margin-top:6px;line-height:1.5">${sum}</small>`}</button></div>${dailyOpen ? checkinCard() + stackCard() + sleepCard() : ''}`;
 }
 /* ---------- modals ---------- */
 function ciModal() {
@@ -110,6 +104,7 @@ async function suppLook(i) {
 function dailyAct(a, el) {
   const k = todayKey();
   switch (a) {
+    case 'daily-toggle': dailyOpen = !dailyOpen; render(); return true;
     case 'ci-open': ciModal(); return true;
     case 'ci-pick': { const f = el.dataset.f; el.parentNode.querySelectorAll('.cib').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); }); el.classList.add('on'); el.setAttribute('aria-pressed', 'true'); return true; }
     case 'ci-save': {
@@ -118,8 +113,6 @@ function dailyAct(a, el) {
       if (!Object.keys(ci).length) { closeModal(); return true; }
       ensureDay(k).ci = ci; saveDaily(); closeModal(); toast('Check-in saved'); render(); return true;
     }
-    case 'water-add': { const d = ensureDay(k), v = +el.dataset.v; d.water = (d.water || 0) + v; (d.waterLog = d.waterLog || []).push([Date.now(), v]); saveDaily(); render(); return true; }
-    case 'water-undo': { const d = ensureDay(k), l = d.waterLog || []; if (!l.length) return true; const x = l.pop(); d.water = Math.max(0, (d.water || 0) - x[1]); if (!d.water) delete d.water; if (!l.length) delete d.waterLog; tidyDay(k); saveDaily(); render(); return true; }
     case 'supp-tick': { const d = ensureDay(k); d.supp = d.supp || {}; if (d.supp[el.dataset.id]) delete d.supp[el.dataset.id]; else d.supp[el.dataset.id] = 1; if (!Object.keys(d.supp).length) delete d.supp; tidyDay(k); saveDaily(); render(); return true; }
     case 'supp-edit': suppModal(+el.dataset.i); return true;
     case 'sp-look': {

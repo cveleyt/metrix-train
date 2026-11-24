@@ -73,7 +73,7 @@
   }
 
   /* local records */
-  const KV = ['settings', 'myfoods', 'meas', 'notes', 'notelog'];
+  const KV = ['settings', 'myfoods', 'meas', 'notes', 'notelog', 'feedback'];
   function stripSettings(o) { const c = JSON.parse(JSON.stringify(o)); if (c.ai) delete c.ai.key; return c; }
   function local(P) {
     const g = (k, d) => { const v = rdj(P + k); return v == null ? d : v; };
@@ -95,6 +95,7 @@
       const food = [...f.values()].sort((a, b) => (a.t || 0) - (b.t || 0)), daily = Object.assign({}, R.daily || {}, L.daily || {});
       return { daily: Object.keys(daily).length ? daily : null, food: food.length ? food : null };
     }
+    if (k === 'k:feedback') { const m = new Map(); [...R, ...L].forEach(n => m.set(n.t + '|' + (n.sid || ''), n)); return [...m.values()].sort((a, b) => a.t - b.t); }
     if (k === 'k:notelog') { const m = new Map(); [...R, ...L].forEach(n => m.set(n.t + '|' + n.name, n)); return [...m.values()].sort((a, b) => a.t - b.t); }
     if (k === 'k:notes' || k === 'k:meas') return Object.assign({}, R, L);
     if (k === 'k:myfoods') { const m = new Map(); [...R, ...L].forEach(x => m.set(JSON.stringify(x), x)); return [...m.values()]; }
@@ -193,7 +194,7 @@
   function kick(ms) { clearTimeout(timer); timer = setTimeout(run, ms == null ? 4000 : ms); }
 
   /* run on every save of synced data */
-  const WATCH = /^mx\.(?:[a-z0-9_-]+\.)?(sessions|daily|food|myfoods|settings|meas|notes|notelog)$/;
+  const WATCH = /^mx\.(?:[a-z0-9_-]+\.)?(sessions|daily|food|myfoods|settings|meas|notes|notelog|feedback)$/;
   const _set = Storage.prototype.setItem, _rem = Storage.prototype.removeItem;
   Storage.prototype.setItem = function (k, v) { _set.call(this, k, v); if (this === LS && !busy && WATCH.test(k) && tok()) kick(); };
   Storage.prototype.removeItem = function (k) { _rem.call(this, k); if (this === LS && !busy && WATCH.test(k) && tok()) kick(); };

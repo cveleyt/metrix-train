@@ -119,6 +119,7 @@ views.summary = p => {
   <ul class="list"><li>Time<span>${fdur(s.finishedAt - s.startedAt)}</span></li><li>Sets<span>${doneCount(s)}</span></li><li>Volume<span>${Math.round(dw(volume(s))).toLocaleString()} ${UW()}</span></li>${s.skipped && s.skipped.length ? '<li>Skipped<span>' + esc(s.skipped.map(k => k.name).join(', ')) + '</span></li>' : ''}</ul></div>
   ${prs.length ? `<div class="card hl"><span class="tag">PERSONAL RECORDS</span><ul class="list">${prs.map(r => `<li>PR ${esc(r.name)}<span>${esc(r.txt)}</span></li>`).join('')}</ul></div>` : ''}
   <div class="card"><label>Notes for this workout<textarea data-act="note-in" data-id="${s.id}" placeholder="How did it feel? Any pain or form notes?">${esc(s.note || '')}</textarea></label></div>
+  ${feedbackCard(s.id)}
   <div class="card"><span class="tag">NEXT UP</span><h3>${esc(nd.name)}, week ${n.week}</h3></div>
   <button class="btn" data-act="summary-done">Done</button>`;
 };

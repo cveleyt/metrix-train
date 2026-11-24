@@ -37,7 +37,7 @@ function render() {
   if (!views[view.name]) view.name = 'home';
   if (!isAuthed()) { app.innerHTML = loginHTML(false); $('#tabs').style.display = 'none'; return; }
   try {
-    app.innerHTML = views[view.name](view.params);
+    app.innerHTML = views[view.name](view.params); track('v:' + view.name);
     $('#tabs').style.display = (view.name === 'workout' || view.name === 'summary') ? 'none' : 'flex';
     document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.go === tabOf(view.name)));
     wake(); tick(); if (view.name === 'trends' && hist.mode === 'body') phFill();
