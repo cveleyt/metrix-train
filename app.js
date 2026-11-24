@@ -1,8 +1,9 @@
 /* MetriX Train: personal workout logger. No dependencies. Data is stored in localStorage. */
 (function () {
 'use strict';
-const VERSION = '2.5.0';
+const VERSION = '2.6.0';
 const CHANGELOG = [
+  { v: '2.6.0', items: ['Goal can be both Lose fat and Build muscle (body recomposition)', 'Safer recommendations: calorie floor, health check and an option to hide calories', 'AI asks your OK before sending anything to Google', 'Backup reminder every week, fonts now stored in the app, easier keyboard and screen reader use'] },
   { v: '2.5.0', items: ['Users: each person logs in to their own program and their own data', 'Profile and AI recommendations for steps, calories, protein, carbs, fat, fiber and sleep', 'Update now asks first, then shows what is new'] },
   { v: '2.4.0', items: ['Meals: breakfast, snacks, lunch and dinner, picked from your text or with a tap'] },
   { v: '2.3.0', items: ['Today reworked: Fuel first, Next up with the program, compact Day Score', 'Bigger food box'] },
@@ -33,7 +34,7 @@ function LSset(k, v) {
 }
 function toast(m) {
   let t = $('#toast');
-  if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); document.body.appendChild(t); }
   t.textContent = m; t.className = 'show';
   clearTimeout(toast.h); toast.h = setTimeout(() => { t.className = ''; }, 2600);
 }
@@ -54,7 +55,6 @@ const saveFood = () => LSset('mx.food', food);
 let myfoods = LSget('mx.myfoods', []);        // [{id, name, kcal, p, c, n, last}]
 const saveMy = () => LSset('mx.myfoods', myfoods);
 let dbRes = [];
-const fdk = k => { const [y, m, d] = k.split('-'); return fd(new Date(+y, +m - 1, +d).getTime()); };
 let view = { name: 'home', params: {} };
 let open = 0;
 let persisted = null;
@@ -289,9 +289,7 @@ function render() {
 const views = {};
 const homeBtn = '<button class="btn ghost" data-go="home">Back to Today</button>';
 
-const dateKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const sleepTxt = h => { const m = Math.round(h * 60); return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm'; };
-const RC = 2 * Math.PI * 40;
 function tickRing(sz, pct, col, ctr, n, w, ln) {
   n = n || 60; w = w || 3; ln = ln || 10;
   const r2 = sz / 2 - 2, r1 = r2 - ln, c = sz / 2, k = Math.round(n * Math.max(0, Math.min(1, pct || 0))); let s = '';
@@ -371,18 +369,6 @@ function macroRow(k, label, unit, val, goal, col) {
 }
 
 /* ---------- today ---------- */
-function scoreCard() {
-  const k = todayKey(), i = dayInfo(k), g = settings.goals, d = daily[k] || {}, f = foodTot(k);
-  const row = (lab, val, tag, col) => `<div class="li" style="padding:11px 0"><span>${lab} <small>${val}</small></span><span><span class="t" style="color:${col}">${tag}</span></span></div>`;
-  const rows = [
-    row('Rest', d.sleep == null ? '' : sleepTxt(d.sleep), d.sleep == null ? 'NOT LOGGED' : d.sleep >= g.sleep ? 'HIT' : 'MISSED BY ' + Math.round((g.sleep - d.sleep) * 60) + ' MIN', 'var(--rest)'),
-    row('Move', d.steps == null ? '' : d.steps.toLocaleString() + ' steps', d.steps == null ? 'NOT LOGGED' : d.steps >= g.steps ? 'HIT' : 'IN PROGRESS', 'var(--move)'),
-    row('Fuel', g.protein > 0 ? Math.round(f.p) + ' of ' + g.protein + ' g protein' : '', !f.p ? 'NOT LOGGED' : g.protein > 0 && f.p >= g.protein ? 'HIT' : 'IN PROGRESS', 'var(--prot)'),
-    row('Train', '', i.ss.length ? 'DONE' : active ? 'IN PROGRESS' : 'NEXT', 'var(--acct)')
-  ].join('');
-  return `<div class="cut" style="padding:18px 16px 8px"><div class="row" style="justify-content:space-between"><span class="m">DAY SCORE</span><span class="m">${esc(fd(Date.now()))}</span></div>
-  <div style="display:flex;justify-content:center;margin:10px 0 8px">${tickRing(196, i.of ? i.hit / i.of : 0, 'var(--acc)', `<div class="n" style="font-size:76px">${i.hit}<span style="font-size:34px;color:var(--dim)">/${i.of}</span></div><div class="m" style="margin-top:4px">TARGETS HIT</div>`, 72, 3.5, 14)}</div>${rows}</div>`;
-}
 function tilesHTML() {
   const g = settings.goals, ds = lastDays(7), t = daily[todayKey()] || {};
   const tile = (ic, col, lab, big, unit, sub, tag, chart) => `<div class="card" style="padding:14px;margin:0"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="ic" style="background:color-mix(in srgb,${col} 18%,transparent);color:${col}">${ic}</span><span class="t" style="color:${col}">${tag}</span></div>
@@ -401,7 +387,7 @@ function weekStrip() {
 }
 function fuelSummary() {
   const t = foodTot(todayKey()), g = settings.goals, list = dayFood(todayKey());
-  return `<button class="card" data-go="fuel" style="display:block;width:100%;margin-top:12px" aria-label="Open Fuel"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><div class="m">FUEL TODAY</div><div class="n" style="font-size:40px;margin-top:6px">${Math.round(t.kcal).toLocaleString()} <span style="font-size:15px;color:var(--dim)">kcal</span></div></div><span class="t" style="color:var(--acct)">${list.length ? list.length + (list.length === 1 ? ' ENTRY' : ' ENTRIES') : 'LOG FOOD'}</span></div>
+  return `<button class="card" data-go="fuel" style="display:block;width:100%;margin-top:12px" aria-label="Open Fuel"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><div class="m">FUEL TODAY</div><div class="n kc" style="font-size:40px;margin-top:6px">${Math.round(t.kcal).toLocaleString()} <span style="font-size:15px;color:var(--dim)">kcal</span></div></div><span class="t" style="color:var(--acct)">${list.length ? list.length + (list.length === 1 ? ' ENTRY' : ' ENTRIES') : 'LOG FOOD'}</span></div>
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">${MAC.map(([k, l, gk, col]) => `<div><div class="m" style="font-size:9px">${l.toUpperCase()}</div><div class="n" style="font-size:22px;margin:3px 0 5px">${Math.round(t[k])}<span style="font-size:11px;color:var(--dim)"> g</span></div><div class="bar" style="margin-top:0"><i style="width:${g[gk] > 0 ? Math.min(100, t[k] / g[gk] * 100).toFixed(0) : 0}%;background:${col}"></i></div></div>`).join('')}</div></button>`;
 }
 function logCard() {
@@ -424,7 +410,6 @@ function nextHero(withChange) {
   <p style="font-weight:500;margin-bottom:12px">${d.exercises.length} exercises, ${setTotal} sets. ${d.exercises.slice(0, 3).map(e => esc(e.name)).join(', ')}${more > 0 ? ' and ' + more + ' more' : ''}</p>${meso}
   <div class="row"><button class="btn" data-act="start">Start workout</button>${withChange ? '<button class="btn ghost sm" data-act="picker">Change</button>' : ''}</div></div>`;
 }
-const programStrip = () => { const n = nextWorkout(); return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">${P.weeks} WEEK PROGRAM</span><span class="m">WEEK ${Math.min(n.week, P.weeks)} OF ${P.weeks}</span></div><div style="display:grid;grid-template-columns:repeat(${P.weeks},1fr);gap:4px;margin-top:12px">${[...Array(P.weeks)].map((_, k) => `<i style="height:8px;border-radius:2px;background:${k < n.week ? 'var(--acc)' : 'var(--bar)'}"></i>`).join('')}</div></div>`; };
 function nextCompact() {
   const n = nextWorkout(), d = dayOf(n.dayKey) || DAYS[0], dayIdx = Math.max(0, DAYS.findIndex(x => x.key === n.dayKey)) + 1, wk = Math.min(n.week, P.weeks);
   const strip = [...Array(P.weeks)].map((_, k) => `<i style="height:6px;border-radius:2px;background:${k < wk - 1 ? '#fff' : k === wk - 1 ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.22)'}"></i>`).join('');
@@ -443,11 +428,17 @@ function scoreCompact() {
   return `<div class="cut" style="padding:14px 16px"><div class="row" style="gap:14px;flex-wrap:nowrap">${tickRing(120, i.of ? i.hit / i.of : 0, 'var(--acc)', `<div class="n" style="font-size:42px">${i.hit}<span style="font-size:20px;color:var(--dim)">/${i.of}</span></div>`, 48, 3, 10)}<div style="flex:1;min-width:0"><div class="m">DAY SCORE</div>${rows}</div></div></div>`;
 }
 function refreshRings() { const a = $('#score-box'), b = $('#tiles'); if (a) a.innerHTML = scoreCompact(); if (b) b.innerHTML = tilesAll(); }
+function backupBanner() {
+  if (!sessions.length) return '';
+  const lb = settings.lastBackup || 0, d = Math.floor((Date.now() - lb) / 864e5);
+  if (lb && d < 7) return '';
+  return `<div class="card" style="margin:12px 0 0"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:10px"><div><b>Backup due</b><br><small>${lb ? 'Last backup ' + d + ' days ago.' : 'No backup yet.'} Your data lives only on this phone.</small></div><div style="display:flex;gap:6px"><button class="mini" data-act="backup-later">Later</button><button class="mini" data-act="export">Export</button></div></div></div>`;
+}
 views.home = () => {
   const date = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
   return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Today</h2></div>
   <button data-go="me" aria-label="Open Me" style="width:46px;height:46px;border-radius:15px;background:var(--g3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span class="n" style="font-size:24px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></button></div>
-  <div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}<div id="score-box">${scoreCompact()}</div>
+  ${backupBanner()}<div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}<div id="score-box">${scoreCompact()}</div>
   <div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div><div id="tiles">${tilesAll()}</div>${logCard()}${weekStrip()}`;
 };
 views.train = p => {
@@ -476,13 +467,13 @@ views.fuel = () => {
   <p id="fd-aimsg" style="margin:0 0 10px;min-height:18px"><small>Fills the numbers below as an estimate. Check them before adding.</small></p><div id="fd-res"></div>
   <div class="five"><label>Kcal<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label><label style="color:var(--prot)">Prot<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--carb)">Carb<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fat)">Fat<input id="fd-f" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fib)">Fiber<input id="fd-fi" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div>
   <button class="btn" data-act="food-add">Add to today</button></div>
-  <div class="cut" style="margin-top:0"><div class="row" style="justify-content:space-between"><span class="m">ENERGY</span><span class="m">${g.calories > 0 ? 'GOAL ' + g.calories.toLocaleString() + ' KCAL' : 'NO GOAL'}</span></div>${energy}</div>
+  <div class="cut kc" style="margin-top:0"><div class="row" style="justify-content:space-between"><span class="m">ENERGY</span><span class="m">${g.calories > 0 ? 'GOAL ' + g.calories.toLocaleString() + ' KCAL' : 'NO GOAL'}</span></div>${energy}</div>
   <div class="card" style="padding:4px 16px 12px">${MAC.map(([kk, l, gk, col], ix) => macroRow(kk, l, 'g', t[kk], g[gk], col).replace(ix === 0 ? 'border-top:1px solid var(--line)' : '@@', '')).join('')}</div>
   ${'<div class="dl"><b></b><span class="m">TODAY BY MEAL</span><b></b></div>'}${MEALS.map(([mk, ml]) => {
     const es = list.filter(e => mealOf(e) === mk).sort((x, y) => x.t - y.t);
     if (!es.length) return `<div class="card" style="padding:12px 16px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="t" style="color:var(--dim)">EMPTY</span></div></div>`;
     const kc = es.reduce((a, e) => a + (e.kcal || 0), 0);
-    return `<div class="card" style="padding:12px 16px 4px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="n" style="font-size:20px">${Math.round(kc)}<span style="font-size:11px;color:var(--dim)"> kcal</span></span></div>${es.map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>`;
+    return `<div class="card" style="padding:12px 16px 4px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="n kc" style="font-size:20px">${Math.round(kc)}<span style="font-size:11px;color:var(--dim)"> kcal</span></span></div>${es.map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n kc" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>`;
   }).join('')}`;
 };
 
@@ -807,6 +798,7 @@ views.me = () => {
   <div class="m" style="margin:2px 0 8px">TEXT AND SCREEN SIZE</div><div class="seg" role="group" aria-label="Text size">${[[0.72, 'Small'], [0.8, 'Medium'], [0.9, 'Large']].map(([v, l]) => `<button class="mini${(settings.scale || 0.8) === v ? ' on' : ''}" data-act="scale-set" data-v="${v}" aria-pressed="${(settings.scale || 0.8) === v}">${l}</button>`).join('')}</div>
   ${grp('TRAINING', trow('Auto-start rest timer', 'auto-in', settings.autoStart !== false) + trow('Rest timer sound', 'sound-in', settings.sound) + trow('Vibration', 'vib-in', settings.vibrate) + lrow('Program guide', '', 'info'))}
   <div class="dl"><b></b><span class="m">NUTRITION AND AI</span><b></b></div><div class="card"><p>Type what you ate in Fuel and the AI fills in calories, protein, carbs, fat and fiber. It uses Google's Gemini. Get a free key at aistudio.google.com and paste it here. The key stays on this phone and is never included in backups. What you type is sent to Google to get the estimate.</p>
+  ${trow('Hide calories (show only protein, carbs, fat and fiber)', 'hidecal-in', !!settings.hideCal)}
   <label>Gemini API key<input data-act="ai-key-in" type="password" autocomplete="off" value="${esc(settings.ai.key)}" placeholder="Paste key"></label>
   <label style="margin-bottom:0">Model<input data-act="ai-model-in" type="text" autocomplete="off" value="${esc(settings.ai.model)}"></label>
   <div class="row" style="margin-top:10px"><span class="t" style="color:${settings.ai.key ? 'var(--ok)' : 'var(--dim)'}">${settings.ai.key ? 'KEY SAVED' : 'NO KEY'}</span><span class="t" style="color:var(--dim)">${myfoods.length} FOODS SAVED</span></div></div>
@@ -823,15 +815,20 @@ function recCalc() {
   const p = settings.profile || {}, w = weightNow(), h = +p.h, a = +p.age;
   if (!(w >= 30 && w <= 300 && h >= 120 && h <= 230 && a >= 14 && a <= 90) || !p.sex || !p.goal || !p.act) return { err: 'Fill in height, weight, age, sex, goal and activity first.' };
   if (a < 18) return { err: 'Targets for under 18 should come from a doctor or coach, so none are calculated here.' };
+  if (!p.ok) return { err: 'Please read and tick the health check first.' };
+  const g = p.goal, lose = g === 'lose' || g === 'recomp', bmi = w / Math.pow(h / 100, 2);
+  if (lose && bmi < 18.5) return { err: 'Your BMI is under 18.5, so no fat loss targets are given. Pick Maintain or Build muscle, and talk to a doctor before trying to change your weight.' };
   const bmr = 10 * w + 6.25 * h - 5 * a + (p.sex === 'm' ? 5 : -161), tdee = bmr * ACT[p.act];
-  let kcal = p.goal === 'lose' ? Math.max(tdee * 0.8, bmr * 1.1) : p.goal === 'gain' ? tdee * 1.1 : tdee;
+  let kcal = g === 'lose' ? Math.max(tdee * 0.8, bmr * 1.1) : g === 'gain' ? tdee * 1.1 : g === 'recomp' ? tdee * 0.95 : tdee;
   kcal = Math.round(kcal / 10) * 10;
-  const protein = Math.round(w * (p.goal === 'lose' ? 2.2 : p.goal === 'gain' ? 2.0 : 1.8)), fat = Math.round(w * (p.goal === 'lose' ? 0.8 : 0.9));
+  const floor = p.sex === 'm' ? 1500 : 1200; let note = '';
+  if (lose && kcal < floor) { kcal = floor; note = 'Calories were raised to ' + floor + ', the lowest amount that is safe without a doctor.'; }
+  const protein = Math.round(w * (lose ? 2.2 : g === 'gain' ? 2.0 : 1.8)), fat = Math.round(w * (lose ? 0.8 : 0.9));
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4)), fiber = Math.min(40, Math.round(14 * kcal / 1000));
-  return { w, tdee: Math.round(tdee), vals: { steps: p.goal === 'lose' ? 10000 : p.goal === 'gain' ? 9000 : 8000, calories: kcal, protein, carbs, fat, fiber, sleep: 8 } };
+  return { w, tdee: Math.round(tdee), note, vals: { steps: lose ? 10000 : g === 'gain' ? 9000 : 8000, calories: kcal, protein, carbs, fat, fiber, sleep: 8 } };
 }
 const RECS = [['steps', 'Steps', ' /day'], ['calories', 'Calories', ' kcal'], ['protein', 'Protein', ' g'], ['carbs', 'Carbs', ' g'], ['fat', 'Fat', ' g'], ['fiber', 'Fiber', ' g'], ['sleep', 'Sleep', ' h']];
-const GOALTXT = { lose: 'losing fat', gain: 'building muscle', maintain: 'staying at the same weight' };
+const GOALTXT = { lose: 'losing fat', gain: 'building muscle', recomp: 'losing fat and building muscle together', maintain: 'staying at the same weight' };
 async function aiWhy(r) {
   const p = settings.profile, v = r.vals;
   const prompt = 'In 2 or 3 short plain sentences, explain why these daily targets suit this person. No lists, no dashes, no medical claims. Person: ' + p.age + ' years, ' + (p.sex === 'm' ? 'male' : 'female') + ', ' + p.h + ' cm, ' + r.w + ' kg, goal ' + GOALTXT[p.goal] + ', does strength training. Estimated daily burn ' + r.tdee + ' kcal. Targets: ' + v.calories + ' kcal, ' + v.protein + ' g protein, ' + v.carbs + ' g carbs, ' + v.fat + ' g fat, ' + v.fiber + ' g fiber, ' + v.steps + ' steps, ' + v.sleep + ' h sleep.';
@@ -854,7 +851,7 @@ function recBlock() {
   const g = settings.goals, fmt = (k, v) => v > 0 ? v.toLocaleString() : 'not set';
   const rows = RECS.map(([k, l, u]) => `<div class="li" style="padding:12px 0"><span><b>${l}</b><br><small>Now ${fmt(k, g[k])}</small></span><span><span class="n" style="font-size:26px;color:var(--ink)">${rc.vals[k].toLocaleString()}</span><small>${u}</small>${g[k] === rc.vals[k] ? '<span class="t" style="color:var(--ok)">SET</span>' : `<button class="mini" data-act="rec-use" data-k="${k}">Use</button>`}</span></div>`).join('');
   return `<div class="cut"><div class="row" style="justify-content:space-between"><span class="m">RECOMMENDED DAILY TARGETS</span><span class="t" style="color:var(--move)">${rc.why ? 'AI' : 'FORMULA'}</span></div>
-  <p style="margin:8px 0 4px;font-size:12.5px">${esc(rc.why || 'Calculated from standard formulas using your profile. Add a Gemini key in Me to get a written reason.')}</p>${rows}
+  <p style="margin:8px 0 4px;font-size:12.5px">${esc(rc.why || 'Calculated from standard formulas using your profile. Add a Gemini key in Me to get a written reason.')}</p>${rc.note ? `<p style="margin:4px 0"><span class="t" style="color:var(--rest)">NOTE</span> <small>${esc(rc.note)}</small></p>` : ''}${rows}
   <button class="btn" data-act="rec-all" style="margin-top:8px">Use all targets</button><p style="font-size:11.5px;margin:12px 0 0"><small>A starting point from standard formulas, not medical advice. Check your progress after 2 to 3 weeks and adjust.</small></p></div>`;
 }
 views.profile = () => {
@@ -869,9 +866,10 @@ views.profile = () => {
   <label>Age<input data-act="prof-in" data-f="age" type="number" inputmode="numeric" min="0" value="${p.age || ''}" placeholder="0"></label></div>
   ${dailyW ? '<p style="margin:0 0 10px"><small>Weight follows your latest daily weigh-in.</small></p>' : ''}
   <div class="m" style="margin:6px 0 6px">SEX</div>${seg('sex', [['m', 'Male'], ['f', 'Female']])}
-  <div class="m" style="margin:6px 0 6px">GOAL</div>${seg('goal', [['lose', 'Lose fat'], ['gain', 'Build muscle'], ['maintain', 'Maintain']])}
+  <div class="m" style="margin:6px 0 6px">GOAL, PICK ONE OR TWO</div><div class="seg" role="group" aria-label="Goal">${[['lose', 'Lose fat'], ['gain', 'Build muscle'], ['maintain', 'Maintain']].map(([v, l]) => { const on = v === 'maintain' ? p.goal === 'maintain' : (p.goal === v || p.goal === 'recomp'); return `<button class="mini${on ? ' on' : ''}" data-act="goal-tog" data-v="${v}" aria-pressed="${on}">${l}</button>`; }).join('')}</div>${p.goal === 'recomp' ? '<p style="margin:-4px 0 10px"><span class="t" style="color:var(--move)">BOTH: BODY RECOMPOSITION</span></p>' : ''}
   <div class="m" style="margin:6px 0 6px">DAILY ACTIVITY OUTSIDE TRAINING</div>${seg('act', [['low', 'Low'], ['med', 'Medium'], ['high', 'High']])}
-  <p id="rec-msg" style="margin:0 0 10px;min-height:18px"><small></small></p><button class="btn" data-act="rec-go" id="rec-btn">Get recommendations</button></div>
+  <label class="chk" style="margin:4px 0 12px;align-items:flex-start"><input type="checkbox" data-act="prof-ok" ${p.ok ? 'checked' : ''}><span style="font-size:13px;line-height:1.4">Health check: I have no condition that needs a doctor to supervise my diet or training (for example pregnancy, diabetes, heart or kidney disease, or an eating disorder), or my doctor has cleared me.</span></label>
+  <p id="rec-msg" role="status" style="margin:0 0 10px;min-height:18px"><small></small></p><button class="btn" data-act="rec-go" id="rec-btn">Get recommendations</button></div>
   <div id="rec-box">${recBlock()}</div>`;
 };
 
@@ -894,6 +892,7 @@ views.goals = () => {
 function firstIncomplete(c) { const i = c.exercises.findIndex(x => x.sets.some(t => !t.done)); return i < 0 ? 0 : i; }
 
 async function exportData() {
+  settings.lastBackup = Date.now(); saveSettings();
   const data = { app: 'metrix-train', schema: 1, exportedAt: new Date().toISOString(), sessions, daily, food, myfoods, settings: Object.assign({}, settings, { ai: undefined }) };
   const name = 'metrix-train-' + new Date().toISOString().slice(0, 10) + '.json';
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -911,6 +910,7 @@ function importData(file) {
     try {
       const d = JSON.parse(fr.result);
       if (!d || !Array.isArray(d.sessions)) throw new Error('Not a MetriX Train backup');
+      if (d.schema && d.schema > 1) throw new Error('This backup is from a newer version. Update the app first');
       let add = 0, upd = 0;
       d.sessions.forEach(s => {
         if (!s || !s.id || !Array.isArray(s.exercises)) return;
@@ -1064,6 +1064,7 @@ async function act(a, el) {
       const hit = myfoods.find(f => f.name.toLowerCase() === txt.toLowerCase());
       if (hit) { $('#fd-kcal').value = hit.kcal; $('#fd-p').value = hit.p; $('#fd-c').value = hit.c; $('#fd-f').value = hit.f || 0; $('#fd-fi').value = hit.fi || 0; say('From your foods, instant. Tap Add to today.'); break; }
       if (!settings.ai.key) { say('Add your free Gemini key in Me, under Nutrition and AI.'); break; }
+      if (!settings.aiOk) { askAi('food-ai'); break; }
       btn.disabled = true; btn.textContent = 'Estimating...'; say('Asking the AI...');
       try {
         const prompt = 'Estimate the total nutrition for this meal or food: "' + txt + '". Use the amounts given. If an amount is missing, assume one typical serving. Cooked weights unless stated otherwise. Return JSON with kcal (calories), protein_g, carbs_g, fat_g and fiber_g as numbers for the whole thing combined.';
@@ -1207,12 +1208,22 @@ async function act(a, el) {
     case 'export': exportData(); break;
     case 'import-btn': $('#imp').click(); break;
     case 'import-in': if (el.files && el.files[0]) importData(el.files[0]); break;
+    case 'goal-tog': {
+      settings.profile = settings.profile || {}; const cur = settings.profile.goal || '', v = el.dataset.v; let n;
+      if (v === 'maintain') n = 'maintain'; else if (cur === '' || cur === 'maintain') n = v; else if (cur === v) n = ''; else if (cur === 'recomp') n = v === 'lose' ? 'gain' : 'lose'; else n = 'recomp';
+      settings.profile.goal = n; saveSettings(); render(); break;
+    }
+    case 'prof-ok': { settings.profile = settings.profile || {}; settings.profile.ok = el.checked; saveSettings(); break; }
+    case 'hidecal-in': settings.hideCal = el.checked; saveSettings(); applyCal(); render(); break;
+    case 'ai-agree': { settings.aiOk = true; saveSettings(); closeModal(); const nx = el.dataset.next; if (nx) act(nx, el); break; }
+    case 'backup-later': settings.lastBackup = Date.now() - 4 * 864e5; saveSettings(); render(); break;
     case 'prof-in': { settings.profile = settings.profile || {}; const v = parseFloat(String(el.value).replace(',', '.')); settings.profile[el.dataset.f] = isNaN(v) || v < 0 ? 0 : v; saveSettings(); break; }
     case 'prof-set': { settings.profile = settings.profile || {}; settings.profile[el.dataset.f] = el.dataset.v; saveSettings(); render(); break; }
     case 'rec-go': {
       const r = recCalc(), msg = $('#rec-msg');
       if (r.err) { msg.innerHTML = '<small style="color:var(--rest)">' + esc(r.err) + '</small>'; break; }
-      settings.rec = { vals: r.vals, why: '', at: Date.now() }; saveSettings(); $('#rec-box').innerHTML = recBlock();
+      settings.rec = { vals: r.vals, why: '', note: r.note, at: Date.now() }; saveSettings(); $('#rec-box').innerHTML = recBlock();
+      if (settings.ai.key && !settings.aiOk) { askAi('rec-go'); break; }
       if (settings.ai.key) {
         const b = $('#rec-btn'); b.disabled = true; b.textContent = 'Writing the reason...';
         const why = await aiWhy(r); b.disabled = false; b.textContent = 'Get recommendations';
@@ -1264,11 +1275,22 @@ document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { wake(); tick(); } });
 
 /* ---------- modal and what's new ---------- */
+let lastFocus = null;
 function showModal(html) {
-  let m = $('#mdl'); if (!m) { m = document.createElement('div'); m.id = 'mdl'; document.body.appendChild(m); }
-  m.innerHTML = '<div class="mdl-bg"></div><div class="mdl-box" role="dialog" aria-modal="true">' + html + '</div>';
+  let m = $('#mdl'); if (!m) { m = document.createElement('div'); m.id = 'mdl'; document.body.appendChild(m); lastFocus = document.activeElement; }
+  m.innerHTML = '<div class="mdl-bg"></div><div class="mdl-box" role="dialog" aria-modal="true" aria-label="Message">' + html + '</div>';
+  const f = m.querySelector('button'); if (f) f.focus();
 }
-function closeModal() { const m = $('#mdl'); if (m) m.remove(); }
+function closeModal() { const m = $('#mdl'); if (m) m.remove(); try { if (lastFocus && lastFocus.focus) lastFocus.focus(); } catch (e) {} lastFocus = null; }
+document.addEventListener('keydown', e => {
+  const m = $('#mdl'); if (!m) return;
+  if (e.key === 'Escape') { const ok = m.querySelector('[data-act="whatsnew-ok"]'); if (ok) ok.click(); else closeModal(); return; }
+  if (e.key === 'Tab') { const f = [...m.querySelectorAll('button')]; if (!f.length) return; const i = f.indexOf(document.activeElement); if (e.shiftKey && i <= 0) { f[f.length - 1].focus(); e.preventDefault(); } else if (!e.shiftKey && i === f.length - 1) { f[0].focus(); e.preventDefault(); } }
+});
+function askAi(next) {
+  showModal(`<div class="m" style="color:var(--acct)">AI AND YOUR DATA</div><div class="n" style="font-size:34px;margin:8px 0;text-transform:uppercase">Send to Google Gemini?</div><p>To estimate food or write the reason for your targets, the app sends what you typed (the food text, or your height, weight, age, sex and goal) to Google's Gemini AI, using your own key. Google's terms and privacy policy apply, and free requests may be used by Google to improve its products. Nothing is sent without this OK. You can always log food by typing the numbers.</p><div class="mrow"><button class="btn ghost" data-act="mdl-close">No thanks</button><button class="btn" data-act="ai-agree" data-next="${next}">I agree</button></div>`);
+}
+const applyCal = () => document.body.classList.toggle('nocal', !!settings.hideCal);
 const vnum = v => v.split('.').reduce((a, x) => a * 1000 + (+x || 0), 0);
 function whatsNew() {
   if (!USER) return;
@@ -1284,7 +1306,9 @@ function whatsNew() {
 
 /* ---------- init ---------- */
 (function init() {
-  applyTheme();
+  applyTheme(); applyCal();
+  if (LSget('mx.schema', 0) < 1) LSset('mx.schema', 1);
+  if (!settings.lastBackup) { settings.lastBackup = Date.now(); saveSettings(); }
   if (timer) {
     if (!timer.state) { timer.state = 'run'; timer.acc = 0; }
     const s = tel(timer);
