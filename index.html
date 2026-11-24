@@ -115,6 +115,13 @@ ul.list li:last-child{border:0}ul.list li span{color:var(--dim);white-space:nowr
 .seg.scr{overflow-x:auto;scrollbar-width:none}.seg.scr::-webkit-scrollbar{display:none}.seg.scr .mini{flex:none;padding:0 14px}
 .rpe{display:flex;align-items:center;gap:6px;margin:-2px 0 8px 2px;flex-wrap:wrap}.rpe button{min-width:40px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--g1);color:var(--dim);font-weight:700}.rpe button.on{background:var(--acc);border-color:var(--acc);color:#0b0b1a}
 .set.warm .sn{color:var(--dim);font-size:11px}.set.warm{opacity:.85}
+.exw{display:flex;align-items:center}.exw .exh{flex:1;width:auto;min-width:0}
+.ndot{flex:none;margin-right:12px;min-width:30px;height:30px;padding:0 8px;border-radius:15px;border:1px dashed var(--line2);background:transparent;color:var(--dim);font-family:var(--mono);font-weight:600;font-size:10.5px;letter-spacing:.4px}.ndot.has{border:1px solid var(--acct);color:var(--acct)}
+.ex.skipped{opacity:.7}.ex.skipped .cnt{border-color:var(--rest);color:var(--rest)}
+.ntg{font-family:var(--mono);font-weight:600;font-size:11px;padding:8px 10px;border-radius:10px;border:1px solid var(--line2);background:transparent;color:var(--ink2)}.ntg.on{background:var(--acc);border-color:var(--acc);color:#0b0b1a}
+.tfab{position:fixed;z-index:20;left:86%;top:80%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%;background:var(--tab);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:2px solid var(--acct);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.35);touch-action:none;user-select:none}
+.tfab b{font-family:var(--disp);font-size:26px;line-height:1}.tfab .fs{font-family:var(--mono);font-size:8.5px;font-weight:600;letter-spacing:.5px;margin-top:3px;color:var(--ink2)}.tfab small{display:none}
+.tfab .fill{position:absolute;left:0;bottom:0;height:5px;background:var(--acc);width:0}.tfab.rdy{border-color:var(--ok)}
 .seg{display:flex;gap:4px;background:var(--g1);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:12px}
 .seg .mini{flex:1;text-align:center;height:38px;border:0;background:transparent;color:var(--dim);font-weight:600;padding:0 4px}.seg .mini.on{background:var(--g3);color:var(--ink)}
 .chk{display:flex;align-items:center;gap:10px;color:var(--ink);font-size:15px}.chk input{width:22px;height:22px;margin:0;display:inline-block}
@@ -178,8 +185,8 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left
   <button data-go="trends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg>Trends</button>
   <button data-go="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Me</button>
 </nav>
-<script src="program.js?v=2.7.0"></script>
-<script src="users.js?v=2.7.0"></script>
-<script src="app.js?v=2.7.0"></script>
+<script src="program.js?v=2.8.0"></script>
+<script src="users.js?v=2.8.0"></script>
+<script src="app.js?v=2.8.0"></script>
 </body>
 </html>
