@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.1.0';
+const VERSION = '3.1.1';
 const CHANGELOG = [
+  { v: '3.1.1', items: ['Supplements: type the product and how much you take, and the AI looks up the label and works out what one dose gives you (caffeine, citrulline and so on). Check and edit before saving. Caffeine today shows on the stack'] },
   { v: '3.1.0', items: ['Daily check-in on Today: energy, soreness, stress and sleep quality, each on a 1 to 5 scale with words. Anytime, skip freely', 'Water tracking with quick add and undo, goal set in Goals', 'Supplements: add your own with dose and timing, tick them off each day', 'Sleep: type bed and wake time and the hours fill in', 'Streaks: days logged, training weeks and water goal days'] },
   { v: '3.0.0', items: ['Internal clean-up: the app code is split into several files so new features come faster and safer. Nothing should look different', 'Accessibility: clearer focus outlines and labels'] },
   { v: '2.9.0', items: ['Cloud accounts: log in with your username and password on any phone, and your data is backed up and synced automatically. You will need to log in once more after this update', 'Me shows the sync status and a Sync now button. Delete all data now also deletes your cloud copy'] },

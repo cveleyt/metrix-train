@@ -53,20 +53,20 @@ async function aiWhy(r) {
   const prompt = 'In 2 or 3 short plain sentences, explain why these daily targets suit this person. No lists, no dashes, no medical claims. Person: ' + p.age + ' years, ' + (p.sex === 'm' ? 'male' : 'female') + ', ' + p.h + ' cm, ' + r.w + ' kg, goal ' + GOALTXT[p.goal] + ', does strength training. Estimated daily burn ' + r.tdee + ' kcal. Targets: ' + v.calories + ' kcal, ' + v.protein + ' g protein, ' + v.carbs + ' g carbs, ' + v.fat + ' g fat, ' + v.fiber + ' g fiber, ' + v.steps + ' steps, ' + v.sleep + ' h sleep.';
   return aiText(prompt);
 }
-async function aiText(prompt) {
-  const models = [...new Set([settings.ai.model, 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'])];
+async function aiText(prompt, search) {
+  const models = search ? ['gemini-2.5-flash', 'gemini-flash-latest'] : [...new Set([settings.ai.model, 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'])];
   for (const m of models) {
     try {
       const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 12000);
-      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4 } }) });
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.ai.key }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2 }, ...(search ? { tools: [{ google_search: {} }] } : {}) }) });
       clearTimeout(to);
-      if (res.status === 400 || res.status === 403) return '';
+      if (res.status === 400 || res.status === 403) { if (search) break; return ''; }
       if (!res.ok) continue;
       const j = await res.json(); const t = j.candidates && j.candidates[0] && j.candidates[0].content.parts[0].text;
       if (t) return t.replace(/[–—]/g, ',').trim();
     } catch (e) { /* try next model */ }
   }
-  return '';
+  return search ? aiText(prompt) : '';
 }
 function recBlock() {
   const rc = settings.rec; if (!rc) return '';

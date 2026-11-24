@@ -37,8 +37,9 @@ function stackCard() {
   const l = suppList(), t = dayD(todayKey()).supp || {}, n = l.filter(s => t[s.id]).length;
   if (!l.length) return `<div class="card" style="margin-top:12px"><span class="m">SUPPLEMENTS</span><p style="margin:8px 0 12px">Track creatine, whey, vitamins or anything you take daily. You choose the names, doses and timing.</p><button class="btn ghost" data-act="supp-edit" data-i="-1">Add supplement</button></div>`;
   return `<div class="card" style="margin-top:12px;padding-bottom:6px"><div class="row" style="justify-content:space-between"><span class="m">SUPPLEMENTS</span><span class="t" style="color:var(--dim)">${n} OF ${l.length} TAKEN</span></div>
-  ${l.map((s, i) => `<div class="li" style="padding:11px 0"><button data-act="supp-edit" data-i="${i}" style="text-align:left;flex:1" aria-label="Edit ${esc(s.name)}"><span style="font-weight:600">${esc(s.name)}</span><br><span class="dim" style="font-size:12px">${esc([s.dose, s.when].filter(Boolean).join(', '))}</span></button>
+  ${l.map((s, i) => `<div class="li" style="padding:11px 0"><button data-act="supp-edit" data-i="${i}" style="text-align:left;flex:1" aria-label="Edit ${esc(s.name)}"><span style="font-weight:600">${esc(s.name)}</span><br><span class="dim" style="font-size:12px">${esc([s.dose, s.when].filter(Boolean).join(', '))}</span>${(s.facts || []).length ? `<br><span class="dim" style="font-size:11.5px">${esc(s.facts.slice(0, 3).join(', '))}</span>` : ''}</button>
   <button data-act="supp-tick" data-id="${s.id}" role="checkbox" aria-checked="${!!t[s.id]}" aria-label="${esc(s.name)} taken" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${t[s.id] ? 'var(--acct)' : 'var(--line2)'};background:${t[s.id] ? 'var(--acct)' : 'transparent'};color:#fff;font-weight:700">${t[s.id] ? '&#10003;' : ''}</button></div>`).join('')}
+  ${caffToday() ? `<div class="row" style="justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)"><span class="m">CAFFEINE TODAY</span><span><span class="n" style="font-size:22px">${Math.round(caffToday())}</span><span class="dim"> of 400 mg suggested limit</span> <span class="t" style="color:${caffToday() > 400 ? 'var(--acct)' : 'var(--dim)'}">${caffToday() > 400 ? 'OVER' : 'OK'}</span></span></div>` : ''}
   <button class="mini" data-act="supp-edit" data-i="-1" style="margin:4px 0 8px">+ Add supplement</button></div>`;
 }
 function sleepCard() {
@@ -77,12 +78,33 @@ function ciModal() {
   ${CI.map(([f, l, w]) => `<div class="m" style="margin:12px 0 6px">${l}</div><div class="cis" role="group" aria-label="${l}" data-f="${f}">${w.map((x, i) => `<button type="button" class="cib${c[f] === i + 1 ? ' on' : ''}" data-act="ci-pick" data-f="${f}" data-v="${i + 1}" aria-pressed="${c[f] === i + 1}"><b>${i + 1}</b><span>${x}</span></button>`).join('')}</div>`).join('')}
   <div class="mrow" style="margin-top:16px"><button class="btn ghost" data-act="mdl-close">Not now</button><button class="btn" data-act="ci-save">Save</button></div>`);
 }
-function suppModal(i) {
-  const s = i >= 0 ? suppList()[i] : { name: '', dose: '', when: 'Morning' };
+let spDraft = null;
+function suppModal(i, dr) {
+  const s = dr || (i >= 0 ? suppList()[i] : { name: '', dose: '', when: 'Morning' });
+  const facts = (s.facts || []).join('\n');
   showModal(`<div class="m" style="color:var(--acct)">SUPPLEMENT</div><div class="n" style="font-size:30px;margin:6px 0 10px;text-transform:uppercase">${i >= 0 ? 'Edit' : 'Add'}</div>
-  <label>Name<input id="sp-name" type="text" autocomplete="off" value="${esc(s.name)}" placeholder="Creatine"></label><label>Dose<input id="sp-dose" type="text" autocomplete="off" value="${esc(s.dose)}" placeholder="5 g"></label>
+  <label>Name and brand<input id="sp-name" type="text" autocomplete="off" value="${esc(s.name)}" placeholder="Pre-workout, Ghost Legend"></label><label>How much per dose<input id="sp-dose" type="text" autocomplete="off" value="${esc(s.dose)}" placeholder="2 scoops, or 5 g"></label>
   <div class="m" style="margin:10px 0 6px">WHEN</div><div class="mchips" role="group" aria-label="When">${SUPP_WHEN.map(w => `<button type="button" class="ntg${s.when === w ? ' on' : ''}" data-act="sp-when" aria-pressed="${s.when === w}">${w}</button>`).join('')}</div>
+  <button class="btn ghost" id="sp-look" data-act="sp-look" style="margin-top:10px">Look it up with AI</button>
+  <p id="sp-msg" style="margin:6px 0;min-height:18px"><small>Finds what one dose gives you, such as caffeine. You check it before saving.</small></p>
+  <div id="sp-facts-box" ${facts ? '' : 'hidden'}><label>What one dose gives you, one per line<textarea id="sp-facts" class="big" placeholder="Caffeine 300 mg">${esc(facts)}</textarea></label><p id="sp-src" style="margin:0 0 6px"><small>${esc(s.src || '')}</small></p></div>
   <div class="mrow"><button class="btn ghost" data-act="mdl-close">Cancel</button><button class="btn" data-act="supp-save" data-i="${i}">Save</button></div>${i >= 0 ? `<button class="mini" data-act="supp-del" data-i="${i}" style="margin-top:10px">Remove this supplement</button>` : ''}`);
+}
+const suppMg = (s, re) => { const m = (s.facts || []).map(x => String(x).match(re)).find(Boolean); return m ? parseFloat(m[1]) : 0; };
+const CAFF = /caffeine\D{0,12}(\d+(?:\.\d+)?)\s*mg/i;
+const caffToday = () => { const t = dayD(todayKey()).supp || {}; return suppList().filter(s => t[s.id]).reduce((a, s) => a + suppMg(s, CAFF), 0); };
+async function suppLook(i) {
+  const name = ($('#sp-name').value || '').trim(), dose = ($('#sp-dose').value || '').trim(), msg = $('#sp-msg'), btn = $('#sp-look');
+  if (!name) { msg.innerHTML = '<small>Type the product name first.</small>'; return; }
+  if (!settings.ai.key) { msg.innerHTML = '<small>Add your free Gemini key in Me, under Nutrition and AI.</small>'; return; }
+  btn.disabled = true; btn.textContent = 'Looking it up...'; msg.innerHTML = '<small>Searching for the label...</small>';
+  const prompt = 'Find the supplement facts label for this product: "' + name + '". The person takes this much per dose: "' + (dose || '1 serving') + '". Work out the TOTAL active amounts in that dose (for example caffeine, creatine, citrulline, beta-alanine, taurine, vitamins). Reply in exactly this format and nothing else. Lines 1 to 8: "Ingredient amount unit" one per line, totals for the whole dose, numbers only with mg, g, mcg or IU. Last line: "SOURCE: " then one short sentence naming the label or serving size you used. If you cannot find the product, reply only "UNKNOWN". Never use em dashes.';
+  const t = await aiText(prompt, true);
+  btn.disabled = false; btn.textContent = 'Look it up with AI';
+  if (!t || /^UNKNOWN/i.test(t)) { msg.innerHTML = '<small>Could not find it. Check the name, or type the amounts yourself below.</small>'; $('#sp-facts-box').hidden = false; return; }
+  const lines = t.split('\n').map(x => x.replace(/^[-*\s]+/, '').trim()).filter(Boolean), src = lines.find(x => /^SOURCE:/i.test(x)) || '';
+  $('#sp-facts').value = lines.filter(x => !/^SOURCE:/i.test(x)).join('\n'); $('#sp-src').innerHTML = '<small>' + esc(src.replace(/^SOURCE:\s*/i, 'Based on: ')) + ' Estimate, compare with your tub.</small>';
+  $('#sp-facts-box').hidden = false; msg.innerHTML = '<small>Check the numbers, edit if needed, then Save.</small>';
 }
 /* ---------- actions (return true when handled) ---------- */
 function dailyAct(a, el) {
@@ -100,10 +122,16 @@ function dailyAct(a, el) {
     case 'water-undo': { const d = ensureDay(k), l = d.waterLog || []; if (!l.length) return true; const x = l.pop(); d.water = Math.max(0, (d.water || 0) - x[1]); if (!d.water) delete d.water; if (!l.length) delete d.waterLog; tidyDay(k); saveDaily(); render(); return true; }
     case 'supp-tick': { const d = ensureDay(k); d.supp = d.supp || {}; if (d.supp[el.dataset.id]) delete d.supp[el.dataset.id]; else d.supp[el.dataset.id] = 1; if (!Object.keys(d.supp).length) delete d.supp; tidyDay(k); saveDaily(); render(); return true; }
     case 'supp-edit': suppModal(+el.dataset.i); return true;
+    case 'sp-look': {
+      const i = +($('#mdl [data-act=supp-save]') || { dataset: { i: -1 } }).dataset.i, w = document.querySelector('#mdl .ntg.on');
+      if (settings.ai.key && !settings.aiOk) { spDraft = { i, s: { name: $('#sp-name').value, dose: $('#sp-dose').value, when: w ? w.textContent : 'Any time', facts: [], src: '' } }; askAi('sp-resume'); return true; }
+      suppLook(i); return true;
+    }
+    case 'sp-resume': if (spDraft) { suppModal(spDraft.i, spDraft.s); spDraft = null; suppLook(0); } return true;
     case 'sp-when': el.parentNode.querySelectorAll('.ntg').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); }); el.classList.add('on'); el.setAttribute('aria-pressed', 'true'); return true;
     case 'supp-save': {
       const name = ($('#sp-name').value || '').trim(); if (!name) { toast('Give it a name'); return true; }
-      const w = document.querySelector('#mdl .ntg.on'), s = { name, dose: ($('#sp-dose').value || '').trim(), when: w ? w.textContent : 'Any time' }, i = +el.dataset.i;
+      const w = document.querySelector('#mdl .ntg.on'), s = { name, dose: ($('#sp-dose').value || '').trim(), when: w ? w.textContent : 'Any time', facts: ($('#sp-facts') ? $('#sp-facts').value : '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 12), src: ($('#sp-src') ? $('#sp-src').textContent : '').trim() }, i = +el.dataset.i;
       const l = suppList().slice(); if (i >= 0) l[i] = Object.assign({}, l[i], s); else l.push(Object.assign({ id: 's' + Date.now().toString(36) }, s));
       settings.supps = l; saveSettings(); closeModal(); render(); return true;
     }
