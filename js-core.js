@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.6.0';
+const VERSION = '3.6.1';
 const CHANGELOG = [
+  { v: '3.6.1', items: ['Log set button: the line under it is now full strength and easy to read. Rep numbers are centered in their circle'] },
   { v: '3.6.0', items: ['New set card: tap the weight to type it, quick chips (minus, last time, try, plus), reps as one tap numbers inside your target, and one big Log set button that shows the rest time. Finished sets fold into a short list, tap one to undo', 'Today: every exercise on the session card shows last time and the weight to try', 'Today: a Body strip with your weight trend and one sentence', 'Gauges keep their own color even when empty, and show what is left instead of a dash'] },
   { v: '3.5.0', items: ['New look: calmer colors, cleaner type, a sun or moon button on Today to switch light and dark', 'New bottom bar: Today, Train, a big + for Quick add, Fuel and Insights. Me is behind your initial on Today', 'New Today: a tape of your program days with one tap to start, gauges for today with a plain sentence, then your coach note and Daily', 'Fuel, Insights and Me get the new look in the next update'] },
   { v: '3.4.0', items: ['Program editor in Me: rename, reorder, add and remove days and exercises, change sets, reps and rest. Past workouts are never changed', 'Workout log: when last time hit the top of the rep range, a grey try-weight shows under each set. Tap it to use it'] },
