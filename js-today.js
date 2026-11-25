@@ -58,20 +58,111 @@ function scoreCompact() {
     + row('Train ' + (i.ss.length ? '' : active ? '' : (nextWorkout().dayKey ? (dayOf(nextWorkout().dayKey) || DAYS[0]).name : '')), i.ss.length ? 'DONE' : active ? 'IN PROGRESS' : 'NEXT', 'var(--acct)');
   return `<div class="cut" style="padding:14px 16px"><div class="row" style="gap:14px;flex-wrap:nowrap">${tickRing(120, i.of ? i.hit / i.of : 0, 'var(--acc)', `<div class="n" style="font-size:42px">${i.hit}<span style="font-size:20px;color:var(--dim)">/${i.of}</span></div>`, 48, 3, 10)}<div style="flex:1;min-width:0"><div class="m">DAY SCORE</div>${rows}</div></div></div>`;
 }
-function refreshRings() { const a = $('#score-box'), b = $('#tiles'); if (a) a.innerHTML = scoreCompact(); if (b) b.innerHTML = tilesAll(); }
+function refreshRings() { const a = $('#tg'); if (a) a.innerHTML = todayGauges(); }
 function backupBanner() {
   if (!sessions.length) return '';
   const lb = settings.lastBackup || 0, d = Math.floor((Date.now() - lb) / 864e5);
   if (lb && d < 7) return '';
   return `<div class="card" style="margin:12px 0 0"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:10px"><div><b>Backup due</b><br><small>${lb ? 'Last backup ' + d + ' days ago.' : 'No backup yet.'} Your data lives only on this phone.</small></div><div style="display:flex;gap:6px"><button class="mini" data-act="backup-later">Later</button><button class="mini" data-act="export">Export</button></div></div></div>`;
 }
+/* ---------- Today (direction A) ---------- */
+let tapeSel = null;
+const SVG_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+const SVG_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>';
+function gaugeData() {
+  const k = todayKey(), g = settings.goals, d = daily[k] || {}, f = foodTot(k), out = [];
+  if (g.steps > 0) out.push({ id: 'move', lab: 'Move', col: 'var(--move)', v: d.steps, pct: d.steps == null ? 0 : d.steps / g.steps, big: d.steps == null ? '-' : d.steps >= 1000 ? (d.steps / 1000).toFixed(1) + 'k' : String(d.steps), sub: 'of ' + (g.steps / 1000) + 'k steps today', say: 'steps', gap: g.steps - (d.steps || 0), unit: ' steps' });
+  if (g.sleep > 0) out.push({ id: 'rest', lab: 'Rest', col: 'var(--rest)', v: d.sleep, pct: d.sleep == null ? 0 : d.sleep / g.sleep, big: d.sleep == null ? '-' : sleepTxt(d.sleep).replace(' ', '').replace(/m$/, ''), sub: 'of ' + g.sleep + ' h last night', say: 'sleep', gap: 0, unit: '' });
+  if (g.protein > 0) out.push({ id: 'prot', lab: 'Protein', col: 'var(--prot)', v: f.p || null, pct: f.p / g.protein, big: f.p ? Math.round(f.p) + '' : '-', sub: 'of ' + g.protein + ' g today', say: 'protein', gap: g.protein - f.p, unit: ' g of protein' });
+  if (g.calories > 0) out.push({ id: 'kcal', lab: 'Energy', col: 'var(--carb)', v: f.kcal || null, pct: f.kcal / g.calories, big: f.kcal ? Math.round(f.kcal).toLocaleString() : '-', sub: 'of ' + g.calories.toLocaleString() + ' kcal today', say: 'energy', gap: g.calories - f.kcal, unit: ' kcal' });
+  return out;
+}
+function todaySentence(gs) {
+  const have = gs.filter(x => x.v != null);
+  if (!gs.length) return 'Set your targets in Me to see how today is going.';
+  if (!have.length) return 'Nothing logged yet today. Start with your first meal or your steps.';
+  const open = gs.filter(x => x.pct < 1 && x.id !== 'rest' && x.id !== 'kcal');
+  if (!open.length) return gs.every(x => x.pct >= 1 || x.v == null) ? 'Every target you have logged today is met.' : 'Protein and steps are on target today.';
+  const w = open.sort((a, b) => a.pct - b.pct)[0];
+  if (w.v == null) return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' not logged yet today.';
+  return w.lab + ' is the gap: ' + Math.round(w.pct * 100) + '% of today\'s target, ' + Math.round(w.gap).toLocaleString() + w.unit + ' to go.';
+}
+function todayGauges() {
+  const gs = gaugeData();
+  const cells = gs.map(x => {
+    const lab = x.lab + (x.v == null ? ', not logged' : ', ' + x.big + ' ' + x.sub + ', ' + Math.round(x.pct * 100) + ' percent');
+    return `<div role="img" aria-label="${esc(lab)}">${tickRing(78, x.pct, x.col, `<div class="n" style="font-size:15px">${esc(x.big)}</div>`, 40, 2.4, 8)}<div class="gl">${x.lab}</div><div class="gs">${esc(x.sub)}</div></div>`;
+  }).join('');
+  return `<p class="sent" id="tsent">${esc(todaySentence(gs))}</p><div class="gg">${cells}</div>`;
+}
+function nextStep() {
+  const k = todayKey(), f = dayFood(k), d = daily[k] || {}, n = nextWorkout(), dn = (dayOf(n.dayKey) || DAYS[0]).name;
+  if (!f.length) return ['Log your first meal', 'qa-food'];
+  if (d.steps == null) return ['Log your steps', 'qa-log'];
+  if (!sessions.some(s => dkey(s.finishedAt) === k) && !active) return ['Train: ' + dn, 'start'];
+  return ['See how your week is going', 'go-trends'];
+}
+function tapeBlock() {
+  const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), sel = DAYS.some(x => x.key === tapeSel) ? tapeSel : n.dayKey;
+  const blocks = DAYS.map(x => {
+    const dn = wk.some(s => s.dayKey === x.key), nx = x.key === n.dayKey, st = dn ? 'DONE' : nx ? 'NEXT' : 'TO DO';
+    return `<button class="tb ${x.key === sel ? 'sel' : ''} ${dn ? 'dn' : ''}" data-act="tape-sel" data-k="${esc(x.key)}" aria-pressed="${x.key === sel}" aria-label="${esc(x.name)}, ${st}"><b>${esc(x.name)}</b><span>${st}</span></button>`;
+  }).join('');
+  let card;
+  if (active) {
+    card = `<div class="sess"><div class="row" style="justify-content:space-between"><span class="m">IN PROGRESS</span><span class="t" style="color:var(--acct)">${doneCount(active)} OF ${totalCount(active)} SETS</span></div>
+    <div class="n" style="font-size:30px;margin:8px 0 14px">${esc(active.name)}</div><button class="btn" data-act="resume">Resume ${esc(active.name)}</button></div>`;
+  } else {
+    const d = dayOf(sel) || DAYS[0], sets = d.exercises.reduce((a, e) => a + e.sets, 0), done = wk.some(s => s.dayKey === sel), first = d.exercises[0];
+    card = `<div class="sess"><div class="row" style="justify-content:space-between"><span class="m">WEEK ${Math.min(n.week, P.weeks)} OF ${P.weeks}</span><span class="t" style="color:var(--dim)">${d.exercises.length} EXERCISES, ${sets} SETS</span></div>
+    <div class="n" style="font-size:30px;margin:8px 0 8px">${esc(d.name)}</div>
+    ${d.exercises.slice(0, 4).map(e => `<div class="ex1"><span>${esc(e.name)}</span><span>${e.sets} x ${e.lo === e.hi ? e.lo : e.lo + '-' + e.hi}</span></div>`).join('')}${d.exercises.length > 4 ? `<div class="ex1"><span class="dim">and ${d.exercises.length - 4} more</span><span></span></div>` : ''}
+    <button class="btn" style="margin-top:12px" data-act="${sel === n.dayKey ? 'start' : 'start-day'}" data-k="${esc(sel)}">${done ? 'Do ' + esc(d.name) + ' again' : first ? 'Start with ' + esc(first.name) : 'Start ' + esc(d.name)}</button></div>`;
+  }
+  return `<div class="tape" role="group" aria-label="Program days">${blocks}</div>${card}`;
+}
+function coachNoteCard() {
+  const r = settings.review, tk = todayKey();
+  if (!r || !r.text || r.at < kAdd(tk, -7)) return '';
+  return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">COACH NOTE</span><span class="t" style="color:var(--dim)">THIS WEEK</span></div><p style="margin:8px 0 0;color:var(--ink2)">${esc(r.text)}</p></div>`;
+}
 views.home = () => {
-  const date = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
-  return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Today</h2></div>
-  <button data-go="me" aria-label="Open Me" style="width:46px;height:46px;border-radius:15px;background:var(--g3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><span class="n" style="font-size:24px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></button></div>
-  ${backupBanner()}<div style="height:16px"></div>${fuelSummary()}<div style="height:12px"></div>${nextCompact()}${deloadCard()}<div id="score-box">${scoreCompact()}</div>${dailyCard()}
-  <div class="dl"><b></b><span class="m">LOGGED SO FAR</span><b></b></div><div id="tiles">${tilesAll()}</div>${logCard()}${streakCard()}${weekStrip()}`;
+  const dt = new Date(), date = dt.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase(), light = document.documentElement.dataset.theme === 'light';
+  const [nl, na] = nextStep();
+  return `<div class="tblk"><span>MX / TRAIN</span><span>SHEET 01 TODAY</span><span>${esc(date)}</span></div>
+  <div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin-bottom:14px"><h2 style="margin:0">Today</h2><div class="row" style="gap:8px;flex-wrap:nowrap">
+  <button class="ibtn" data-act="theme-flip" aria-label="${light ? 'Switch to dark theme' : 'Switch to light theme'}">${light ? SVG_MOON : SVG_SUN}</button>
+  <button class="ibtn" data-go="me" aria-label="Open Me"><span class="n" style="font-size:17px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></button></div></div>
+  ${backupBanner()}${tapeBlock()}${deloadCard()}
+  <div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div><div id="tg">${todayGauges()}</div>
+  <button class="btn ghost" style="margin-top:14px" data-act="${na}">${esc(nl)}</button>
+  ${coachNoteCard()}${dailyCard()}<div id="logcard">${logCard()}</div>${streakCard()}`;
 };
+function quickAdd() {
+  const row = (ic, t, s, a) => `<button class="qa" data-act="${a}"><span class="ic">${ic}</span><span>${t}<small class="dim">${s}</small></span></button>`;
+  showModal(`<div class="m" style="color:var(--acct)">QUICK ADD</div><div style="margin-top:6px">
+  ${row('FD', 'Log food', 'Type, scan or pick a saved food', 'qa-food')}${row('WT', 'Weight and steps', 'Today\'s numbers', 'qa-log')}${row('CI', 'Check-in', 'Four taps on how you feel', 'qa-ci')}
+  ${row('SP', 'Supplements', 'Tick your stack, sleep times', 'qa-daily')}${row('TR', 'Start workout', 'Next up: ' + esc((dayOf(nextWorkout().dayKey) || DAYS[0]).name), 'qa-start')}${row('ME', 'Settings', 'Profile, goals, program, theme', 'qa-me')}</div>
+  <button class="btn ghost" style="margin-top:12px" data-act="mdl-close">Close</button>`);
+  const m = $('#mdl'); if (m) m.classList.add('sheet');
+}
+function homeAct(a, el) {
+  switch (a) {
+    case 'theme-flip': { const light = document.documentElement.dataset.theme === 'light'; settings.theme = light ? 'dark' : 'light'; saveSettings(); applyTheme(); render(); return true; }
+    case 'tape-sel': tapeSel = el.dataset.k; render(); return true;
+    case 'start-day': if (active && !confirm('You have a workout in progress. Replace it?')) return true; startSession({ week: nextWorkout().week, dayKey: el.dataset.k }); tapeSel = null; return true;
+    case 'start': tapeSel = null; return false;
+    case 'qa-open': quickAdd(); return true;
+    case 'qa-food': closeModal(); go('fuel'); setTimeout(() => { const i = $('#fd-name'); if (i) i.focus(); }, 80); return true;
+    case 'qa-log': closeModal(); go('home'); setTimeout(() => { const c = $('#logcard'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); const i = document.querySelector('#logcard input'); if (i) i.focus({ preventScroll: true }); }, 80); return true;
+    case 'qa-ci': closeModal(); ciModal(); return true;
+    case 'qa-daily': closeModal(); dailyOpen = true; go('home'); render(); return true;
+    case 'qa-start': closeModal(); act('start', el); return true;
+    case 'qa-me': closeModal(); go('me'); return true;
+    case 'go-trends': go('trends'); return true;
+  }
+  return false;
+}
 views.train = p => {
   const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), l = sortedDesc()[0];
   const chips = DAYS.map(x => { const dn = wk.some(s => s.dayKey === x.key), nx = x.key === n.dayKey; return `<div class="chip ${nx ? 'next' : dn ? 'dn' : ''}"><b>${esc(x.name)}</b><span>${dn ? 'DONE' : nx ? 'NEXT' : 'TO DO'}</span></div>`; }).join('');

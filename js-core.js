@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.4.0';
+const VERSION = '3.5.0';
 const CHANGELOG = [
+  { v: '3.5.0', items: ['New look: calmer colors, cleaner type, a sun or moon button on Today to switch light and dark', 'New bottom bar: Today, Train, a big + for Quick add, Fuel and Insights. Me is behind your initial on Today', 'New Today: a tape of your program days with one tap to start, gauges for today with a plain sentence, then your coach note and Daily', 'Fuel, Insights and Me get the new look in the next update'] },
   { v: '3.4.0', items: ['Program editor in Me: rename, reorder, add and remove days and exercises, change sets, reps and rest. Past workouts are never changed', 'Workout log: when last time hit the top of the rep range, a grey try-weight shows under each set. Tap it to use it'] },
   { v: '3.3.0', items: ['Supplements: new Before workout and During workout timing, and a Tick it for me setting (Manual, Training days, Every day). Auto ticks show an AUTO tag and you can untick them. Every day only ticks today, never past days'] },
   { v: '3.2.0', items: ['Today is shorter: check-in, supplements and sleep are in one folded Daily section', 'Water tracking removed. Sleep is now typed as bed and wake times only', 'Only the training streak is kept', 'New Me, Usage: a private count of what you use, to decide what stays', 'After each workout you can leave a quick note about anything that annoyed you'] },
@@ -255,7 +256,7 @@ function applyTheme() {
   const t = settings.theme || 'system', r = t === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
   document.documentElement.dataset.theme = r;
   document.documentElement.style.zoom = settings.scale || 0.8;
-  const tc = $('#tc'); if (tc) tc.content = r === 'light' ? '#eef1fa' : '#080a14';
+  const tc = $('#tc'); if (tc) tc.content = r === 'light' ? '#f1f2f7' : '#07080c';
 }
 try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if ((settings.theme || 'system') === 'system') applyTheme(); }); } catch (e) {}
 
