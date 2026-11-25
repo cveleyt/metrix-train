@@ -4,8 +4,8 @@
 let lastFocus = null;
 function showModal(html) {
   let m = $('#mdl'); if (!m) { m = document.createElement('div'); m.id = 'mdl'; document.body.appendChild(m); lastFocus = document.activeElement; }
-  m.innerHTML = '<div class="mdl-bg"></div><div class="mdl-box" role="dialog" aria-modal="true" aria-label="Message">' + html + '</div>';
-  const f = m.querySelector('button'); if (f) f.focus();
+  m.innerHTML = '<div class="mdl-bg"></div><div class="mdl-box" role="dialog" aria-modal="true" aria-label="Message" tabindex="-1"><button class="mx" data-act="mdl-close" aria-label="Close">&times;</button>' + html + '</div>';
+  const f = m.querySelector('.mdl-box'); if (f) f.focus({ preventScroll: true });
 }
 function closeModal() { stopScan(); const m = $('#mdl'); if (m) m.remove(); try { if (lastFocus && lastFocus.focus) lastFocus.focus(); } catch (e) {} lastFocus = null; }
 document.addEventListener('keydown', e => {
