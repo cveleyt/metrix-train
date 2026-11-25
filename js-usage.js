@@ -37,7 +37,7 @@ views.usage = () => {
   <div class="card"><span class="m">YOUR NOTES (${feedback.length})</span>${feedback.length ? feedback.slice(-8).reverse().map(n => `<div style="padding:8px 0;border-top:1px solid var(--line)"><small>${new Date(n.t).toLocaleDateString()} ${(n.tags || []).join(', ')}</small><div style="font-size:14px">${esc(n.note || '')}</div></div>`).join('') : '<p>No notes yet. They are asked for after each workout.</p>'}</div>
   <div class="row"><button class="btn ghost" data-act="usage-share">Share list</button><button class="btn ghost" data-act="usage-reset">Reset counts</button></div>`;
 };
-const FB_TAGS = ['Bug', 'Too slow', 'Confusing', 'Missing', 'Idea'];
+const FB_TAGS = ['Pain', 'Form', 'Felt strong', 'Bug', 'Confusing', 'Idea'];
 function feedbackCard(sid) {
   if (feedback.some(n => n.sid === sid)) return '<div class="card"><span class="m">NOTE SAVED</span><p style="margin:6px 0 0">Thanks. It is in Me, Usage.</p></div>';
   return `<div class="cut" id="fb-box"><span class="m">ANYTHING ANNOY YOU TODAY?</span><textarea id="fb-text" class="big" style="margin-top:10px" placeholder="The timer button covered the set count..."></textarea>

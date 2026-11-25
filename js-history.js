@@ -125,7 +125,7 @@ function trendsView() {
   const days = lastDays(nd), prev = [...Array(nd)].map((_, i) => kAdd(tk, -(2 * nd - 1 - i)));
   const avgOf = (ks, f) => { const v = ks.map(f).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
   const tagOf = (cur, pr, fmt) => { if (cur == null) return 'NO DATA'; if (pr == null) return 'NEW'; const d = cur - pr; return Math.abs(d) < 0.02 * Math.max(1, pr) ? 'SAME' : (d > 0 ? 'UP ' : 'DOWN ') + fmt(Math.abs(d)); };
-  const card = (ic, col, lab, big, unit, tag, chart, foot) => `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div style="display:flex;align-items:center;gap:10px"><span class="ic" style="background:color-mix(in srgb,${col} 18%,transparent);color:${col}">${ic}</span><span class="m">${lab}</span></div><span class="t" style="color:${col}">${tag}</span></div>
+  const card = (ic, col, lab, big, unit, tag, chart, foot) => `<div class="card"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="m">${lab}</span><span class="t" style="color:${col}">${tag}</span></div>
     <div class="n" style="font-size:38px;margin:10px 0 2px">${big} <span style="font-size:15px;color:var(--dim)">${unit}</span></div><div style="margin:8px 0 6px">${chart}</div><div class="dim" style="font-size:12px">${foot}</div></div>`;
   // weekly volume
   const nw = R === 0 ? 12 : R, mons = [...Array(nw)].map((_, i) => kAdd(mondayOf(tk), -7 * (nw - 1 - i)));
@@ -133,9 +133,9 @@ function trendsView() {
   const lv = vols[vols.length - 1], pv = vols[vols.length - 2];
   const volTag = lv > 0 && pv > 0 ? (Math.abs(lv - pv) < 0.01 * pv ? 'SAME' : (lv > pv ? 'UP ' : 'DOWN ') + Math.round(Math.abs(lv - pv) / pv * 100) + '%') : lv > 0 ? 'THIS WEEK' : 'NO DATA';
   const prs = sessions.reduce((a, s) => a + prCount(s), 0);
-  const volCard = card('TR', 'var(--acct)', 'TRAINING VOLUME, WEEKLY', Math.round(dw(lv)).toLocaleString(), UW() + ' this week', volTag, miniBars(vols, 'var(--acc)', 330, 70, 0, 'Weekly training volume'), `${sessions.length} workouts logged, ${prs} personal records.`);
+  const volCard = card('TR', 'var(--acct)', 'TRAINING VOLUME, WEEKLY', Math.round(dw(lv)).toLocaleString(), UW() + ' this week', volTag, miniBars(vols.map(v => v > 0 ? v : null), 'var(--acc)', 330, 64, 0, 'Weekly training volume'), `${sessions.length} workouts logged, ${prs} personal records. A dot is a week with no training.`);
   // exercise progress
-  const names = [...new Set(DAYS.flatMap(d => d.exercises.map(e => e.name)))].sort(), sel = hist.ex || names[0], nwt = isNW(sel);
+  const names = [...new Set(DAYS.flatMap(d => d.exercises.map(e => e.name)))].sort(), lastEx = (sortedDesc()[0] || { exercises: [] }).exercises.map(x => x.name).find(n => names.includes(n)), sel = hist.ex || lastEx || names[0], nwt = isNW(sel);
   let mt = hist.metric; if (nwt && mt === 'e1') mt = 'top';
   const rows = [];
   sortedDesc().reverse().forEach(s => {
@@ -161,7 +161,7 @@ function trendsView() {
   const fuelCard = card('FU', 'var(--prot)', 'FUEL, PROTEIN', pa == null ? '-' : Math.round(pa), 'g avg per day', tagOf(pa, ppa, v => Math.round(v) + ' g'), miniBars(pv2, 'var(--prot)', 330, 60, g.protein, 'Daily protein'), pa == null ? 'No food logged in this period.' : `Averages: ${Math.round(ka).toLocaleString()} kcal, fat ${Math.round(fa)} g, fiber ${Math.round(fia)} g.`);
   const wv = days.map(k => (daily[k] || {}).weight), wh = wv.filter(v => v != null), wa = avgOf(days, k => (daily[k] || {}).weight), wpa = avgOf(prev, k => (daily[k] || {}).weight);
   const bodyCard = card('BW', 'var(--body)', 'BODY WEIGHT', wa == null ? '-' : r1(dw(wa)), UW() + ' avg', tagOf(wa, wpa, v => r1(dw(v)) + ' ' + UW()), spark(wv, 'var(--body)', 330, 90, 'Body weight'), wh.length ? `Lowest ${wt(Math.min(...wh))}, highest ${wt(Math.max(...wh))}, ${wh.length} weigh-ins.${g.weight > 0 ? ' Target ' + wt(g.weight) + ', latest ' + wt(wh[wh.length - 1]) + '.' : ''}` : 'No weigh-ins in this period.');
-  return `<div class="seg">${[[4, '4 weeks'], [8, '8 weeks'], [0, 'All time']].map(([r, l]) => `<button class="mini${R === r ? ' on' : ''}" data-act="range" data-r="${r}">${l}</button>`).join('')}</div>${volCard}${exCard}${bodyCard}${stepCard}${sleepCard}${fuelCard}`;
+  return `<div class="seg">${[[4, '4 weeks'], [8, '8 weeks'], [0, 'All time']].map(([r, l]) => `<button class="mini${R === r ? ' on' : ''}" data-act="range" data-r="${r}">${l}</button>`).join('')}</div>${volCard}${exCard}${bodyStrip()}${stepCard}${sleepCard}${fuelCard}`;
 }
 views.trends = () => `<div class="tblk"><span>MX / TRAIN</span><span>SHEET 04 INSIGHTS</span><span>${esc(APPV())}</span></div><h2 style="margin:0 0 14px">Insights</h2>${histTabs()}` + (hist.mode === 'trends' || hist.mode === 'muscles' ? trendsView() + '<div class="dl"><b></b><span class="m">MUSCLES, HARD SETS PER WEEK</span><b></b></div>' + muscleView() : hist.mode === 'body' ? bodyView() : hist.mode === 'review' ? weekOverview() : hist.mode === 'notes' ? notesView() : hist.mode === 'cal' ? calView() : hist.mode === 'week' ? weekView() : (() => {
   const l = sortedDesc();

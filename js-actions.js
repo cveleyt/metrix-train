@@ -369,7 +369,17 @@ async function act(a, el) {
       if (!food[k].length) delete food[k];
       saveFood(); render(); break;
     }
-    case 'summary-done': go('home', {}, true); break;
+    case 'summary-done': {
+      const sx = sessions.find(x => x.id === el.dataset.id), tb = $('#fb-text');
+      if (sx && tb) {
+        const note = (tb.value || '').trim(), tags = [...document.querySelectorAll('#fb-box .ntg.on')].map(b => b.textContent);
+        if (note !== (sx.note || '')) { sx.note = note; sx.updatedAt = Date.now(); saveSessions(); }
+        feedback = feedback.filter(f => f.sid !== sx.id);
+        if (note || tags.length) { feedback.push({ t: Date.now(), sid: sx.id, note, tags, ver: VERSION }); toast('Note saved'); }
+        saveFeedback();
+      }
+      go('home', {}, true); break;
+    }
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
     case 'hist-mode': hist.mode = el.dataset.m; if (LOGM.includes(hist.mode)) hist.logm = hist.mode; render(); break;
     case 'cal-nav': { const d = new Date(hist.y, hist.m + (+el.dataset.n), 1); hist.y = d.getFullYear(); hist.m = d.getMonth(); render(); break; }

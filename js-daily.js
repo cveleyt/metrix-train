@@ -77,7 +77,7 @@ function dailyCard() {
 /* ---------- modals ---------- */
 function ciModal() {
   const c = dayD(todayKey()).ci || {};
-  showModal(`<div class="m" style="color:var(--acct)">CHECK-IN</div><div class="n" style="font-size:32px;margin:6px 0 4px;text-transform:uppercase">How are you?</div>
+  showModal(`<div class="m" style="color:var(--acct)">CHECK-IN</div><div class="n" style="font-size:32px;margin:6px 0 4px">How are you?</div><div class="dim" style="font-size:12.5px">Tap what applies. Skip any you do not want to answer.</div>
   ${CI.map(([f, l, w]) => `<div class="m" style="margin:12px 0 6px">${l}</div><div class="cis" role="group" aria-label="${l}" data-f="${f}">${w.map((x, i) => `<button type="button" class="cib${c[f] === i + 1 ? ' on' : ''}" data-act="ci-pick" data-f="${f}" data-v="${i + 1}" aria-pressed="${c[f] === i + 1}"><b>${i + 1}</b><span>${x}</span></button>`).join('')}</div>`).join('')}
   <div class="mrow" style="margin-top:16px"><button class="btn ghost" data-act="mdl-close">Not now</button><button class="btn" data-act="ci-save">Save</button></div>`);
 }

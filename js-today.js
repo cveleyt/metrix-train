@@ -86,7 +86,7 @@ function todaySentence(gs) {
   if (!open.length) return gs.every(x => x.pct >= 1 || x.v == null) ? 'Every target you have logged today is met.' : 'Protein and steps are on target today.';
   const w = open.sort((a, b) => a.pct - b.pct)[0];
   if (w.v == null) return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' not logged yet today.';
-  return w.lab + ' is the gap: ' + Math.round(w.pct * 100) + '% of today\'s target, ' + Math.round(w.gap).toLocaleString() + w.unit + ' to go.';
+  { const gl = Math.round(w.v + w.gap), u = w.say === 'protein' ? ' g' : ''; return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' the gap: ' + Math.round(w.v).toLocaleString() + ' of ' + gl.toLocaleString() + u + ', ' + Math.round(w.gap).toLocaleString() + u + ' to go.'; }
 }
 function todayGauges() {
   const gs = gaugeData();
@@ -322,7 +322,7 @@ views.fuel = () => {
   <div id="fd-fold">${foodsFold()}</div>
   <div class="row" style="margin:12px 0 0;gap:8px;justify-content:flex-start"><button class="mini" id="fd-mealbtn" data-act="fd-mealtog" aria-expanded="false">Meal: ${esc(mealSel === 'auto' ? 'Auto' : (MEALS.find(m => m[0] === mealSel) || ['', 'Auto'])[1])} &#9662;</button><button class="mini" data-act="fd-nums" aria-expanded="false" id="fd-numbtn">Edit numbers &#9662;</button></div>
   <div id="fd-mealbox" hidden style="margin-top:10px">${mealChips()}<p class="m" style="margin:0 0 6px;font-size:9.5px">AUTO PICKS FROM YOUR TEXT, OR FROM THE TIME OF DAY</p></div>
-  <p id="fd-aimsg" style="margin:10px 0 0;min-height:18px"><small></small></p><div id="fd-res"></div>
+  <p id="fd-aimsg" style="margin:0;min-height:0"><small></small></p><div id="fd-res"></div>
   <div id="fd-numbers" hidden style="margin-top:6px"><div class="five"><label>Kcal<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label><label style="color:var(--prot)">Prot<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--carb)">Carb<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fat)">Fat<input id="fd-f" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fib)">Fiber<input id="fd-fi" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div></div>
   <button class="btn" data-act="food-add" style="margin-top:12px">Add to today</button><button class="lnk" data-act="food-ai" id="fd-ai" style="display:block;margin:10px auto 0;text-align:center">Estimate numbers with AI</button></div>
   ${'<div class="dl"><b></b><span class="m">TODAY BY MEAL</span><b></b></div>'}${MEALS.map(([mk, ml]) => {

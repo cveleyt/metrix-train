@@ -163,13 +163,20 @@ views.summary = p => {
     if (score(mine.w, mine.r) > best + 1e-9) prs.push({ name: x.name, txt: isNW(x.name) ? mine.r + ' reps' : r1(dw(mine.w)) + ' ' + UW() + ' x ' + mine.r });
   });
   const n = nextWorkout(), nd = dayOf(n.dayKey) || DAYS[0];
+  const rowsT = s.exercises.map(x => {
+    const ts = topSet(x), sk = x.skipped || !ts, bs = ts && bestSet(x.name, s.id), nb = !!ts && !!bs && (isNW(x.name) ? ts.r > bs.r : (ts.w > bs.w || (ts.w === bs.w && ts.r > bs.r)));
+    return `<div class="row" style="padding:11px 0;border-top:1px solid var(--line);align-items:center;flex-wrap:nowrap"><div><b>${esc(x.name)}</b><br><small class="dim">${sk ? 'Skipped' : doneCount({ exercises: [x] }) + ' sets'}</small></div><div style="text-align:right">${nb ? otag('NEW BEST', true) + '<br>' : ''}<small class="dim">${sk ? '' : isNW(x.name) ? ts.r + ' reps' : r1(dw(ts.w)) + ' ' + UW() + ' x ' + ts.r}</small></div></div>`;
+  }).join('');
+  const saved = feedback.find(f => f.sid === s.id);
   return `<h2>Workout saved</h2>
   <div class="card"><span class="tag">${esc(s.name.toUpperCase())}, WEEK ${s.week}</span>
-  <ul class="list"><li>Time<span>${fdur(s.finishedAt - s.startedAt)}</span></li><li>Sets<span>${doneCount(s)}</span></li><li>Volume<span>${Math.round(dw(volume(s))).toLocaleString()} ${UW()}</span></li>${s.skipped && s.skipped.length ? '<li>Skipped<span>' + esc(s.skipped.map(k => k.name).join(', ')) + '</span></li>' : ''}</ul></div>
-  ${prs.length ? `<div class="card hl"><span class="tag">PERSONAL RECORDS</span><ul class="list">${prs.map(r => `<li>PR ${esc(r.name)}<span>${esc(r.txt)}</span></li>`).join('')}</ul></div>` : ''}
-  <div class="card"><label>Notes for this workout<textarea data-act="note-in" data-id="${s.id}" placeholder="How did it feel? Any pain or form notes?">${esc(s.note || '')}</textarea></label></div>
-  ${feedbackCard(s.id)}
-  <div class="card"><span class="tag">NEXT UP</span><h3>${esc(nd.name)}, week ${n.week}</h3></div>
-  <button class="btn" data-act="summary-done">Done</button>`;
+  <ul class="list"><li>Time<span>${fdur(s.finishedAt - s.startedAt)}</span></li><li>Sets<span>${doneCount(s)}</span></li><li>Volume<span>${Math.round(dw(volume(s))).toLocaleString()} ${UW()}</span></li></ul></div>
+  <div class="dl"><b></b><span class="m">TOP SET PER EXERCISE</span><b></b></div>
+  <div class="card" style="padding:2px 16px">${rowsT}</div>
+  <div class="card" id="fb-box"><b style="font-size:16px">Anything to note?</b><textarea id="fb-text" class="big" style="margin-top:10px" placeholder="How did it feel? Pain, form, or something the app got wrong.">${esc(s.note || (saved && saved.note) || '')}</textarea>
+  <div class="mchips" role="group" aria-label="Note type" style="margin-top:8px">${FB_TAGS.map(g => `<button type="button" class="ntg${saved && (saved.tags || []).includes(g) ? ' on' : ''}" data-act="nt-tag" aria-pressed="${!!(saved && (saved.tags || []).includes(g))}">${g}</button>`).join('')}</div>
+  <small class="dim" style="display:block;margin-top:8px">Saved when you tap Done. Leave it empty to skip.</small></div>
+  <div class="card"><span class="tag">NEXT WORKOUT</span><h3>${esc(nd.name)}, week ${n.week}</h3></div>
+  <div style="position:sticky;bottom:0;padding:14px 0 18px;background:linear-gradient(transparent,var(--bg) 30%)"><button class="btn" data-act="summary-done" data-id="${esc(s.id)}">Done</button></div>`;
 };
 

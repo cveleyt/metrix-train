@@ -56,12 +56,13 @@ function muscleView() {
   const mon = kAdd(mondayOf(todayKey()), 7 * hist.mw), { out, lost } = weekSets(mon), n = sessions.filter(s => inWeek(s, mon)).length, tot = DAYS.length;
   const rows = MUSCLES.filter(m => out[m] > 0 || MAIN7.includes(m)), sc = Math.max(24, ...rows.map(m => (out[m] || 0) * 1.1));
   const body = rows.map(m => {
-    const v = out[m] || 0, tag = v === 0 ? 'NONE' : v < 10 ? 'LOW' : v <= 20 ? 'IN RANGE' : 'HIGH', col = tag === 'IN RANGE' ? 'var(--ok)' : tag === 'HIGH' ? 'var(--rest)' : 'var(--dim)';
-    return `<div style="padding:11px 0;border-top:1px solid var(--line)"><div class="brow"><span style="font-weight:600">${m}</span><span><b>${r1(v)}</b> <small>sets</small> <span class="t" style="color:${col}">${tag}</span></span></div>
-    <div style="position:relative;height:10px;border-radius:5px;background:var(--bar);margin-top:8px;overflow:hidden" role="img" aria-label="${m}: ${r1(v)} hard sets, ${tag.toLowerCase()}"><div style="position:absolute;left:${10 / sc * 100}%;width:${10 / sc * 100}%;top:0;bottom:0;background:color-mix(in srgb,var(--ok) 28%,transparent)"></div><i style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(100, v / sc * 100).toFixed(1)}%;background:var(--acc);border-radius:5px"></i></div></div>`;
+    const v = out[m] || 0, tag = v === 0 ? 'NONE' : v < 10 ? 'LOW' : v <= 20 ? 'IN RANGE' : 'HIGH', tg = v < 10 ? r1(10 - v) + ' TO GO' : v > 20 ? r1(v - 20) + ' OVER' : '';
+    return `<div style="padding:9px 0;border-top:1px solid var(--line)"><div class="brow"><span style="font-weight:600">${m}</span><span style="display:flex;align-items:center;gap:7px"><b>${r1(v)}</b> <small>sets</small> ${otag(tag === 'NONE' ? 'NONE' : tag, tag === 'IN RANGE')}</span></div>
+    <div style="position:relative;height:10px;border-radius:99px;background:var(--bar);margin:9px 0 3px" role="img" aria-label="${m}: ${r1(v)} hard sets, ${tag.toLowerCase()}${tg ? ', ' + tg.toLowerCase() : ''}"><i style="position:absolute;left:${10 / sc * 100}%;width:${10 / sc * 100}%;top:-2px;bottom:-2px;border:1.5px solid var(--dim);border-radius:6px"></i><i style="position:absolute;left:0;top:0;bottom:0;width:${Math.min(100, v / sc * 100).toFixed(1)}%;background:var(--acc);border-radius:99px"></i></div>
+    <div class="mono dim" style="font-size:9.5px;position:relative;height:11px"><span style="position:absolute;left:${10 / sc * 100}%;transform:translateX(-50%)">10</span><span style="position:absolute;left:${20 / sc * 100}%;transform:translateX(-50%)">20</span>${tg ? `<span style="position:absolute;right:0">${tg}</span>` : ''}</div></div>`;
   }).join('');
   return `${weekNav('mw')}<div class="card"><div class="row" style="justify-content:space-between"><span class="m">HARD SETS PER MUSCLE</span><span class="t" style="color:${n >= tot ? 'var(--ok)' : 'var(--dim)'}">${n} OF ${tot} DONE</span></div>${body || '<p>No workouts in this week.</p>'}
-  <p style="margin:8px 0 0"><small>The shaded band is 10 to 20 sets, a common range for muscle growth. A guide, not a rule.</small></p></div>
+  <p style="margin:8px 0 0"><small>The outlined box is 10 to 20 sets, a common range for muscle growth. A guide, not a rule.</small></p></div>
   <div class="card"><p style="margin:0"><small>A hard set is a finished set. Big lifts count in full for the main muscle and half for helpers (a chest press counts half for triceps and front delts). Exercises are matched to muscles by name from a built-in list.${lost.length ? ' Not matched this week: ' + esc(lost.join(', ')) + '.' : ''}</small></p></div>`;
 }
 
@@ -138,12 +139,11 @@ function reviewData() {
 }
 function reviewView() {
   const R = reviewData(), g = settings.goals, cache = settings.review && settings.review.at === todayKey() ? settings.review.text : '';
-  const row = (lab, v, goalTxt, tag, col) => `<div class="li"><span><b>${lab}</b><br><small>${goalTxt}</small></span><span><span class="n" style="font-size:24px;color:var(--ink)">${v}</span> <span class="t" style="color:${col || 'var(--dim)'}">${tag}</span></span></div>`;
-  const vs = (v, goal, lo) => v == null ? ['NO DATA', 'var(--dim)'] : !(goal > 0) ? ['NO GOAL', 'var(--dim)'] : v >= goal * lo ? ['ON TARGET', 'var(--ok)'] : ['BELOW', 'var(--rest)'];
-  const [a1, c1] = vs(R.pro, g.protein, 0.9), [a2, c2] = vs(R.st, g.steps, 0.9), [a3, c3] = vs(R.sl, g.sleep, 0.93);
-  const kt = R.kc == null ? ['NO DATA', 'var(--dim)'] : !(g.calories > 0) ? ['NO GOAL', 'var(--dim)'] : R.kc > g.calories * 1.1 ? ['ABOVE', 'var(--rest)'] : R.kc < g.calories * 0.9 ? ['BELOW', 'var(--rest)'] : ['ON TARGET', 'var(--ok)'];
-  const wTag = R.slope == null ? 'NO TREND' : Math.abs(R.slope) < 0.05 ? 'FLAT' : (R.slope > 0 ? 'UP ' : 'DOWN ') + r1(Math.abs(dw(R.slope))) + ' ' + UW() + ' A WEEK';
-  const tr = ['TRAINING', R.tr + ' of ' + R.tot, 'Workouts in the last 7 days', R.tr >= R.tot ? 'ALL DONE' : 'BEHIND'];
+  const row = (lab, v, goalTxt, tag, col) => `<div class="li"><span><b>${lab}</b><br><small>${goalTxt}</small></span><span style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap"><span class="n" style="font-size:20px;color:var(--ink);white-space:nowrap">${v}</span> ${otag(tag, col === 'var(--ok)')}</span></div>`;
+  const vs = (v, goal, unit, f) => { if (v == null) return ['NO DATA', '']; if (!(goal > 0)) return ['NO GOAL', '']; if (Math.abs(v - goal) <= goal * 0.05) return ['ON TARGET', 'var(--ok)']; const d = f ? f(Math.abs(v - goal)) : Math.round(Math.abs(v - goal)).toLocaleString() + (unit ? ' ' + unit : ''); return [d + (v < goal ? ' UNDER' : ' OVER'), '']; };
+  const [a1, c1] = vs(R.pro, g.protein, 'G'), [a2, c2] = vs(R.st, g.steps, ''), [a3, c3] = vs(R.sl, g.sleep, '', d => Math.round(d * 60) + ' MIN'), kt = vs(R.kc, g.calories, 'KCAL');
+  const wTag = R.slope == null ? 'NO TREND YET' : Math.abs(R.slope) < 0.05 ? 'FLAT' : (R.slope > 0 ? 'UP ' : 'DOWN ') + r1(Math.abs(dw(R.slope))) + ' ' + UW() + ' A WEEK';
+  const tr = ['TRAINING', R.tr + ' of ' + R.tot, 'Workouts in the last 7 days', R.tr >= R.tot ? 'ALL DONE' : (R.tot - R.tr) + ' TO GO'];
   return `<div class="card" style="padding:6px 16px"><div class="m" style="padding:10px 0 2px">LAST 7 DAYS</div>
   ${row(tr[0], tr[1], tr[2], tr[3], R.tr >= R.tot ? 'var(--ok)' : 'var(--rest)')}
   ${row('PROTEIN', R.pro == null ? '-' : Math.round(R.pro) + ' g', 'Daily average, goal ' + (g.protein > 0 ? g.protein + ' g' : 'not set'), a1, c1)}
@@ -151,6 +151,7 @@ function reviewView() {
   ${row('STEPS', R.st == null ? '-' : Math.round(R.st).toLocaleString(), 'Daily average, goal ' + (g.steps || 0).toLocaleString(), a2, c2)}
   ${row('SLEEP', R.sl == null ? '-' : sleepTxt(R.sl), 'Nightly average, goal ' + g.sleep + ' h', a3, c3)}
   ${row('WEIGHT', R.w0 == null ? '-' : wt(R.w0), 'Average this week', wTag)}</div>
+  <div class="card"><div class="m">HOW THE TAGS WORK</div><p style="margin:8px 0 0"><small>ON TARGET means within 5% of your goal. UNDER or OVER says by how much. Training counts workouts done in the last 7 days against your plan. Outline tags only, so nothing depends on color.</small></p></div>
   <div class="cut"><div class="row" style="justify-content:space-between"><span class="m">SUGGESTIONS</span><span class="t" style="color:var(--move)">FROM YOUR NUMBERS</span></div>
   ${R.tips.length ? R.tips.map((t, i) => `<p style="margin:10px 0 0">${i + 1}. ${esc(t.t)}</p>${t.apply ? `<button class="btn ghost" data-act="rv-apply" data-d="${t.apply}" style="margin-top:8px">${t.apply < 0 ? 'Lower' : 'Raise'} calorie goal by 150</button>` : ''}`).join('') : '<p style="margin:10px 0 0">Everything is on track. Keep going.</p>'}
   <p style="margin:12px 0 0"><small>Nothing changes by itself. You decide. These are general tips, not medical advice.</small></p></div>

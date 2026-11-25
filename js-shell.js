@@ -63,7 +63,7 @@ function tickRing(sz, pct, col, ctr, n, w, ln, track) {
 }
 function miniBars(vals, col, w, h, goal, label) {
   const have = vals.filter(v => v != null), mx = (Math.max(goal || 0, ...have, 1)) * 1.08, n = vals.length, bw = w / n;
-  let s = vals.map((v, i) => v == null ? '' : `<rect x="${(i * bw + 1).toFixed(1)}" y="${(h - Math.max(2, v / mx * (h - 2))).toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${Math.max(2, v / mx * (h - 2)).toFixed(1)}" rx="2" style="fill:${col}" opacity="${i === n - 1 ? 1 : 0.55}"/>`).join('');
+  let s = vals.map((v, i) => v == null ? `<circle cx="${(i * bw + bw / 2).toFixed(1)}" cy="${h - 3}" r="2" style="fill:var(--dim)" opacity=".6"/>` : `<rect x="${(i * bw + 1).toFixed(1)}" y="${(h - Math.max(2, v / mx * (h - 2))).toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${Math.max(2, v / mx * (h - 2)).toFixed(1)}" rx="2" style="fill:${col}" opacity="${i === n - 1 ? 1 : 0.55}"/>`).join('');
   if (goal > 0) { const gy = h - goal / mx * (h - 2); s += `<line x1="0" x2="${w}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" stroke="var(--dim)" stroke-dasharray="3 3"/>`; }
   return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label || 'Chart')}">${s}</svg>`;
 }
@@ -124,6 +124,7 @@ function sugHTML(q) {
   return (q ? '' : '') + list.map(f => `<button data-act="food-pick" data-id="${f.id}">${esc(f.name)} <small>${f.kcal} kcal</small></button>`).join('');
 }
 let foodsOpen = false;
+const otag = (t, on) => `<span class="otg${on ? ' on' : ''}">${t}</span>`;
 function revealNums() { const b = $('#fd-numbers'); if (b && b.hidden) { b.hidden = false; const t = $('#fd-numbtn'); if (t) { t.setAttribute('aria-expanded', 'true'); t.innerHTML = 'Edit numbers \u25B4'; } } }
 function foodsList(q) {
   q = (q || '').trim().toLowerCase();
