@@ -55,15 +55,15 @@ function weekOverview() {
   <div class="card" style="margin-top:12px"><div class="m" style="margin-bottom:8px">PROGRAM DAYS</div><div style="display:flex;gap:6px">${blocks}</div></div>`;
   if (g.protein > 0) {
     const v = ds.map(k => dayFood(k).length ? foodTot(k).p : null), have = v.filter(x => x != null).length, hit = v.filter(x => x != null && x >= g.protein).length;
-    out += have ? weekCard('Protein hit on ' + hit + ' of ' + have + ' logged days.', 'Last 7 days, goal ' + g.protein + ' g. Filled = hit, outline = missed', v, g.protein, 'var(--prot)', ds, 'Protein, last 7 days') : '';
+    out += have ? weekCard('Protein hit on ' + hit + ' of ' + have + ' logged days.', 'Last 7 days, goal ' + g.protein + ' g. Filled = hit, outline = missed. Dot = nothing logged', v, g.protein, 'var(--prot)', ds, 'Protein, last 7 days') : '';
   }
   if (g.sleep > 0) {
     const v = ds.map(k => (daily[k] || {}).sleep == null ? null : daily[k].sleep), hv = v.filter(x => x != null);
-    if (hv.length) { const av = hv.reduce((a, b) => a + b, 0) / hv.length, diff = Math.round((g.sleep - av) * 60); out += weekCard('Sleep averaged ' + sleepTxt(av) + (diff > 0 ? ', ' + diff + ' min under goal.' : ', on goal.'), 'Last 7 nights, goal ' + g.sleep + ' h. Filled = hit, outline = missed', v, g.sleep, 'var(--rest)', ds, 'Sleep, last 7 nights'); }
+    if (hv.length) { const av = hv.reduce((a, b) => a + b, 0) / hv.length, diff = Math.round((g.sleep - av) * 60); out += weekCard('Sleep averaged ' + sleepTxt(av) + (diff > 0 ? ', ' + diff + ' min under goal.' : ', on goal.'), 'Last 7 nights, goal ' + g.sleep + ' h. Filled = hit, outline = missed. Dot = nothing logged', v, g.sleep, 'var(--rest)', ds, 'Sleep, last 7 nights'); }
   }
   if (g.steps > 0) {
     const v = ds.map(k => (daily[k] || {}).steps == null ? null : daily[k].steps), hv = v.filter(x => x != null);
-    if (hv.length) { const av = Math.round(hv.reduce((a, b) => a + b, 0) / hv.length); out += weekCard('Steps averaged ' + av.toLocaleString() + ', goal ' + g.steps.toLocaleString() + '.', 'Last 7 days. Filled = hit, outline = missed', v, g.steps, 'var(--move)', ds, 'Steps, last 7 days'); }
+    if (hv.length) { const av = Math.round(hv.reduce((a, b) => a + b, 0) / hv.length); out += weekCard('Steps averaged ' + av.toLocaleString() + ', goal ' + g.steps.toLocaleString() + '.', 'Last 7 days. Filled = hit, outline = missed. Dot = nothing logged', v, g.steps, 'var(--move)', ds, 'Steps, last 7 days'); }
   }
   return out + '<div class="dl"><b></b><span class="m">WEEKLY REVIEW</span><b></b></div>' + reviewView();
 }

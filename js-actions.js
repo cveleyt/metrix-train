@@ -155,6 +155,7 @@ async function act(a, el) {
       let moved = false;
       if (t.done) {
         buzz(20); flashSet = { i, j, t: Date.now() };
+        if (!view.params.edit && t.w) x.sets.forEach((q, n) => { if (n > j && !q.done) q.w = t.w; });
         if (!view.params.edit) {
           const ex = exOf(x), k = x.sets.findIndex(q => !q.done);
           let nt;
@@ -255,7 +256,7 @@ async function act(a, el) {
       const say = m => { msg.innerHTML = '<small>' + esc(m) + '</small>'; };
       if (!txt) { say('Type what you ate first, with amounts if you know them.'); break; }
       const hit = myfoods.find(f => f.name.toLowerCase() === txt.toLowerCase());
-      if (hit) { $('#fd-kcal').value = hit.kcal; $('#fd-p').value = hit.p; $('#fd-c').value = hit.c; $('#fd-f').value = hit.f || 0; $('#fd-fi').value = hit.fi || 0; say('From your foods, instant. Tap Add to today.'); break; }
+      if (hit) { revealNums(); $('#fd-kcal').value = hit.kcal; $('#fd-p').value = hit.p; $('#fd-c').value = hit.c; $('#fd-f').value = hit.f || 0; $('#fd-fi').value = hit.fi || 0; say('From your foods, instant. Tap Add to today.'); break; }
       if (!settings.ai.key) { say('Add your free Gemini key in Me, under Nutrition and AI.'); break; }
       if (!settings.aiOk) { askAi('food-ai'); break; }
       btn.disabled = true; btn.textContent = 'Estimating...'; say('Asking the AI...');
@@ -303,7 +304,7 @@ async function act(a, el) {
         const out = JSON.parse(w.j.candidates[0].content.parts[0].text);
         const k = Math.round(+out.kcal), p = r1(+out.protein_g), c = r1(+out.carbs_g), fa = r1(+out.fat_g || 0), fi = r1(+out.fiber_g || 0);
         if ([k, p, c, fa, fi].some(v => isNaN(v) || v < 0)) throw new Error('The AI gave an unusable answer. Try rewording.');
-        $('#fd-kcal').value = k; $('#fd-p').value = p; $('#fd-c').value = c; $('#fd-f').value = fa; $('#fd-fi').value = fi;
+        revealNums(); $('#fd-kcal').value = k; $('#fd-p').value = p; $('#fd-c').value = c; $('#fd-f').value = fa; $('#fd-fi').value = fi;
         say('Estimate: ' + k + ' kcal, ' + p + ' g protein, ' + c + ' g carbs, ' + fa + ' g fat, ' + fi + ' g fiber. Edit if needed, then tap Add to today.' + (used && used !== settings.ai.model ? ' (answered by ' + used + ')' : ''));
       } catch (e) {
         say(e.name === 'AbortError' ? 'Timed out. Check your connection and try again.' : (e instanceof TypeError ? 'No connection. You can still type the numbers yourself.' : e.message));
@@ -313,11 +314,11 @@ async function act(a, el) {
     }
     case 'ai-key-in': settings.ai.key = el.value.trim(); saveSettings(); toast(settings.ai.key ? 'Key saved on this phone' : 'Key removed'); break;
     case 'ai-model-in': settings.ai.model = el.value.trim() || 'gemini-3.1-flash-lite'; saveSettings(); break;
-    case 'meal-set': { mealSel = el.dataset.m; document.querySelectorAll('#fd-meals button').forEach(b => { const on = b.dataset.m === mealSel; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); break; }
+    case 'meal-set': { mealSel = el.dataset.m; { const mb = $('#fd-mealbtn'); if (mb) mb.innerHTML = 'Meal: ' + esc(mealSel === 'auto' ? 'Auto' : (MEALS.find(m => m[0] === mealSel) || ['', 'Auto'])[1]) + (($('#fd-mealbox') || {}).hidden ? ' \u25BE' : ' \u25B4'); } document.querySelectorAll('#fd-meals button').forEach(b => { const on = b.dataset.m === mealSel; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); break; }
     case 'foods-toggle': foodsOpen = !foodsOpen; $('#fd-fold').innerHTML = foodsFold(); break;
     case 'food-pick': {
       const f = myfoods.find(x => x.id === el.dataset.id); if (!f) break;
-      $('#fd-name').value = f.name; $('#fd-kcal').value = f.kcal; $('#fd-p').value = f.p; $('#fd-c').value = f.c; $('#fd-f').value = f.f || 0; $('#fd-fi').value = f.fi || 0;
+      $('#fd-name').value = f.name; revealNums(); $('#fd-kcal').value = f.kcal; $('#fd-p').value = f.p; $('#fd-c').value = f.c; $('#fd-f').value = f.f || 0; $('#fd-fi').value = f.fi || 0;
       $('#fd-aimsg').innerHTML = '<small>From your foods. Tap Add to today.</small>'; $('#fd-res').innerHTML = ''; if (foodsOpen) { foodsOpen = false; $('#fd-fold').innerHTML = foodsFold(); } break;
     }
     case 'food-db': {

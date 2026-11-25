@@ -98,7 +98,7 @@ ul.list li:last-child{border:0}ul.list li span{color:var(--dim);white-space:nowr
 .sugs{display:flex;flex-wrap:wrap;gap:6px;margin:-2px 0 10px}.sugs:empty{display:none}
 .sugs button{background:var(--g1);border:1px solid var(--line);border-radius:999px;padding:8px 13px;font-size:13px;font-weight:500}.sugs small{margin-left:4px}
 .dbr{display:block;width:100%;background:var(--g1);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:6px}.dbr small{display:block}
-#fd-ai,#fd-db{padding:12px 8px;font-size:17px}
+#fd-ai,#fd-db{padding:0;font-size:12.5px}
 .big{font-family:var(--disp);font-size:40px;font-weight:700;line-height:1.05}
 .wk{border:1px solid var(--line2);border-radius:8px;padding:4px 9px;font-size:11px;font-weight:600;color:var(--ink2);white-space:nowrap}
 .wkrow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
@@ -227,6 +227,14 @@ h2{font-size:34px!important;font-weight:700;letter-spacing:-.03em;line-height:1.
 .spec{color:var(--acct);font-weight:700}.exh b{font-size:20px;letter-spacing:-.02em}
 .morerow{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;margin-top:10px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--g2);color:var(--ink);font-weight:700;font-size:15px;text-align:left}.morerow small{flex:1;color:var(--dim);font-weight:400;font-size:12px}
 .morebox{margin-top:10px}
+.stick{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--dim);background:transparent;color:transparent;display:inline-flex;align-items:center;justify-content:center;flex:none;padding:0}.stick svg{width:18px;height:18px}.stick.on{background:var(--acc);border-color:var(--acc);color:var(--onacc)}
+.lnk{background:none;border:0;padding:6px 0;color:var(--acct);font-weight:600;font-size:14px;text-align:left}
+.dnc{border-color:color-mix(in srgb,var(--ok) 55%,transparent);background:color-mix(in srgb,var(--ok) 8%,var(--g1))}.dtag{color:var(--ok);font-weight:700;display:inline-flex;align-items:center;gap:6px}.dtag svg,.tb span svg{width:12px;height:12px;vertical-align:-1px}
+.nxr{margin-top:12px;background:var(--g2)}.rcw{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;margin-top:8px;padding:13px 16px}
+.qa .ic svg{display:block}
+.fb3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.fb3 button{height:64px;border-radius:16px;background:var(--g2);border:1px solid var(--line);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12.5px;font-weight:600}.fb3 button:disabled{opacity:.45}
+.fname{font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.foodbox2 textarea.big{min-height:76px}
 </style>
 </head>
 <body>
@@ -238,21 +246,21 @@ h2{font-size:34px!important;font-weight:700;letter-spacing:-.03em;line-height:1.
   <button data-go="fuel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c4 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2-6 6-10z"/></svg> Fuel</button>
   <button data-go="trends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg> Insights</button>
 </nav>
-<script src="program.js?v=3.8.1"></script>
-<script src="users.js?v=3.8.1"></script>
-<script src="sync.js?v=3.8.1"></script>
-<script src="js-core.js?v=3.8.1"></script>
-<script src="js-shell.js?v=3.8.1"></script>
-<script src="js-today.js?v=3.8.1"></script>
-<script src="js-workout.js?v=3.8.1"></script>
-<script src="js-history.js?v=3.8.1"></script>
-<script src="js-me.js?v=3.8.1"></script>
-<script src="js-extras.js?v=3.8.1"></script>
-<script src="js-notes.js?v=3.8.1"></script>
-<script src="js-daily.js?v=3.8.1"></script>
-<script src="js-usage.js?v=3.8.1"></script>
-<script src="js-program.js?v=3.8.1"></script>
-<script src="js-actions.js?v=3.8.1"></script>
-<script src="js-boot.js?v=3.8.1"></script>
+<script src="program.js?v=3.9.0"></script>
+<script src="users.js?v=3.9.0"></script>
+<script src="sync.js?v=3.9.0"></script>
+<script src="js-core.js?v=3.9.0"></script>
+<script src="js-shell.js?v=3.9.0"></script>
+<script src="js-today.js?v=3.9.0"></script>
+<script src="js-workout.js?v=3.9.0"></script>
+<script src="js-history.js?v=3.9.0"></script>
+<script src="js-me.js?v=3.9.0"></script>
+<script src="js-extras.js?v=3.9.0"></script>
+<script src="js-notes.js?v=3.9.0"></script>
+<script src="js-daily.js?v=3.9.0"></script>
+<script src="js-usage.js?v=3.9.0"></script>
+<script src="js-program.js?v=3.9.0"></script>
+<script src="js-actions.js?v=3.9.0"></script>
+<script src="js-boot.js?v=3.9.0"></script>
 </body>
 </html>

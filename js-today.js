@@ -67,6 +67,7 @@ function backupBanner() {
 }
 /* ---------- Today (direction A) ---------- */
 let tapeSel = null, sessOpen = false;
+const SVG_BM = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4z"/></svg>', SVG_SCAN = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>', SVG_SRCH = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg>';
 const SVG_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
 const SVG_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>';
 function gaugeData() {
@@ -99,22 +100,24 @@ function todayGauges() {
 function bodyStrip() {
   const tk = todayKey(), pts = [];
   for (let n = -20; n <= 0; n++) { const k = kAdd(tk, n), d = daily[k]; if (d && d.weight > 0) pts.push([n, d.weight]); }
-  const goal = settings.goals.weight > 0 ? settings.goals.weight : 0;
+  const goal = settings.goals.weight > 0 ? settings.goals.weight : 0, t = daily[tk] || {};
   const head = '<div class="dl"><b></b><span class="m">BODY</span><b></b></div>';
-  if (pts.length < 2) return `${head}<div class="card"><div style="font-size:16px;font-weight:700;line-height:1.3">${pts.length ? 'One weigh-in so far.' : 'No weigh-ins yet.'}</div><div class="dim" style="font-size:12px;margin:2px 0 10px">Weigh yourself the same way each morning. Two or more weigh-ins start the trend line.</div><button class="mini" data-act="qa-log">Log weight</button></div>`;
-  const avg = (a, b) => { const v = pts.filter(p => p[0] > a && p[0] <= b).map(p => p[1]); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
-  const now = avg(-7, 0), prior = avg(-14, -7);
-  let sentence;
-  if (now != null && prior != null) { const d = dw(now) - dw(prior); sentence = Math.abs(d) < 0.1 ? 'Weight is steady this week.' : (d < 0 ? 'Down ' : 'Up ') + r1(Math.abs(d)) + ' ' + UW() + ' this week.'; }
-  else sentence = pts.length + ' weigh-ins in the last 3 weeks.';
-  const W = 300, H = 64, vs = pts.map(p => dw(p[1])), lo = Math.min(...vs), hi = Math.max(...vs), rg = (hi - lo) || 1;
-  const X = n => 4 + (n + 20) / 20 * (W - 8), Y = v => H - 8 - (v - lo) / rg * (H - 16);
-  const ma = pts.map((p, i) => { const w = pts.slice(Math.max(0, i - 3), i + 1); return [X(p[0]), Y(dw(w.reduce((a, q) => a + q[1], 0) / w.length))]; });
-  const dots = pts.map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(dw(p[1])).toFixed(1)}" r="2" style="fill:var(--dim)"/>`).join('');
-  const label = 'Weight, last 3 weeks, ' + pts.length + ' weigh-ins. ' + sentence + ' Now ' + wt(pts[pts.length - 1][1]) + '.';
-  return `${head}<div class="card"><div style="font-size:16px;font-weight:700;line-height:1.3">${esc(sentence)}</div><div class="dim" style="font-size:12px;margin:2px 0 6px">Last 3 weeks, ${pts.length} weigh-ins. Dots are daily, line is the 4-day average</div>
-  <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label)}">${dots}<polyline points="${ma.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ')}" fill="none" style="stroke:var(--acc)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg>
-  <div class="row" style="margin-top:6px;justify-content:space-between"><span class="m">${wt(pts[pts.length - 1][1])} NOW${goal ? ' &middot; GOAL ' + wt(goal) : ''}</span><button class="mini" data-act="qa-log">Weigh in</button></div></div>`;
+  const inputs = `<div class="ins" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:14px"><label>Steps<input data-act="daily-in" data-f="steps" type="number" inputmode="numeric" min="0" value="${t.steps == null ? '' : t.steps}" placeholder="0"></label>
+  <label>Weight (${UW()})<input data-act="daily-in" data-f="weight" type="number" inputmode="decimal" step="any" min="0" max="400" value="${t.weight == null ? '' : r1(dw(t.weight))}" placeholder="0"></label></div><p style="margin:8px 0 0"><small>Saved as you type. Weigh yourself the same way each morning.</small></p>`;
+  const last = pts.length ? pts[pts.length - 1][1] : 0;
+  const big = last ? `<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px"><span class="n" style="font-size:44px;line-height:1">${r1(dw(last))}</span><span class="dim">${UW()} now</span></div>` : '<div style="font-size:16px;font-weight:700;margin-top:6px">No weigh-ins yet.</div>';
+  let prog = '';
+  if (goal && pts.length >= 2) { const first = pts[0][1], span = goal - first, pc = span ? Math.max(0, Math.min(1, (last - first) / span)) : 1, left = goal - last; prog = `<div style="height:8px;border-radius:99px;background:var(--g3);margin:12px 0 6px" role="img" aria-label="${Math.round(pc * 100)} percent of the way to ${esc(wt(goal))}"><div style="width:${Math.round(pc * 100)}%;height:100%;border-radius:99px;background:var(--acc)"></div></div><small class="dim">${Math.abs(left) < 0.05 ? 'Goal reached.' : r1(Math.abs(dw(left))) + ' ' + UW() + ' to go to ' + esc(wt(goal)) + '.'}</small>`; }
+  else if (goal) prog = `<small class="dim" style="display:block;margin-top:8px">Goal ${esc(wt(goal))}</small>`;
+  let trend = '';
+  if (pts.length >= 6) {
+    const W = 300, H = 64, vs = pts.map(p => dw(p[1])), lo = Math.min(...vs), hi = Math.max(...vs), rg = (hi - lo) || 1;
+    const X = n => 4 + (n + 20) / 20 * (W - 8), Y = v => H - 8 - (v - lo) / rg * (H - 16);
+    const ma = pts.map((p, i) => { const w = pts.slice(Math.max(0, i - 3), i + 1); return [X(p[0]), Y(dw(w.reduce((a, q) => a + q[1], 0) / w.length))]; });
+    const dots = pts.map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(dw(p[1])).toFixed(1)}" r="2" style="fill:var(--dim)"/>`).join('');
+    trend = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;margin-top:12px" role="img" aria-label="Weight, last 3 weeks, ${pts.length} weigh-ins">${dots}<polyline points="${ma.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ')}" fill="none" style="stroke:var(--acc)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg><small class="dim">Dots are daily, line is the 4-day average</small>`;
+  } else if (pts.length) trend = `<small class="dim" style="display:block;margin-top:6px">The trend line appears after 6 weigh-ins (${pts.length} so far).</small>`;
+  return `${head}<div class="card" id="logcard"><div class="row" style="justify-content:space-between"><span class="m">BODY</span>${goal ? `<span class="m">GOAL ${esc(wt(goal))}</span>` : ''}</div>${big}${prog}${trend}${inputs}</div>`;
 }
 function nextStep() {
   const k = todayKey(), f = dayFood(k), d = daily[k] || {}, n = nextWorkout(), dn = (dayOf(n.dayKey) || DAYS[0]).name;
@@ -134,14 +137,35 @@ function ghostRow(e) {
   }
   return `<div class="ex1 gx"><span><b>${esc(e.name)}</b> <span class="dim" style="font-size:12px">${e.sets} x ${rng}</span><span class="glast">${esc(last)}</span></span>${right}</div>`;
 }
+const SVG_CK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function doneToday() { const k = todayKey(); return sortedDesc().find(s => dkey(s.finishedAt) === k) || null; }
+function doneCard(s) {
+  const nb = []; s.exercises.forEach(x => { if (x.skipped) return; const ts = topSet(x), b = bestSet(x.name, s.id); if (ts && b && (ts.w > b.w || (ts.w === b.w && ts.r > b.r))) nb.push(x.name); });
+  const mins = s.startedAt && s.finishedAt > s.startedAt ? Math.round((s.finishedAt - s.startedAt) / 60000) : 0;
+  return `<div class="sess dnc"><div class="row" style="justify-content:space-between"><span class="m dtag">${SVG_CK} DONE TODAY</span><span class="m">${esc(fd(s.finishedAt).toUpperCase())}${mins ? ' &middot; ' + mins + ' MIN' : ''}</span></div>
+  <div class="n" style="font-size:34px;margin:8px 0 4px">${esc(s.name)}</div><div style="font-weight:600">${doneCount(s)} sets &middot; ${Math.round(dw(volume(s))).toLocaleString()} ${UW()} volume</div>
+  ${nb.length ? `<div style="margin-top:8px"><span class="tag">NEW BEST</span> <small class="dim">${esc(nb.slice(0, 3).join(', '))}</small></div>` : ''}
+  <button class="btn" style="margin-top:14px" data-act="view-sum" data-id="${esc(s.id)}">View summary</button></div>`;
+}
+function nextRow() {
+  const n = nextWorkout(), d = dayOf(n.dayKey) || DAYS[0], sets = d.exercises.reduce((a, e) => a + e.sets, 0);
+  return `<div class="card nxr"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><span class="m">NEXT WORKOUT</span><div style="font-size:18px;font-weight:700;margin-top:3px">${esc(d.name)} <small class="dim" style="font-weight:500">&middot; ${d.exercises.length} exercises, ${sets} sets</small></div></div></div>
+  <button class="lnk" data-act="start">Start ${esc(d.name)} anyway &rsaquo;</button></div>`;
+}
+function tapeBlocks(sel, live) {
+  const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week);
+  return DAYS.map(x => {
+    const dn = wk.some(s => s.dayKey === x.key), nx = x.key === n.dayKey, st = dn ? 'DONE' : nx ? 'NEXT' : 'TO DO', cls = 'tb ' + (x.key === sel ? 'sel ' : '') + (dn ? 'tdone' : '');
+    const inner = `<b>${esc(x.name)}</b><span>${st}${dn ? ' ' + SVG_CK : ''}</span>`;
+    return live ? `<button class="${cls}" data-act="tape-sel" data-k="${esc(x.key)}" aria-pressed="${x.key === sel}" aria-label="${esc(x.name)}, ${st}">${inner}</button>` : `<div class="${cls}" aria-label="${esc(x.name)}, ${st}">${inner}</div>`;
+  }).join('');
+}
 function tapeBlock() {
   const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), sel = DAYS.some(x => x.key === tapeSel) ? tapeSel : n.dayKey;
-  const blocks = DAYS.map(x => {
-    const dn = wk.some(s => s.dayKey === x.key), nx = x.key === n.dayKey, st = dn ? 'DONE' : nx ? 'NEXT' : 'TO DO';
-    return `<button class="tb ${x.key === sel ? 'sel' : ''} ${dn ? 'tdone' : ''}" data-act="tape-sel" data-k="${esc(x.key)}" aria-pressed="${x.key === sel}" aria-label="${esc(x.name)}, ${st}"><b>${esc(x.name)}</b><span>${st}</span></button>`;
-  }).join('');
+  const blocks = tapeBlocks(sel, true), dtd = doneToday();
   let card;
-  if (active) {
+  if (!active && dtd && sel === n.dayKey) card = doneCard(dtd) + nextRow();
+  else if (active) {
     card = `<div class="sess"><div class="row" style="justify-content:space-between"><span class="m">IN PROGRESS</span><span class="t" style="color:var(--acct)">${doneCount(active)} OF ${totalCount(active)} SETS</span></div>
     <div class="n" style="font-size:30px;margin:8px 0 14px">${esc(active.name)}</div><button class="btn" data-act="resume">Resume ${esc(active.name)}</button></div>`;
   } else {
@@ -169,14 +193,15 @@ views.home = () => {
   ${backupBanner()}${tapeBlock()}${deloadCard()}
   <div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div><div id="tg">${todayGauges()}</div>
   <button class="btn ghost" style="margin-top:14px" data-act="${na}">${esc(nl)}</button>
-  ${bodyStrip()}${coachNoteCard()}${dailyCard()}<div id="logcard">${logCard()}</div>${streakCard()}`;
+  ${bodyStrip()}${coachNoteCard()}${dailyCard()}${streakCard()}`;
 };
+const QI = { food: '<path d="M12 3c4 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2-6 6-10z"/>', wt: '<path d="M5 20h14l-2-12H7zM9 8a3 3 0 0 1 6 0"/>', ci: '<circle cx="12" cy="12" r="9"/><path d="M8 14c1 2 7 2 8 0M9 9.5h.01M15 9.5h.01"/>', pill: '<rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-35 12 12)"/>', tr: '<path d="M3 9v6M7 6v12M17 6v12M21 9v6M7 12h10"/>', me: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>' };
 function quickAdd() {
-  const row = (ic, t, s, a) => `<button class="qa" data-act="${a}"><span class="ic">${ic}</span><span>${t}<small class="dim">${s}</small></span></button>`;
+  const row = (ic, t, s, a, tag, data) => `<button class="qa" data-act="${a}" ${data || ''}><span class="ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${QI[ic]}</svg></span><span style="flex:1">${t}<small class="dim">${s}</small></span>${tag ? `<span class="m" style="color:var(--ok);font-weight:700">${tag}</span>` : ''}</button>`;
+  const dtd = !active && doneToday(), nn = esc((dayOf(nextWorkout().dayKey) || DAYS[0]).name);
   showModal(`<div class="m" style="color:var(--acct)">QUICK ADD</div><div style="margin-top:6px">
-  ${row('FD', 'Log food', 'Type, scan or pick a saved food', 'qa-food')}${row('WT', 'Weight and steps', 'Today\'s numbers', 'qa-log')}${row('CI', 'Check-in', 'Four taps on how you feel', 'qa-ci')}
-  ${row('SP', 'Supplements', 'Tick your stack, sleep times', 'qa-daily')}${row('TR', 'Start workout', 'Next up: ' + esc((dayOf(nextWorkout().dayKey) || DAYS[0]).name), 'qa-start')}${row('ME', 'Settings', 'Profile, goals, program, theme', 'qa-me')}</div>
-  <button class="btn ghost" style="margin-top:12px" data-act="mdl-close">Close</button>`);
+  ${row('food', 'Log food', 'Type, scan or pick a saved food', 'qa-food')}${row('wt', 'Weight and steps', 'Today\'s numbers', 'qa-log')}${row('ci', 'Check-in', 'Four taps on how you feel', 'qa-ci')}
+  ${row('pill', 'Supplements', 'Tick your stack, sleep times', 'qa-daily')}${dtd ? row('tr', esc(dtd.name) + ' done today', 'Next: ' + nn + '. Tap to see the summary', 'view-sum', 'DONE', 'data-id="' + esc(dtd.id) + '"') : row('tr', active ? 'Resume workout' : 'Start workout', active ? esc(active.name) : 'Next up: ' + nn, active ? 'resume' : 'qa-start')}${row('me', 'Settings', 'Profile, goals, program, theme', 'qa-me')}</div>`);
   const m = $('#mdl'); if (m) m.classList.add('sheet');
 }
 function homeAct(a, el) {
@@ -192,6 +217,8 @@ function homeAct(a, el) {
       Object.assign(e, { name: nm, kcal: Math.round(num('kcal')), p: num('p'), c: num('c'), f: num('f'), fi: num('fi'), m: efMeal || mealOf(e), u: Date.now() });
       saveFood(); closeModal(); toast('Entry updated'); render(); return true;
     }
+    case 'food-rm': { const k = todayKey(); food[k] = dayFood(k).filter(e => e.id !== el.dataset.id); if (!food[k].length) delete food[k]; saveFood(); closeModal(); toast('Entry removed'); render(); return true; }
+    case 'fd-nums': case 'fd-mealtog': { const box = $(a === 'fd-nums' ? '#fd-numbers' : '#fd-mealbox'); if (box) { box.hidden = !box.hidden; el.setAttribute('aria-expanded', !box.hidden); el.innerHTML = el.innerHTML.replace(/[\u25BE\u25B4]|&#9662;|&#9652;/, box.hidden ? '\u25BE' : '\u25B4'); } return true; }
     case 'sess-toggle': sessOpen = !sessOpen; render(); return true;
     case 'start-day': if (active && !confirm('You have a workout in progress. Replace it?')) return true; startSession({ week: nextWorkout().week, dayKey: el.dataset.k }); tapeSel = null; return true;
     case 'start': tapeSel = null; return false;
@@ -203,18 +230,23 @@ function homeAct(a, el) {
     case 'qa-start': closeModal(); act('start', el); return true;
     case 'qa-me': closeModal(); go('me'); return true;
     case 'go-trends': go('trends'); return true;
+    case 'view-sum': closeModal(); go('summary', { id: el.dataset.id }); return true;
   }
   return false;
 }
+function recentList() {
+  const l = sortedDesc().slice(0, 3); if (!l.length) return '<p>No workouts logged yet. Your first one sets the baseline.</p>';
+  return l.map(s => `<button class="card rcw" data-act="view-sum" data-id="${esc(s.id)}"><div><b>${esc(s.name)}</b><br><small class="dim">${esc(fd(s.finishedAt))} &middot; ${doneCount(s)} sets, ${Math.round(dw(volume(s))).toLocaleString()} ${UW()}</small></div><span class="dim">&rsaquo;</span></button>`).join('');
+}
 views.train = p => {
   const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), l = sortedDesc()[0];
-  const chips = DAYS.map(x => { const dn = wk.some(s => s.dayKey === x.key), nx = x.key === n.dayKey; return `<div class="chip ${nx ? 'next' : dn ? 'dn' : ''}"><b>${esc(x.name)}</b><span>${dn ? 'DONE' : nx ? 'NEXT' : 'TO DO'}</span></div>`; }).join('');
+  const chips = tapeBlocks(n.dayKey, false), dtd = doneToday();
   const picker = p.picker ? `<div class="card"><h3>Change what is next</h3><label>Week<input id="pk-week" type="number" min="1" inputmode="numeric" value="${n.week}"></label>
     <label>Workout<select id="pk-day">${DAYS.map(x => `<option value="${x.key}" ${x.key === n.dayKey ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
     <div class="row"><button class="btn" data-act="pick-apply">Use this</button><button class="btn ghost" data-act="pick-cancel">Cancel</button></div></div>` : '';
-  return `<div class="m">WEEK ${n.week} OF ${P.weeks}</div><h2 style="margin:4px 0 14px;font-size:52px">Train</h2>${resumeCard()}${active ? '' : nextHero(true)}${picker}
-  <div class="dl"><b></b><span class="m">THIS WEEK</span><b></b></div><div class="chips">${chips}</div>
-  ${l ? `<p>Last workout: ${esc(l.name)} on ${fd(l.finishedAt)}, ${doneCount(l)} sets, ${Math.round(dw(volume(l))).toLocaleString()} ${UW()} volume.</p>` : '<p>No workouts logged yet. Your first one sets the baseline.</p>'}
+  return `<div class="m">WEEK ${n.week} OF ${P.weeks}</div><h2 style="margin:4px 0 14px;font-size:52px">Train</h2>${resumeCard()}${active ? '' : dtd ? doneCard(dtd) + nextRow() : nextHero(true)}${picker}
+  <div class="dl"><b></b><span class="m">THIS WEEK</span><b></b></div><div class="tape" role="group" aria-label="Program days">${chips}</div>
+  <div class="dl"><b></b><span class="m">RECENT WORKOUTS</span><b></b></div>${recentList()}
   <button class="card" data-go="info" style="display:block;width:100%"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><b>Program guide</b><br><small>Exercises, tempo, rest and progression rules</small></div><span class="dim">&rsaquo;</span></div></button>`;
 };
 
@@ -229,8 +261,8 @@ function gaugeLine(label, val, goal, unit, col, cls) {
   return `<div class="${cls || ''}" style="margin-top:14px" role="img" aria-label="${esc(label)} ${Math.round(val)} ${unit}${goal > 0 ? ' of ' + goal + ', ' + Math.round(Math.min(1, val / goal) * 100) + ' percent' : ''}"><div class="row" style="align-items:baseline;flex-wrap:nowrap"><span style="font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)">${label}</span><span><b style="font-size:16px">${Math.round(val).toLocaleString()}</b> <span class="mono dim" style="font-size:11px">${goal > 0 ? 'OF ' + goal.toLocaleString() + ' ' : ''}${unit.toUpperCase()}</span></span></div>${goal > 0 ? tickBar(val / goal, col) : ''}<div class="mono dim" style="font-size:10.5px;margin-top:4px">${tag}</div></div>`;
 }
 function goalBars(vals, goal, col, labels, label) {
-  const W = 300, H = 90, mx = Math.max(goal, ...vals, 1) * 1.12, n = vals.length, bw = W / n;
-  const bars = vals.map((v, i) => { if (v == null) return ''; const bh = Math.max(3, v / mx * (H - 4)), x = i * bw + 5, w = bw - 10, y = H - bh; return v >= goal ? `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" style="fill:${col}"/>` : `<rect x="${(x + 1).toFixed(1)}" y="${(y + 1).toFixed(1)}" width="${(w - 2).toFixed(1)}" height="${(bh - 2).toFixed(1)}" rx="4" fill="none" style="stroke:${col}" stroke-width="2"/>`; }).join('');
+  const W = 300, H = 70, mx = Math.max(goal, ...vals.filter(v => v != null), 1) * 1.12, n = vals.length, bw = W / n;
+  const bars = vals.map((v, i) => { if (v == null) return `<circle cx="${(i * bw + bw / 2).toFixed(1)}" cy="${H - 4}" r="2.5" style="fill:var(--dim)" opacity=".6"/>`; const bh = Math.max(3, v / mx * (H - 4)), x = i * bw + 5, w = bw - 10, y = H - bh; return v >= goal ? `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" style="fill:${col}"/>` : `<rect x="${(x + 1).toFixed(1)}" y="${(y + 1).toFixed(1)}" width="${(w - 2).toFixed(1)}" height="${(bh - 2).toFixed(1)}" rx="4" fill="none" style="stroke:${col}" stroke-width="2"/>`; }).join('');
   const gy = H - goal / mx * (H - 4);
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label)}">${bars}<line x1="0" x2="${W}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" stroke="var(--dim)" stroke-dasharray="4 4"/></svg><div class="mono dim" style="display:flex;font-size:9.5px;margin-top:4px">${labels.map(l => `<span style="flex:1;text-align:center">${l}</span>`).join('')}</div>`;
 }
@@ -247,7 +279,7 @@ function leftTxt(v, goal, unit) {
 function fuelStatus(t, g) {
   const head = '<div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div>';
   let say;
-  if (!t.kcal && !t.p) say = 'Nothing logged yet today. Type what you ate above.';
+  if (!t.kcal && !t.p) say = 'Nothing logged yet today. Add what you ate below.';
   else if (g.protein > 0) say = t.p >= g.protein ? 'Protein goal hit: ' + Math.round(t.p) + ' g.' : 'Protein is the gap: ' + Math.round(t.p) + ' of ' + g.protein + ' g, ' + Math.round(g.protein - t.p) + ' g to go.';
   else say = Math.round(t.kcal).toLocaleString() + ' kcal logged today.';
   const hero = `<div role="img" aria-label="Protein ${Math.round(t.p)} grams${g.protein > 0 ? ' of ' + g.protein + ', ' + leftTxt(t.p, g.protein, 'g') : ''}"><div class="mono dim" style="font-size:11px;letter-spacing:.6px">PROTEIN, TODAY</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span style="font-size:48px;font-weight:700;letter-spacing:-.03em;line-height:1">${Math.round(t.p)}</span><span class="dim" style="font-size:15px">${g.protein > 0 ? 'of ' + g.protein + ' g' : 'g'}</span></div>${g.protein > 0 ? `<div style="margin:10px 0 6px">${pbar(t.p, g.protein, 'var(--prot)', 16)}</div>` : ''}<div style="font-size:14px;font-weight:600">${esc(leftTxt(t.p, g.protein, 'g'))}</div></div>`;
@@ -264,7 +296,7 @@ function foodEdit(id) {
   <label>Name<input id="ef-name" type="text" autocomplete="off" value="${esc(e.name || '')}"></label>
   <div class="m" style="margin:4px 0 6px">MEAL</div><div class="row" style="gap:6px;margin-bottom:12px">${MEALS.map(([mk, ml]) => `<button class="mini${mk === efMeal ? ' on' : ''}" data-act="ef-meal" data-v="${mk}" aria-pressed="${mk === efMeal}">${ml}</button>`).join('')}</div>
   <div class="five">${n('kcal', 'Kcal')}${n('p', 'Prot')}${n('c', 'Carb')}${n('f', 'Fat')}${n('fi', 'Fiber')}</div>
-  <div class="mrow" style="margin-top:14px"><button class="btn ghost" data-act="mdl-close">Cancel</button><button class="btn" data-act="food-save" data-id="${esc(id)}">Save</button></div>`);
+  <div class="mrow" style="margin-top:14px"><button class="btn ghost" data-act="food-rm" data-id="${esc(id)}" style="border-color:var(--warn);color:var(--warn)">Remove meal</button><button class="btn" data-act="food-save" data-id="${esc(id)}">Save</button></div>`);
 }
 function fuelWeek() {
   const g = settings.goals; if (!(g.protein > 0)) return '';
@@ -281,18 +313,23 @@ views.fuel = () => {
     ? `<div style="display:flex;align-items:center;gap:18px;margin-top:10px">${tickRing(150, t.kcal / g.calories, 'var(--carb)', `<div class="n" style="font-size:36px">${Math.round(t.kcal).toLocaleString()}</div><div class="m">KCAL</div>`, 60, 3, 12)}<div style="flex:1"><div class="m">${g.calories - t.kcal >= 0 ? 'REMAINING' : 'OVER BY'}</div><div class="n" style="font-size:40px;margin:4px 0 8px">${Math.abs(Math.round(g.calories - t.kcal)).toLocaleString()}</div><span class="t" style="color:var(--carb)">${Math.round(t.kcal / g.calories * 100)}% OF GOAL</span></div></div>`
     : `<div class="n" style="font-size:56px;margin:8px 0 4px">${Math.round(t.kcal).toLocaleString()} <span style="font-size:18px;color:var(--dim)">kcal</span></div><small>Set an energy goal in Me, Goals and targets, to see a ring here.</small>`;
   return `<div class="tblk"><span>MX / TRAIN</span><span>SHEET 03 FUEL</span><span>${esc(date)}</span></div><div class="row" style="justify-content:space-between"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Fuel</h2></div><span class="t" style="color:var(--dim)">${list.length} ${list.length === 1 ? 'ENTRY' : 'ENTRIES'}</span></div>
-  <div class="cut foodbox" style="margin-top:16px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="n" style="font-size:32px;text-transform:uppercase">What did you eat?</span><span class="t" style="color:var(--move)">${settings.ai && settings.ai.key ? 'AI READY' : 'NO AI KEY'}</span></div><p class="dim" style="margin:4px 0 12px;font-size:13px">Say the meal in your text, like "lunch: chicken and rice", or tap one below. No order needed.</p><textarea id="fd-name" rows="4" class="big" placeholder="e.g. 200 g grilled chicken breast, a cup of rice and a green salad with olive oil" autocomplete="off"></textarea>${mealChips()}<p class="m" style="margin:0 0 10px;font-size:9.5px">AUTO PICKS FROM YOUR TEXT, OR FROM THE TIME OF DAY</p>
-  <div class="sugs" id="fd-sug"></div><div id="fd-fold">${foodsFold()}</div>
-  <div class="row" style="margin-bottom:6px"><button class="btn ghost" data-act="food-db" id="fd-db">Search database</button><button class="btn ghost" data-act="scan-open" aria-label="Scan barcode">Scan</button><button class="btn" data-act="food-ai" id="fd-ai">Estimate</button></div>
-  <p id="fd-aimsg" style="margin:0 0 10px;min-height:18px"><small>Fills the numbers below as an estimate. Check them before adding.</small></p><div id="fd-res"></div>
-  <div class="five"><label>Kcal<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label><label style="color:var(--prot)">Prot<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--carb)">Carb<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fat)">Fat<input id="fd-f" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fib)">Fiber<input id="fd-fi" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div>
-  <button class="btn" data-act="food-add">Add to today</button></div>
+  <div class="p"></div>
   ${fuelStatus(t, g)}
+  <div class="card foodbox2" style="margin-top:12px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span style="font-size:20px;font-weight:700">Add food</span><span class="t" style="color:var(--move)">${settings.ai && settings.ai.key ? 'AI READY' : 'NO AI KEY'}</span></div>
+  <textarea id="fd-name" rows="2" class="big" placeholder="What did you eat? e.g. 200 g chicken, a cup of rice" autocomplete="off" style="margin-top:10px"></textarea>
+  <div class="sugs" id="fd-sug"></div>
+  <div class="fb3"><button data-act="foods-toggle" aria-expanded="${foodsOpen}" ${myfoods.length ? '' : 'disabled'}>${SVG_BM}<span>Saved (${myfoods.length})</span></button><button data-act="scan-open" aria-label="Scan barcode">${SVG_SCAN}<span>Scan</span></button><button data-act="food-db" id="fd-db">${SVG_SRCH}<span>Search</span></button></div>
+  <div id="fd-fold">${foodsFold()}</div>
+  <div class="row" style="margin:12px 0 0;gap:8px;justify-content:flex-start"><button class="mini" id="fd-mealbtn" data-act="fd-mealtog" aria-expanded="false">Meal: ${esc(mealSel === 'auto' ? 'Auto' : (MEALS.find(m => m[0] === mealSel) || ['', 'Auto'])[1])} &#9662;</button><button class="mini" data-act="fd-nums" aria-expanded="false" id="fd-numbtn">Edit numbers &#9662;</button></div>
+  <div id="fd-mealbox" hidden style="margin-top:10px">${mealChips()}<p class="m" style="margin:0 0 6px;font-size:9.5px">AUTO PICKS FROM YOUR TEXT, OR FROM THE TIME OF DAY</p></div>
+  <p id="fd-aimsg" style="margin:10px 0 0;min-height:18px"><small></small></p><div id="fd-res"></div>
+  <div id="fd-numbers" hidden style="margin-top:6px"><div class="five"><label>Kcal<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label><label style="color:var(--prot)">Prot<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--carb)">Carb<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fat)">Fat<input id="fd-f" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fib)">Fiber<input id="fd-fi" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div></div>
+  <button class="btn" data-act="food-add" style="margin-top:12px">Add to today</button><button class="lnk" data-act="food-ai" id="fd-ai" style="display:block;margin:10px auto 0;text-align:center">Estimate numbers with AI</button></div>
   ${'<div class="dl"><b></b><span class="m">TODAY BY MEAL</span><b></b></div>'}${MEALS.map(([mk, ml]) => {
     const es = list.filter(e => mealOf(e) === mk).sort((x, y) => x.t - y.t);
     if (!es.length) return `<div class="card" style="padding:12px 16px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="t" style="color:var(--dim)">EMPTY</span></div></div>`;
     const kc = es.reduce((a, e) => a + (e.kcal || 0), 0);
-    return `<div class="card" style="padding:12px 16px 4px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="n kc" style="font-size:20px">${Math.round(kc)}<span style="font-size:11px;color:var(--dim)"> kcal</span></span></div>${es.map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n kc" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-edit" data-id="${e.id}" aria-label="Edit ${esc(e.name || 'entry')}">Edit</button><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>`;
+    return `<div class="card" style="padding:12px 16px 4px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="n kc" style="font-size:20px">${Math.round(kc)}<span style="font-size:11px;color:var(--dim)"> kcal</span></span></div>${es.map(e => `<button class="frow" data-act="food-edit" data-id="${e.id}" aria-label="Edit ${esc(e.name || 'entry')}" style="width:100%;text-align:left;background:none"><div style="min-width:0"><div class="fname">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><span class="dim" style="font-size:20px;flex:none" aria-hidden="true">&rsaquo;</span></button>`).join('')}</div>`;
   }).join('')}${fuelWeek()}`;
 };
 

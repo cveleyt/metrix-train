@@ -31,12 +31,13 @@ function checkinCard() {
   return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">CHECK-IN</span><span class="t" style="color:var(--acct)">${n ? n + ' OF 4' : '30 SECONDS'}</span></div>
   <p style="margin:8px 0 12px">How do you feel today? Four taps. It helps the coach and your weekly review.</p><button class="btn" data-act="ci-open">${n ? 'Continue check-in' : 'Start check-in'}</button></div>`;
 }
+let suppDet = {};
 function stackCard() {
   const l = suppList(), t = dayD(todayKey()).supp || {}, n = l.filter(s => t[s.id]).length;
   if (!l.length) return `<div class="card" style="margin-top:12px"><span class="m">SUPPLEMENTS</span><p style="margin:8px 0 12px">Track creatine, whey, vitamins or anything you take daily. You choose the names, doses and timing.</p><button class="btn ghost" data-act="supp-edit" data-i="-1">Add supplement</button></div>`;
   return `<div class="card" style="margin-top:12px;padding-bottom:6px"><div class="row" style="justify-content:space-between"><span class="m">SUPPLEMENTS</span><span class="t" style="color:var(--dim)">${n} OF ${l.length} TAKEN</span></div>
-  ${l.map((s, i) => `<div class="li" style="padding:11px 0"><button data-act="supp-edit" data-i="${i}" style="text-align:left;flex:1" aria-label="Edit ${esc(s.name)}"><span style="font-weight:600">${esc(s.name)}</span>${t[s.id] === 2 ? ' <span class="t" style="color:var(--acct)">AUTO</span>' : ''}<br><span class="dim" style="font-size:12px">${esc([s.dose, s.when, s.auto === 'train' ? 'auto on training days' : s.auto === 'daily' ? 'auto every day' : ''].filter(Boolean).join(', '))}</span>${(s.facts || []).length ? `<br><span class="dim" style="font-size:11.5px">${esc(s.facts.slice(0, 3).join(', '))}</span>` : ''}</button>
-  <button data-act="supp-tick" data-id="${s.id}" role="checkbox" aria-checked="${!!t[s.id]}" aria-label="${esc(s.name)} taken" style="width:34px;height:34px;border-radius:50%;border:1.5px solid ${t[s.id] ? 'var(--acct)' : 'var(--line2)'};background:${t[s.id] ? 'var(--acct)' : 'transparent'};color:#fff;font-weight:700">${t[s.id] ? '&#10003;' : ''}</button></div>`).join('')}
+  ${l.map((s, i) => { const det = suppDet[s.id], extra = [s.auto === 'train' ? 'Auto on training days' : s.auto === 'daily' ? 'Auto every day' : '', (s.facts || []).slice(0, 3).join(', ')].filter(Boolean); return `<div class="li" style="padding:11px 0"><div style="text-align:left;flex:1;min-width:0"><button data-act="supp-edit" data-i="${i}" style="text-align:left;display:block;width:100%" aria-label="Edit ${esc(s.name)}"><span style="font-weight:700;font-size:16px">${esc(s.name)}</span>${t[s.id] === 2 ? ' <span class="t" style="color:var(--acct)">AUTO</span>' : ''}<br><span class="dim" style="font-size:12.5px">${esc([s.dose, s.when].filter(Boolean).join(' · '))}</span></button>${extra.length ? `<button class="lnk" style="margin-top:4px" data-act="supp-det" data-id="${s.id}" aria-expanded="${!!det}">Details ${det ? '&#9652;' : '&#9662;'}</button>${det ? `<div class="dim" style="font-size:12px;margin-top:4px">${extra.map(esc).join('<br>')}</div>` : ''}` : ''}</div>
+  <button class="stick${t[s.id] ? ' on' : ''}" data-act="supp-tick" data-id="${s.id}" role="checkbox" aria-checked="${!!t[s.id]}" aria-label="${esc(s.name)} taken">${SVG_CK}</button></div>`; }).join('')}
   ${caffToday() ? `<div class="row" style="justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)"><span class="m">CAFFEINE TODAY</span><span><span class="n" style="font-size:22px">${Math.round(caffToday())}</span><span class="dim"> of 400 mg suggested limit</span> <span class="t" style="color:${caffToday() > 400 ? 'var(--acct)' : 'var(--dim)'}">${caffToday() > 400 ? 'OVER' : 'OK'}</span></span></div>` : ''}
   <button class="mini" data-act="supp-edit" data-i="-1" style="margin:4px 0 8px">+ Add supplement</button></div>`;
 }
@@ -84,10 +85,10 @@ let spDraft = null;
 function suppModal(i, dr) {
   const s = dr || (i >= 0 ? suppList()[i] : { name: '', dose: '', when: 'Morning' });
   const facts = (s.facts || []).join('\n');
-  showModal(`<div class="m" style="color:var(--acct)">SUPPLEMENT</div><div class="n" style="font-size:30px;margin:6px 0 10px;text-transform:uppercase">${i >= 0 ? 'Edit' : 'Add'}</div>
+  showModal(`<div class="n" style="font-size:30px;margin:6px 0 10px">${i >= 0 ? 'Edit supplement' : 'Add supplement'}</div>
   <label>Name and brand<input id="sp-name" type="text" autocomplete="off" value="${esc(s.name)}" placeholder="Pre-workout, Ghost Legend"></label><label>How much per dose<input id="sp-dose" type="text" autocomplete="off" value="${esc(s.dose)}" placeholder="2 scoops, or 5 g"></label>
   <div class="m" style="margin:10px 0 6px">WHEN</div><div class="mchips" role="group" aria-label="When">${SUPP_WHEN.map(w => `<button type="button" class="ntg${s.when === w ? ' on' : ''}" data-act="sp-when" aria-pressed="${s.when === w}">${w}</button>`).join('')}</div>
-  <div class="m" style="margin:12px 0 6px">TICK IT FOR ME</div><div class="mchips" role="group" aria-label="Tick it for me">${SUPP_AUTO.map(([v, l]) => `<button type="button" class="ntg au${(s.auto || 'manual') === v ? ' on' : ''}" data-act="sp-auto" data-v="${v}" aria-pressed="${(s.auto || 'manual') === v}">${l}</button>`).join('')}</div><small style="display:block;margin-top:4px">Training days: ticked when you save a workout. Every day: ticked when you open the app. You can still untick it.</small>
+  <div class="m" style="margin:12px 0 6px">AUTO TICK</div><div class="mchips" role="group" aria-label="Auto tick">${SUPP_AUTO.map(([v, l]) => `<button type="button" class="ntg au${(s.auto || 'manual') === v ? ' on' : ''}" data-act="sp-auto" data-v="${v}" aria-pressed="${(s.auto || 'manual') === v}">${l}</button>`).join('')}</div><small style="display:block;margin-top:4px">Training days: ticked when you save a workout. Every day: ticked when you open the app. You can still untick it.</small>
   <button class="btn ghost" id="sp-look" data-act="sp-look" style="margin-top:10px">Look it up with AI</button>
   <p id="sp-msg" style="margin:6px 0;min-height:18px"><small>Finds what one dose gives you, such as caffeine. You check it before saving.</small></p>
   <div id="sp-facts-box" ${facts ? '' : 'hidden'}><label>What one dose gives you, one per line<textarea id="sp-facts" class="big" placeholder="Caffeine 300 mg">${esc(facts)}</textarea></label><p id="sp-src" style="margin:0 0 6px"><small>${esc(s.src || '')}</small></p></div>
@@ -123,6 +124,7 @@ function dailyAct(a, el) {
       ensureDay(k).ci = ci; saveDaily(); closeModal(); toast('Check-in saved'); render(); return true;
     }
     case 'supp-tick': { const d = ensureDay(k); d.supp = d.supp || {}; if (d.supp[el.dataset.id]) delete d.supp[el.dataset.id]; else d.supp[el.dataset.id] = 1; if (!Object.keys(d.supp).length) delete d.supp; tidyDay(k); saveDaily(); render(); return true; }
+    case 'supp-det': suppDet[el.dataset.id] = !suppDet[el.dataset.id]; render(); return true;
     case 'supp-edit': suppModal(+el.dataset.i); return true;
     case 'sp-look': {
       const i = +($('#mdl [data-act=supp-save]') || { dataset: { i: -1 } }).dataset.i, w = document.querySelector('#mdl .ntg:not(.au).on');
