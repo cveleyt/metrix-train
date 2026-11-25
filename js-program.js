@@ -74,6 +74,10 @@ function progAct(a, el) {
       settings.prog = cloneJ(pdraft); saveSettings(); applyProg(settings.prog); pdraft = null; toast('Program saved. Applies to your next workout'); go('me'); return true;
     }
     case 'prog-reset': if (confirm('Go back to the original program? Your history stays.')) { delete settings.prog; saveSettings(); applyProg(PROG_ORIG); pdraft = PROG_NOW(); render(); } return true;
+    case 'wchip': { const c = cur(), x = c.exercises[i], t = x.sets[+el.dataset.j]; if (!t || t.done) return true; const ex = exOf(x);
+      const nw = el.dataset.w != null ? parseFloat(el.dataset.w) : Math.max(0, rnd(fw(rd(dw(t.w || 0) + (el.dataset.d === '+' ? 1 : -1) * incD(ex)))));
+      setW(c, i, +el.dataset.j, nw); persist(); render(); return true; }
+    case 'rpick': { const t = cur().exercises[i].sets[+el.dataset.j]; if (t && !t.done) { t.r = +el.dataset.v; persist(); render(); } return true; }
     case 'ghost-use': { const t = cur().exercises[i].sets[+el.dataset.j]; if (t && !t.done) { t.w = parseFloat(el.dataset.w); persist(); render(); } return true; }
   }
   return false;

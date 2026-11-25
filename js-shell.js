@@ -52,12 +52,12 @@ const views = {};
 const homeBtn = '<button class="btn ghost" data-go="home">Back to Today</button>';
 
 const sleepTxt = h => { const m = Math.round(h * 60); return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm'; };
-function tickRing(sz, pct, col, ctr, n, w, ln) {
+function tickRing(sz, pct, col, ctr, n, w, ln, track) {
   n = n || 60; w = w || 3; ln = ln || 10;
   const r2 = sz / 2 - 2, r1 = r2 - ln, c = sz / 2, k = Math.round(n * Math.max(0, Math.min(1, pct || 0))); let s = '';
   for (let i = 0; i < n; i++) {
     const a = (i * 360 / n - 90) * Math.PI / 180;
-    s += `<line x1="${(c + r1 * Math.cos(a)).toFixed(1)}" y1="${(c + r1 * Math.sin(a)).toFixed(1)}" x2="${(c + r2 * Math.cos(a)).toFixed(1)}" y2="${(c + r2 * Math.sin(a)).toFixed(1)}" style="stroke:${i < k ? col : 'var(--bar)'}" stroke-width="${w}" stroke-linecap="round"/>`;
+    s += `<line x1="${(c + r1 * Math.cos(a)).toFixed(1)}" y1="${(c + r1 * Math.sin(a)).toFixed(1)}" x2="${(c + r2 * Math.cos(a)).toFixed(1)}" y2="${(c + r2 * Math.sin(a)).toFixed(1)}" style="stroke:${i < k ? col : (track || 'var(--bar)')}" stroke-width="${w}" stroke-linecap="round"/>`;
   }
   return `<div style="position:relative;width:${sz}px;height:${sz}px;flex:none"><svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" aria-hidden="true">${s}</svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">${ctr}</div></div>`;
 }

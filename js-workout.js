@@ -33,6 +33,31 @@ function resetSets(x) {
     return { w: ex.noWeight ? 0 : (p ? p.w : 0), r: p ? p.r : (ex.lo || 8), done: false };
   });
 }
+/* R1 set card (v3.5): finished sets as compact rows, one big card for the current set. */
+function old_rows(ex, x, i, sg) {
+  return `<div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || UW())}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>`
+    + x.sets.map((t, j) => setRow(ex, t, i, j)).join('');
+}
+function r1Sets(ex, x, i, sg, prev) {
+  const sets = x.sets, cj = sets.findIndex(t => !t.done);
+  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ' x '}${t.r}</b>${t.rest ? ` <small class="dim">rest ${fdur(t.rest * 1000)}</small>` : ''}</span><span class="mono" style="color:var(--ok)">LOGGED</span></button>${settings.rpe ? rpeRow(i, j, t) : ''}`).join('');
+  if (cj < 0) return doneRows + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
+  const t = sets[cj], pv = prev ? (prev.sets[cj] || prev.sets[prev.sets.length - 1]) : null, st = incD(ex);
+  const lo = ex.lo || 8, hi = ex.hi || 12;
+  let nums = []; for (let n = Math.max(1, lo - 1); n <= hi + 1; n++) nums.push(n); if (t.r && !nums.includes(t.r)) { nums.push(t.r); nums.sort((p, q) => p - q); }
+  if (nums.length > 9) nums = nums.slice(Math.max(0, nums.indexOf(t.r) - 4)).slice(0, 9);
+  const cur_ = r1(dw(t.w || 0)), tryW = sg && sg.apply ? sg.apply : 0, lastW = pv ? pv.w : 0;
+  const chip = (lab, w, d, on) => `<button class="rchip${on ? ' on' : ''}" data-act="wchip" data-i="${i}" data-j="${cj}" ${w != null ? 'data-w="' + w + '"' : 'data-d="' + d + '"'}>${lab}</button>`;
+  const wt = ex.noWeight ? '' : `<div class="m" style="margin-top:12px">${esc(ex.wlabel || 'WEIGHT')} &middot; TAP TO TYPE</div>
+    <div class="row" style="justify-content:space-between;flex-wrap:nowrap;align-items:baseline"><label class="wbig" style="margin:0"><input data-act="w-in" data-i="${i}" data-j="${cj}" type="number" inputmode="decimal" step="any" min="0" value="${t.w ? cur_ : ''}" placeholder="0" aria-label="Weight of set ${cj + 1}"><span class="mono dim">${UW()}</span></label>${pv && t.w !== pv.w ? `<span class="mono" style="color:var(--acct);font-size:12px">${t.w > pv.w ? '+' : ''}${r1(dw(t.w - pv.w))} VS LAST</span>` : ''}</div>
+    <div class="rchips">${chip('&minus;' + st, null, '-', false)}${lastW ? chip('LAST ' + r1(dw(lastW)), lastW, 0, t.w === lastW) : ''}${tryW && tryW !== lastW ? chip('TRY ' + r1(dw(tryW)), tryW, 0, t.w === tryW) : ''}${chip('+' + st, null, '+', false)}</div>`;
+  const reps = `<div class="m" style="margin-top:16px">${ex.side ? 'REPS PER SIDE' : 'REPS'} &middot; TARGET ${lo} TO ${hi}</div>
+    <div class="rnums" role="group" aria-label="Reps">${nums.map(n => `<button class="rn${t.r === n ? ' s' : ''}${n < lo || n > hi ? ' o' : ''}" data-act="rpick" data-i="${i}" data-j="${cj}" data-v="${n}" aria-pressed="${t.r === n}">${n}</button>`).join('')}</div>`;
+  const beat = pv ? `BEAT ${ex.noWeight ? '' : r1(dw(pv.w)) + ' x '}${pv.r}` : 'FIRST TIME';
+  const left = sets.length - cj - 1;
+  return doneRows + `<div class="r1c"><div class="row" style="justify-content:space-between"><span class="tag">SET ${cj + 1} OF ${sets.length}</span><span class="m">${beat}</span></div>${wt}${reps}
+    <button class="r1go" data-act="done" data-i="${i}" data-j="${cj}"><span>Log set ${cj + 1}<small>Rest ${restTxt(ex.rest)} starts${left ? ', ' + left + ' more after' : ''}</small></span><span aria-hidden="true">&#10003;</span></button></div>`;
+}
 function exCard(c, x, i, edit) {
   const ex = exOf(x);
   const isOpen = open === i, dn = x.sets.filter(t => t.done).length, all = dn === x.sets.length && !x.skipped;
@@ -44,8 +69,7 @@ function exCard(c, x, i, edit) {
     body = `<div class="bd">${edit ? '' : replacePanel(x, i)}${nt ? `<div class="sug"><span class="tag">YOUR NOTE</span> ${nt.machine ? '<b>Machine:</b> ' + esc(nt.machine) + '<br>' : ''}${esc(nt.note || '')} ${(nt.tags || []).map(g => `<span class="t" style="color:${g === 'Pain' ? 'var(--rest)' : 'var(--dim)'}">${esc(g.toUpperCase())}</span>`).join(' ')} <small>(${fd(nt.at)})</small></div>` : ''}${ex.cue ? `<div class="cue">${esc(ex.cue)}</div>` : ''}
     ${edit ? '' : `<div class="sug"><span class="tag">${sg.tag}</span> ${esc(sg.text)}${sg.apply ? `<button class="mini" data-act="apply" data-i="${i}" data-w="${sg.apply}">Use ${r1(dw(sg.apply))} ${UW()}</button>` : ''}</div>`}
     ${prev ? `<div class="last">Last time (${fd(prev.s.finishedAt)}): ${esc(fmtSets(ex, prev.sets))}</div>` : ''}
-    <div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || UW())}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>
-    ${edit ? '' : (x.warm || []).map((t, j) => warmRow(ex, t, i, j)).join('')}${x.sets.map((t, j) => setRow(ex, t, i, j) + (edit ? '' : ghostHint(sg, t, i, j))).join('')}
+    ${edit ? old_rows(ex, x, i, sg) : (x.warm || []).map((t, j) => warmRow(ex, t, i, j)).join('') + r1Sets(ex, x, i, sg, prev)}
     <div class="row"><button class="mini" data-act="addset" data-i="${i}">+ Set</button><button class="mini" data-act="rmset" data-i="${i}">- Set</button>${edit ? '' : `<button class="mini" data-act="warm-add" data-i="${i}">+ Warm-up</button>${(x.warm || []).length ? `<button class="mini" data-act="warm-rm" data-i="${i}">- Warm-up</button>` : ''}`}
     ${ex.noWeight ? '' : `<button class="mini" data-act="inc" data-i="${i}">Step: ${incD(ex)} ${UW()}</button>`}${edit ? '' : `<button class="mini" data-act="skip-open" data-i="${i}">Skip exercise</button>`}</div></div>`;
   }

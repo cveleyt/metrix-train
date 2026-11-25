@@ -71,10 +71,10 @@ const SVG_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const SVG_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>';
 function gaugeData() {
   const k = todayKey(), g = settings.goals, d = daily[k] || {}, f = foodTot(k), out = [];
-  if (g.steps > 0) out.push({ id: 'move', lab: 'Move', col: 'var(--move)', v: d.steps, pct: d.steps == null ? 0 : d.steps / g.steps, big: d.steps == null ? '-' : d.steps >= 1000 ? (d.steps / 1000).toFixed(1) + 'k' : String(d.steps), sub: 'of ' + (g.steps / 1000) + 'k steps today', say: 'steps', gap: g.steps - (d.steps || 0), unit: ' steps' });
-  if (g.sleep > 0) out.push({ id: 'rest', lab: 'Rest', col: 'var(--rest)', v: d.sleep, pct: d.sleep == null ? 0 : d.sleep / g.sleep, big: d.sleep == null ? '-' : sleepTxt(d.sleep).replace(' ', '').replace(/m$/, ''), sub: 'of ' + g.sleep + ' h last night', say: 'sleep', gap: 0, unit: '' });
-  if (g.protein > 0) out.push({ id: 'prot', lab: 'Protein', col: 'var(--prot)', v: f.p || null, pct: f.p / g.protein, big: f.p ? Math.round(f.p) + '' : '-', sub: 'of ' + g.protein + ' g today', say: 'protein', gap: g.protein - f.p, unit: ' g of protein' });
-  if (g.calories > 0) out.push({ id: 'kcal', lab: 'Energy', col: 'var(--carb)', v: f.kcal || null, pct: f.kcal / g.calories, big: f.kcal ? Math.round(f.kcal).toLocaleString() : '-', sub: 'of ' + g.calories.toLocaleString() + ' kcal today', say: 'energy', gap: g.calories - f.kcal, unit: ' kcal' });
+  if (g.steps > 0) out.push({ id: 'move', lab: 'Move', col: 'var(--move)', v: d.steps, pct: d.steps == null ? 0 : d.steps / g.steps, big: d.steps == null ? '-' : d.steps >= 1000 ? (d.steps / 1000).toFixed(1) + 'k' : String(d.steps), sub: 'of ' + (g.steps / 1000) + 'k steps today', tgt: (g.steps >= 1000 ? g.steps / 1000 + 'k' : g.steps), esub: 'steps to go today', say: 'steps', gap: g.steps - (d.steps || 0), unit: ' steps' });
+  if (g.sleep > 0) out.push({ id: 'rest', lab: 'Rest', col: 'var(--rest)', v: d.sleep, pct: d.sleep == null ? 0 : d.sleep / g.sleep, big: d.sleep == null ? '-' : sleepTxt(d.sleep).replace(' ', '').replace(/m$/, ''), sub: 'of ' + g.sleep + ' h last night', tgt: g.sleep + 'h', esub: 'to log, last night', say: 'sleep', gap: 0, unit: '' });
+  if (g.protein > 0) out.push({ id: 'prot', lab: 'Protein', col: 'var(--prot)', v: f.p || null, pct: f.p / g.protein, big: f.p ? Math.round(f.p) + '' : '-', sub: 'of ' + g.protein + ' g today', tgt: String(g.protein), esub: 'g to go today', say: 'protein', gap: g.protein - f.p, unit: ' g of protein' });
+  if (g.calories > 0) out.push({ id: 'kcal', lab: 'Energy', col: 'var(--carb)', v: f.kcal || null, pct: f.kcal / g.calories, big: f.kcal ? Math.round(f.kcal).toLocaleString() : '-', sub: 'of ' + g.calories.toLocaleString() + ' kcal today', tgt: g.calories.toLocaleString(), esub: 'kcal to go today', say: 'energy', gap: g.calories - f.kcal, unit: ' kcal' });
   return out;
 }
 function todaySentence(gs) {
@@ -90,10 +90,31 @@ function todaySentence(gs) {
 function todayGauges() {
   const gs = gaugeData();
   const cells = gs.map(x => {
-    const lab = x.lab + (x.v == null ? ', not logged' : ', ' + x.big + ' ' + x.sub + ', ' + Math.round(x.pct * 100) + ' percent');
-    return `<div role="img" aria-label="${esc(lab)}">${tickRing(78, x.pct, x.col, `<div class="n" style="font-size:15px">${esc(x.big)}</div>`, 40, 2.4, 8)}<div class="gl">${x.lab}</div><div class="gs">${esc(x.sub)}</div></div>`;
+    const emp = x.v == null, big = emp ? x.tgt : x.big, sub = emp ? x.esub : x.sub;
+    const lab = x.lab + (emp ? ', not logged, ' + x.tgt + ' ' + x.esub : ', ' + x.big + ' ' + x.sub + ', ' + Math.round(x.pct * 100) + ' percent');
+    return `<div role="img" aria-label="${esc(lab)}">${tickRing(78, x.pct, x.col, `<div class="n" style="font-size:15px;${emp ? 'color:var(--dim)' : ''}">${esc(big)}</div>`, 40, 2.4, 8, `color-mix(in srgb, ${x.col} 26%, transparent)`)}<div class="gl" style="color:${x.col}">${x.lab}</div><div class="gs">${esc(sub)}</div></div>`;
   }).join('');
   return `<p class="sent" id="tsent">${esc(todaySentence(gs))}</p><div class="gg">${cells}</div>`;
+}
+function bodyStrip() {
+  const tk = todayKey(), pts = [];
+  for (let n = -20; n <= 0; n++) { const k = kAdd(tk, n), d = daily[k]; if (d && d.weight > 0) pts.push([n, d.weight]); }
+  const goal = settings.goals.weight > 0 ? settings.goals.weight : 0;
+  const head = '<div class="dl"><b></b><span class="m">BODY</span><b></b></div>';
+  if (pts.length < 2) return `${head}<div class="card"><div style="font-size:16px;font-weight:700;line-height:1.3">${pts.length ? 'One weigh-in so far.' : 'No weigh-ins yet.'}</div><div class="dim" style="font-size:12px;margin:2px 0 10px">Weigh yourself the same way each morning. Two or more weigh-ins start the trend line.</div><button class="mini" data-act="qa-log">Log weight</button></div>`;
+  const avg = (a, b) => { const v = pts.filter(p => p[0] > a && p[0] <= b).map(p => p[1]); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
+  const now = avg(-7, 0), prior = avg(-14, -7);
+  let sentence;
+  if (now != null && prior != null) { const d = dw(now) - dw(prior); sentence = Math.abs(d) < 0.1 ? 'Weight is steady this week.' : (d < 0 ? 'Down ' : 'Up ') + r1(Math.abs(d)) + ' ' + UW() + ' this week.'; }
+  else sentence = pts.length + ' weigh-ins in the last 3 weeks.';
+  const W = 300, H = 64, vs = pts.map(p => dw(p[1])), lo = Math.min(...vs), hi = Math.max(...vs), rg = (hi - lo) || 1;
+  const X = n => 4 + (n + 20) / 20 * (W - 8), Y = v => H - 8 - (v - lo) / rg * (H - 16);
+  const ma = pts.map((p, i) => { const w = pts.slice(Math.max(0, i - 3), i + 1); return [X(p[0]), Y(dw(w.reduce((a, q) => a + q[1], 0) / w.length))]; });
+  const dots = pts.map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(dw(p[1])).toFixed(1)}" r="2" style="fill:var(--dim)"/>`).join('');
+  const label = 'Weight, last 3 weeks, ' + pts.length + ' weigh-ins. ' + sentence + ' Now ' + wt(pts[pts.length - 1][1]) + '.';
+  return `${head}<div class="card"><div style="font-size:16px;font-weight:700;line-height:1.3">${esc(sentence)}</div><div class="dim" style="font-size:12px;margin:2px 0 6px">Last 3 weeks, ${pts.length} weigh-ins. Dots are daily, line is the 4-day average</div>
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label)}">${dots}<polyline points="${ma.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ')}" fill="none" style="stroke:var(--acc)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg>
+  <div class="row" style="margin-top:6px;justify-content:space-between"><span class="m">${wt(pts[pts.length - 1][1])} NOW${goal ? ' &middot; GOAL ' + wt(goal) : ''}</span><button class="mini" data-act="qa-log">Weigh in</button></div></div>`;
 }
 function nextStep() {
   const k = todayKey(), f = dayFood(k), d = daily[k] || {}, n = nextWorkout(), dn = (dayOf(n.dayKey) || DAYS[0]).name;
@@ -102,11 +123,22 @@ function nextStep() {
   if (!sessions.some(s => dkey(s.finishedAt) === k) && !active) return ['Train: ' + dn, 'start'];
   return ['See how your week is going', 'go-trends'];
 }
+function ghostRow(e) {
+  const pv = prevFor(e), sg = suggest(e, pv), rng = e.lo === e.hi ? e.lo : e.lo + '-' + e.hi;
+  let last = 'FIRST TIME', right = '<span class="gtry"></span>';
+  if (pv) {
+    const top = pv.sets.reduce((b, t) => (t.w > b.w || (t.w === b.w && t.r > b.r)) ? t : b, pv.sets[0]);
+    last = 'LAST TIME ' + (e.noWeight ? top.r + ' REPS' : r1(dw(top.w)) + ' x ' + top.r + ' ' + UW().toUpperCase());
+    const tw = sg.apply || top.w;
+    if (!e.noWeight) right = `<span class="gtry">TRY<br><b>${r1(dw(tw))}</b></span>`;
+  }
+  return `<div class="ex1 gx"><span><b>${esc(e.name)}</b> <span class="dim" style="font-size:12px">${e.sets} x ${rng}</span><span class="glast">${esc(last)}</span></span>${right}</div>`;
+}
 function tapeBlock() {
   const n = nextWorkout(), wk = sessions.filter(s => s.week === n.week), sel = DAYS.some(x => x.key === tapeSel) ? tapeSel : n.dayKey;
   const blocks = DAYS.map(x => {
     const dn = wk.some(s => s.dayKey === x.key), nx = x.key === n.dayKey, st = dn ? 'DONE' : nx ? 'NEXT' : 'TO DO';
-    return `<button class="tb ${x.key === sel ? 'sel' : ''} ${dn ? 'dn' : ''}" data-act="tape-sel" data-k="${esc(x.key)}" aria-pressed="${x.key === sel}" aria-label="${esc(x.name)}, ${st}"><b>${esc(x.name)}</b><span>${st}</span></button>`;
+    return `<button class="tb ${x.key === sel ? 'sel' : ''} ${dn ? 'tdone' : ''}" data-act="tape-sel" data-k="${esc(x.key)}" aria-pressed="${x.key === sel}" aria-label="${esc(x.name)}, ${st}"><b>${esc(x.name)}</b><span>${st}</span></button>`;
   }).join('');
   let card;
   if (active) {
@@ -116,7 +148,7 @@ function tapeBlock() {
     const d = dayOf(sel) || DAYS[0], sets = d.exercises.reduce((a, e) => a + e.sets, 0), done = wk.some(s => s.dayKey === sel), first = d.exercises[0];
     card = `<div class="sess"><div class="row" style="justify-content:space-between"><span class="m">WEEK ${Math.min(n.week, P.weeks)} OF ${P.weeks}</span><span class="t" style="color:var(--dim)">${d.exercises.length} EXERCISES, ${sets} SETS</span></div>
     <div class="n" style="font-size:30px;margin:8px 0 8px">${esc(d.name)}</div>
-    ${d.exercises.slice(0, 4).map(e => `<div class="ex1"><span>${esc(e.name)}</span><span>${e.sets} x ${e.lo === e.hi ? e.lo : e.lo + '-' + e.hi}</span></div>`).join('')}${d.exercises.length > 4 ? `<div class="ex1"><span class="dim">and ${d.exercises.length - 4} more</span><span></span></div>` : ''}
+    ${d.exercises.slice(0, 4).map(ghostRow).join('')}${d.exercises.length > 4 ? `<div class="ex1"><span class="dim">and ${d.exercises.length - 4} more</span><span></span></div>` : ''}
     <button class="btn" style="margin-top:12px" data-act="${sel === n.dayKey ? 'start' : 'start-day'}" data-k="${esc(sel)}">${done ? 'Do ' + esc(d.name) + ' again' : first ? 'Start with ' + esc(first.name) : 'Start ' + esc(d.name)}</button></div>`;
   }
   return `<div class="tape" role="group" aria-label="Program days">${blocks}</div>${card}`;
@@ -136,7 +168,7 @@ views.home = () => {
   ${backupBanner()}${tapeBlock()}${deloadCard()}
   <div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div><div id="tg">${todayGauges()}</div>
   <button class="btn ghost" style="margin-top:14px" data-act="${na}">${esc(nl)}</button>
-  ${coachNoteCard()}${dailyCard()}<div id="logcard">${logCard()}</div>${streakCard()}`;
+  ${bodyStrip()}${coachNoteCard()}${dailyCard()}<div id="logcard">${logCard()}</div>${streakCard()}`;
 };
 function quickAdd() {
   const row = (ic, t, s, a) => `<button class="qa" data-act="${a}"><span class="ic">${ic}</span><span>${t}<small class="dim">${s}</small></span></button>`;
