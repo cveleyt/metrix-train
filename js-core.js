@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.7.2';
+const VERSION = '3.7.3';
 const CHANGELOG = [
+  { v: '3.7.3', items: ['Fuel: protein gets a big number and bar, energy a bar, and carbs, fat and fiber small tiles. Easier to read than the tick bars', 'You can now edit a logged meal: name, meal, calories and nutrients. Tap Edit next to Remove'] },
   { v: '3.7.2', items: ['Every popup now has a close button (x) at the top that stays visible while you scroll, so you never have to scroll down to find Cancel'] },
   { v: '3.7.1', items: ['Today: the session card starts short, with the first exercise and the Start button. Tap Show all exercises to open the full list'] },
   { v: '3.7.0', items: ['Me is shorter: goals, program, look and units, training, and a More group. Nutrition and AI and Data and sync now open their own pages', 'Fuel: a one line summary, tick gauges for energy, protein, carbs, fat and fiber, and a protein week chart', 'Insights replaces Trends: four tabs, Week, Lifts, Body and Log. Week has a plain sentence over each chart. Filled bar means goal hit, outline means missed, so it never depends on color'] },

@@ -183,6 +183,15 @@ function homeAct(a, el) {
   switch (a) {
     case 'theme-flip': { const light = document.documentElement.dataset.theme === 'light'; settings.theme = light ? 'dark' : 'light'; saveSettings(); applyTheme(); render(); return true; }
     case 'tape-sel': tapeSel = el.dataset.k; render(); return true;
+    case 'food-edit': foodEdit(el.dataset.id); return true;
+    case 'ef-meal': efMeal = el.dataset.v; el.parentNode.querySelectorAll('button').forEach(b => { const on = b === el; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); return true;
+    case 'food-save': {
+      const k = todayKey(), e = dayFood(k).find(x => x.id === el.dataset.id); if (!e) { closeModal(); return true; }
+      const num = key => { const v = parseFloat(String($('#ef-' + key).value).replace(',', '.')); return isNaN(v) || v < 0 ? 0 : Math.round(v * 10) / 10; };
+      const nm = ($('#ef-name').value || '').trim();
+      Object.assign(e, { name: nm, kcal: Math.round(num('kcal')), p: num('p'), c: num('c'), f: num('f'), fi: num('fi'), m: efMeal || mealOf(e), u: Date.now() });
+      saveFood(); closeModal(); toast('Entry updated'); render(); return true;
+    }
     case 'sess-toggle': sessOpen = !sessOpen; render(); return true;
     case 'start-day': if (active && !confirm('You have a workout in progress. Replace it?')) return true; startSession({ week: nextWorkout().week, dayKey: el.dataset.k }); tapeSel = null; return true;
     case 'start': tapeSel = null; return false;
@@ -226,13 +235,36 @@ function goalBars(vals, goal, col, labels, label) {
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label)}">${bars}<line x1="0" x2="${W}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" stroke="var(--dim)" stroke-dasharray="4 4"/></svg><div class="mono dim" style="display:flex;font-size:9.5px;margin-top:4px">${labels.map(l => `<span style="flex:1;text-align:center">${l}</span>`).join('')}</div>`;
 }
 const dayInit = k => 'SMTWTFS'[kDate(k).getDay()];
+function pbar(v, goal, col, h) {
+  const over = goal > 0 && v > goal * 1.1;
+  return `<div style="height:${h}px;border-radius:99px;background:var(--g3);overflow:hidden" aria-hidden="true"><div style="width:${goal > 0 ? Math.min(100, v / goal * 100).toFixed(0) : 0}%;height:100%;border-radius:99px;background:${col}"></div></div>`;
+}
+function leftTxt(v, goal, unit) {
+  if (!(goal > 0)) return 'No goal set';
+  const r = goal - v;
+  return r > 0 ? Math.round(r).toLocaleString() + ' ' + unit + ' left' : r >= -0.1 * goal ? 'Goal reached' : 'Over by ' + Math.round(-r).toLocaleString() + ' ' + unit;
+}
 function fuelStatus(t, g) {
   const head = '<div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div>';
   let say;
   if (!t.kcal && !t.p) say = 'Nothing logged yet today. Type what you ate above.';
   else if (g.protein > 0) say = t.p >= g.protein ? 'Protein goal hit: ' + Math.round(t.p) + ' g.' : 'Protein is the gap: ' + Math.round(t.p) + ' of ' + g.protein + ' g, ' + Math.round(g.protein - t.p) + ' g to go.';
   else say = Math.round(t.kcal).toLocaleString() + ' kcal logged today.';
-  return `${head}<p class="sent" style="margin-bottom:0">${esc(say)}</p><div class="card" style="padding:2px 16px 16px">${gaugeLine('Energy', t.kcal, g.calories, 'kcal', 'var(--acct)', 'kc')}${MAC.map(([kk, l, gk, col]) => gaugeLine(l, t[kk], g[gk], 'g', col)).join('')}</div>`;
+  const hero = `<div role="img" aria-label="Protein ${Math.round(t.p)} grams${g.protein > 0 ? ' of ' + g.protein + ', ' + leftTxt(t.p, g.protein, 'g') : ''}"><div class="mono dim" style="font-size:11px;letter-spacing:.6px">PROTEIN, TODAY</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span style="font-size:48px;font-weight:700;letter-spacing:-.03em;line-height:1">${Math.round(t.p)}</span><span class="dim" style="font-size:15px">${g.protein > 0 ? 'of ' + g.protein + ' g' : 'g'}</span></div>${g.protein > 0 ? `<div style="margin:10px 0 6px">${pbar(t.p, g.protein, 'var(--prot)', 16)}</div>` : ''}<div style="font-size:14px;font-weight:600">${esc(leftTxt(t.p, g.protein, 'g'))}</div></div>`;
+  const en = `<div class="kc" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)" role="img" aria-label="Energy ${Math.round(t.kcal)} kilocalories${g.calories > 0 ? ' of ' + g.calories : ''}"><div class="row" style="align-items:baseline;flex-wrap:nowrap"><span style="font-weight:600">Energy</span><span><b style="font-size:17px">${Math.round(t.kcal).toLocaleString()}</b><span class="dim" style="font-size:13px">${g.calories > 0 ? ' / ' + g.calories.toLocaleString() : ''} kcal</span></span></div>${g.calories > 0 ? `<div style="margin:7px 0 4px">${pbar(t.kcal, g.calories, 'var(--acct)', 10)}</div>` : ''}<div class="dim" style="font-size:12.5px;text-align:right">${esc(leftTxt(t.kcal, g.calories, 'kcal'))}</div></div>`;
+  const tiles = MAC.slice(1).map(([kk, l, gk, col]) => `<div style="background:var(--g2);border-radius:14px;padding:12px 10px;min-width:0" role="img" aria-label="${l} ${Math.round(t[kk])} grams${g[gk] > 0 ? ' of ' + g[gk] + ', ' + leftTxt(t[kk], g[gk], 'g') : ''}"><div class="mono dim" style="font-size:10px;letter-spacing:.5px">${l.toUpperCase()}</div><div style="font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.02em">${Math.round(t[kk])}<span class="dim" style="font-size:12px;font-weight:500"> g</span></div><div class="dim" style="font-size:11.5px">${g[gk] > 0 ? 'of ' + g[gk] + ' g' : 'no goal'}</div>${g[gk] > 0 ? `<div style="margin:8px 0 5px">${pbar(t[kk], g[gk], col, 6)}</div>` : '<div style="height:19px"></div>'}<div style="font-size:11.5px;font-weight:600">${esc(g[gk] > 0 ? leftTxt(t[kk], g[gk], '').trim() : '')}</div></div>`).join('');
+  return `${head}<p class="sent" style="margin-bottom:10px">${esc(say)}</p><div class="card">${hero}${en}<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px">${tiles}</div></div>`;
+}
+let efMeal = null;
+function foodEdit(id) {
+  const k = todayKey(), e = dayFood(k).find(x => x.id === id); if (!e) return;
+  efMeal = mealOf(e);
+  const n = (key, lab) => `<label>${lab}<input id="ef-${key}" type="number" inputmode="decimal" step="any" min="0" value="${e[key] || 0}"></label>`;
+  showModal(`<div class="m" style="color:var(--acct)">EDIT ENTRY</div><div class="n" style="font-size:30px;margin:6px 0 10px">Edit food</div>
+  <label>Name<input id="ef-name" type="text" autocomplete="off" value="${esc(e.name || '')}"></label>
+  <div class="m" style="margin:4px 0 6px">MEAL</div><div class="row" style="gap:6px;margin-bottom:12px">${MEALS.map(([mk, ml]) => `<button class="mini${mk === efMeal ? ' on' : ''}" data-act="ef-meal" data-v="${mk}" aria-pressed="${mk === efMeal}">${ml}</button>`).join('')}</div>
+  <div class="five">${n('kcal', 'Kcal')}${n('p', 'Prot')}${n('c', 'Carb')}${n('f', 'Fat')}${n('fi', 'Fiber')}</div>
+  <div class="mrow" style="margin-top:14px"><button class="btn ghost" data-act="mdl-close">Cancel</button><button class="btn" data-act="food-save" data-id="${esc(id)}">Save</button></div>`);
 }
 function fuelWeek() {
   const g = settings.goals; if (!(g.protein > 0)) return '';
@@ -260,7 +292,7 @@ views.fuel = () => {
     const es = list.filter(e => mealOf(e) === mk).sort((x, y) => x.t - y.t);
     if (!es.length) return `<div class="card" style="padding:12px 16px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="t" style="color:var(--dim)">EMPTY</span></div></div>`;
     const kc = es.reduce((a, e) => a + (e.kcal || 0), 0);
-    return `<div class="card" style="padding:12px 16px 4px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="n kc" style="font-size:20px">${Math.round(kc)}<span style="font-size:11px;color:var(--dim)"> kcal</span></span></div>${es.map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n kc" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>`;
+    return `<div class="card" style="padding:12px 16px 4px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="n kc" style="font-size:20px">${Math.round(kc)}<span style="font-size:11px;color:var(--dim)"> kcal</span></span></div>${es.map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n kc" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-edit" data-id="${e.id}" aria-label="Edit ${esc(e.name || 'entry')}">Edit</button><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>`;
   }).join('')}${fuelWeek()}`;
 };
 
