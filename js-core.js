@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.7.3';
+const VERSION = '3.8.0';
 const CHANGELOG = [
+  { v: '3.8.0', items: ['Every exercise shows a set strip and Set N of M, so you always know where you are', 'A set you just logged flashes with a check, and every logged set says how it compares with last time', 'When an exercise is finished it closes into a tinted DONE card with the top set, and NEW BEST if you beat your record. You pick the next exercise yourself'] },
   { v: '3.7.3', items: ['Fuel: protein gets a big number and bar, energy a bar, and carbs, fat and fiber small tiles. Easier to read than the tick bars', 'You can now edit a logged meal: name, meal, calories and nutrients. Tap Edit next to Remove'] },
   { v: '3.7.2', items: ['Every popup now has a close button (x) at the top that stays visible while you scroll, so you never have to scroll down to find Cancel'] },
   { v: '3.7.1', items: ['Today: the session card starts short, with the first exercise and the Start button. Tap Show all exercises to open the full list'] },

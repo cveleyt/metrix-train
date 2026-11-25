@@ -41,7 +41,13 @@ function old_rows(ex, x, i, sg) {
 function centerReps() { document.querySelectorAll('.rnums').forEach(r => { const s = r.querySelector('.rn.s'); if (s) r.scrollLeft = s.offsetLeft - (r.clientWidth - s.offsetWidth) / 2; }); }
 function r1Sets(ex, x, i, sg, prev) {
   const sets = x.sets, cj = sets.findIndex(t => !t.done);
-  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ' x '}${t.r}</b>${t.rest ? ` <small class="dim">rest ${fdur(t.rest * 1000)}</small>` : ''}</span><span class="mono" style="color:var(--ok)">LOGGED</span></button>${settings.rpe ? rpeRow(i, j, t) : ''}`).join('');
+  const dtxt = (t, j) => {
+    const p = prev ? (prev.sets[j] || prev.sets[prev.sets.length - 1]) : null; if (!p) return '';
+    if (!ex.noWeight && t.w !== p.w) return (t.w > p.w ? '+' : '') + r1(dw(t.w - p.w)) + ' ' + UW() + ' vs last';
+    return t.r === p.r ? 'same as last' : (t.r > p.r ? '+' : '') + (t.r - p.r) + (Math.abs(t.r - p.r) === 1 ? ' rep' : ' reps') + ' vs last';
+  };
+  const fresh = j => flashSet && flashSet.i === i && flashSet.j === j && Date.now() - flashSet.t < 1700;
+  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone${fresh(j) ? ' sfresh' : ''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ' x '}${t.r}</b> <small class="dim">${esc(dtxt(t, j))}</small></span><span class="mono" style="color:var(--ok);font-weight:700">&#10003; LOGGED</span></button>${settings.rpe ? rpeRow(i, j, t) : ''}`).join('');
   if (cj < 0) return doneRows + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
   const t = sets[cj], pv = prev ? (prev.sets[cj] || prev.sets[prev.sets.length - 1]) : null, st = incD(ex);
   const lo = ex.lo || 8, hi = ex.hi || 12;
@@ -58,6 +64,17 @@ function r1Sets(ex, x, i, sg, prev) {
   return doneRows + `<div class="r1c"><div class="row" style="justify-content:space-between"><span class="tag">SET ${cj + 1} OF ${sets.length}</span><span class="m">${beat}</span></div>${wt}${reps}
     <button class="r1go" data-act="done" data-i="${i}" data-j="${cj}"><span>Log set ${cj + 1}<small>Rest ${restTxt(ex.rest)} starts${left ? ', ' + left + ' more after' : ''}</small></span><span aria-hidden="true">&#10003;</span></button></div>`;
 }
+function bestSet(name, excludeId) {
+  let b = null;
+  sessions.forEach(se => { if (se.id === excludeId) return; (se.exercises || []).forEach(e => { if (e.name !== name || e.skipped) return; (e.sets || []).forEach(t => { if (t.done && (!b || t.w > b.w || (t.w === b.w && t.r > b.r))) b = t; }); }); });
+  return b;
+}
+function topSet(x) { return x.sets.filter(t => t.done).reduce((b, t) => (!b || t.w > b.w || (t.w === b.w && t.r > b.r)) ? t : b, null); }
+function setStrip(x) {
+  const cj = x.sets.findIndex(t => !t.done);
+  return `<div class="sgs" aria-hidden="true">${x.sets.map((t, j) => `<i class="${t.done ? 'f' : j === cj ? 'c' : ''}"></i>`).join('')}</div>`;
+}
+let flashSet = null;
 function exCard(c, x, i, edit) {
   const ex = exOf(x);
   const isOpen = open === i, dn = x.sets.filter(t => t.done).length, all = dn === x.sets.length && !x.skipped;
@@ -73,10 +90,15 @@ function exCard(c, x, i, edit) {
     <div class="row"><button class="mini" data-act="addset" data-i="${i}">+ Set</button><button class="mini" data-act="rmset" data-i="${i}">- Set</button>${edit ? '' : `<button class="mini" data-act="warm-add" data-i="${i}">+ Warm-up</button>${(x.warm || []).length ? `<button class="mini" data-act="warm-rm" data-i="${i}">- Warm-up</button>` : ''}`}
     ${ex.noWeight ? '' : `<button class="mini" data-act="inc" data-i="${i}">Step: ${incD(ex)} ${UW()}</button>`}${edit ? '' : `<button class="mini" data-act="skip-open" data-i="${i}">Skip exercise</button>`}</div></div>`;
   }
+  const n = x.sets.length, cj = x.sets.findIndex(t => !t.done), ts = all ? topSet(x) : null;
+  let nb = false;
+  if (all && ts) { const bs = bestSet(x.name, c.id); nb = !!bs && (ex.noWeight ? ts.r > bs.r : (ts.w > bs.w || (ts.w === bs.w && ts.r > bs.r))); }
+  const lab = x.skipped ? 'Skipped' : all ? 'Done' : dn > 0 || isOpen ? 'Set ' + (cj + 1) + ' of ' + n : n + ' sets';
+  const sub = all && ts ? n + ' sets, top set ' + (ex.noWeight ? '' : r1(dw(ts.w)) + ' ' + UW() + ' x ') + ts.r : (x.orig || x.extra ? n + ' sets' : ex.sets + ' x ' + ex.lo + '-' + ex.hi) + (ex.side ? ' per side' : '') + ' &middot; rest ' + restTxt(ex.rest);
   return `<section class="ex ${isOpen ? 'open' : ''} ${all ? 'complete' : ''} ${x.skipped ? 'skipped' : ''}">
-  <div class="exw"><button class="exh" data-act="toggle" data-i="${i}" aria-expanded="${isOpen}"><div><b>${esc(x.name)}</b>${ex.note ? ` <small>(${esc(ex.note)})</small>` : ''}
-  <div class="sub">${x.orig || x.extra ? x.sets.length + ' sets' : ex.sets + ' x ' + ex.lo + '-' + ex.hi}${ex.side ? ' per side' : ''} &middot; rest ${restTxt(ex.rest)}</div></div>
-  <span class="cnt">${x.skipped ? 'SKIPPED' : dn + '/' + x.sets.length + (all ? ' DONE' : '')}</span></button>${edit ? '' : `<button class="ndot${notes[x.name] ? ' has' : ''}" data-act="note-open" data-i="${i}" aria-label="${notes[x.name] ? 'Edit note' : 'Add note'} for ${esc(x.name)}">${notes[x.name] ? 'NOTE' : '+'}</button>`}</div>${body}</section>`;
+  <div class="exw"><button class="exh" data-act="toggle" data-i="${i}" aria-expanded="${isOpen}"><div style="flex:1;min-width:0"><b>${esc(x.name)}</b>${ex.note ? ` <small>(${esc(ex.note)})</small>` : ''}
+  <div class="sub">${sub}</div>${x.skipped ? '' : `<div class="sgrow">${setStrip(x)}<span class="sgl">${all ? '&#10003; DONE' : lab}</span></div>`}${nb ? '<div class="nbest"><span class="tag">NEW BEST</span></div>' : ''}</div>
+  <span class="cnt">${x.skipped ? 'SKIPPED' : dn + '/' + n}</span></button>${edit ? '' : `<button class="ndot${notes[x.name] ? ' has' : ''}" data-act="note-open" data-i="${i}" aria-label="${notes[x.name] ? 'Edit note' : 'Add note'} for ${esc(x.name)}">${notes[x.name] ? 'NOTE' : '+'}</button>`}</div>${body}</section>`;
 }
 const TK = 90;
 function tkSvg(sz) {

@@ -153,7 +153,7 @@ async function act(a, el) {
       t.done = !t.done;
       let moved = false;
       if (t.done) {
-        buzz(20);
+        buzz(20); flashSet = { i, j, t: Date.now() };
         if (!view.params.edit) {
           const ex = exOf(x), k = x.sets.findIndex(q => !q.done);
           let nt;
@@ -161,7 +161,7 @@ async function act(a, el) {
           else { const n2 = c.exercises.findIndex(y => !y.skipped && y.sets.some(q => !q.done)); nt = n2 >= 0 ? c.exercises[n2].name + ', set ' + (c.exercises[n2].sets.findIndex(q => !q.done) + 1) : 'all sets done, tap Finish'; }
           startTimer(ex.rest[0], ex.rest[1], nt, { i, j });
         }
-        if (x.sets.every(s => s.done)) { const nx = c.exercises.findIndex((y, k) => k > i && !y.skipped && y.sets.some(s => !s.done)); open = nx >= 0 ? nx : i; moved = nx >= 0; }
+        if (x.sets.every(s => s.done)) { open = -1; }
       }
       persist(); render();
       if (moved) setTimeout(() => { const e = document.querySelector('.ex.open'); if (e && e.scrollIntoView) e.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 60);
