@@ -66,7 +66,7 @@ function backupBanner() {
   return `<div class="card" style="margin:12px 0 0"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:10px"><div><b>Backup due</b><br><small>${lb ? 'Last backup ' + d + ' days ago.' : 'No backup yet.'} Your data lives only on this phone.</small></div><div style="display:flex;gap:6px"><button class="mini" data-act="backup-later">Later</button><button class="mini" data-act="export">Export</button></div></div></div>`;
 }
 /* ---------- Today (direction A) ---------- */
-let tapeSel = null;
+let tapeSel = null, sessOpen = false;
 const SVG_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
 const SVG_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>';
 function gaugeData() {
@@ -148,8 +148,9 @@ function tapeBlock() {
     const d = dayOf(sel) || DAYS[0], sets = d.exercises.reduce((a, e) => a + e.sets, 0), done = wk.some(s => s.dayKey === sel), first = d.exercises[0];
     card = `<div class="sess"><div class="row" style="justify-content:space-between"><span class="m">WEEK ${Math.min(n.week, P.weeks)} OF ${P.weeks}</span><span class="t" style="color:var(--dim)">${d.exercises.length} EXERCISES, ${sets} SETS</span></div>
     <div class="n" style="font-size:30px;margin:8px 0 8px">${esc(d.name)}</div>
-    ${d.exercises.slice(0, 4).map(ghostRow).join('')}${d.exercises.length > 4 ? `<div class="ex1"><span class="dim">and ${d.exercises.length - 4} more</span><span></span></div>` : ''}
-    <button class="btn" style="margin-top:12px" data-act="${sel === n.dayKey ? 'start' : 'start-day'}" data-k="${esc(sel)}">${done ? 'Do ' + esc(d.name) + ' again' : first ? 'Start with ' + esc(first.name) : 'Start ' + esc(d.name)}</button></div>`;
+    ${(sessOpen ? d.exercises : d.exercises.slice(0, 1)).map(ghostRow).join('')}
+    <button class="btn" style="margin-top:12px" data-act="${sel === n.dayKey ? 'start' : 'start-day'}" data-k="${esc(sel)}">${done ? 'Do ' + esc(d.name) + ' again' : first ? 'Start with ' + esc(first.name) : 'Start ' + esc(d.name)}</button>
+    ${d.exercises.length > 1 ? `<button class="sesst" data-act="sess-toggle" aria-expanded="${sessOpen}">${sessOpen ? 'Hide exercises' : 'Show all ' + d.exercises.length + ' exercises'}<span aria-hidden="true"> ${sessOpen ? '&#9652;' : '&#9662;'}</span></button>` : ''}</div>`;
   }
   return `<div class="tape" role="group" aria-label="Program days">${blocks}</div>${card}`;
 }
@@ -182,6 +183,7 @@ function homeAct(a, el) {
   switch (a) {
     case 'theme-flip': { const light = document.documentElement.dataset.theme === 'light'; settings.theme = light ? 'dark' : 'light'; saveSettings(); applyTheme(); render(); return true; }
     case 'tape-sel': tapeSel = el.dataset.k; render(); return true;
+    case 'sess-toggle': sessOpen = !sessOpen; render(); return true;
     case 'start-day': if (active && !confirm('You have a workout in progress. Replace it?')) return true; startSession({ week: nextWorkout().week, dayKey: el.dataset.k }); tapeSel = null; return true;
     case 'start': tapeSel = null; return false;
     case 'qa-open': quickAdd(); return true;
