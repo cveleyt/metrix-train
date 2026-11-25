@@ -40,7 +40,7 @@ function render() {
     app.innerHTML = views[view.name](view.params); track('v:' + view.name);
     $('#tabs').style.display = (view.name === 'workout' || view.name === 'summary') ? 'none' : 'flex';
     document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.go === tabOf(view.name)));
-    wake(); tick(); if (view.name === 'trends' && hist.mode === 'body') phFill();
+    wake(); tick(); if (view.name === 'workout') centerReps(); if (view.name === 'trends' && hist.mode === 'body') phFill();
   } catch (e) {
     console.error(e);
     app.innerHTML = '<div class="card"><h3>Something broke</h3><p>' + esc(e.message) + '</p><button class="btn" data-act="reload">Reload</button></div>';

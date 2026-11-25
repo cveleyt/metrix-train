@@ -38,21 +38,21 @@ function old_rows(ex, x, i, sg) {
   return `<div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || UW())}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>`
     + x.sets.map((t, j) => setRow(ex, t, i, j)).join('');
 }
+function centerReps() { document.querySelectorAll('.rnums').forEach(r => { const s = r.querySelector('.rn.s'); if (s) r.scrollLeft = s.offsetLeft - (r.clientWidth - s.offsetWidth) / 2; }); }
 function r1Sets(ex, x, i, sg, prev) {
   const sets = x.sets, cj = sets.findIndex(t => !t.done);
   const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ' x '}${t.r}</b>${t.rest ? ` <small class="dim">rest ${fdur(t.rest * 1000)}</small>` : ''}</span><span class="mono" style="color:var(--ok)">LOGGED</span></button>${settings.rpe ? rpeRow(i, j, t) : ''}`).join('');
   if (cj < 0) return doneRows + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
   const t = sets[cj], pv = prev ? (prev.sets[cj] || prev.sets[prev.sets.length - 1]) : null, st = incD(ex);
   const lo = ex.lo || 8, hi = ex.hi || 12;
-  let nums = []; for (let n = Math.max(1, lo - 1); n <= hi + 1; n++) nums.push(n); if (t.r && !nums.includes(t.r)) { nums.push(t.r); nums.sort((p, q) => p - q); }
-  if (nums.length > 9) nums = nums.slice(Math.max(0, nums.indexOf(t.r) - 4)).slice(0, 9);
+  const top = Math.max(50, t.r || 0); const nums = []; for (let n = 1; n <= top; n++) nums.push(n);
   const cur_ = r1(dw(t.w || 0)), tryW = sg && sg.apply ? sg.apply : 0, lastW = pv ? pv.w : 0;
   const chip = (lab, w, d, on) => `<button class="rchip${on ? ' on' : ''}" data-act="wchip" data-i="${i}" data-j="${cj}" ${w != null ? 'data-w="' + w + '"' : 'data-d="' + d + '"'}>${lab}</button>`;
   const wt = ex.noWeight ? '' : `<div class="m" style="margin-top:12px">${esc(ex.wlabel || 'WEIGHT')} &middot; TAP TO TYPE</div>
     <div class="row" style="justify-content:space-between;flex-wrap:nowrap;align-items:baseline"><label class="wbig" style="margin:0"><input data-act="w-in" data-i="${i}" data-j="${cj}" type="number" inputmode="decimal" step="any" min="0" value="${t.w ? cur_ : ''}" placeholder="0" aria-label="Weight of set ${cj + 1}"><span class="mono dim">${UW()}</span></label>${pv && t.w !== pv.w ? `<span class="mono" style="color:var(--acct);font-size:12px">${t.w > pv.w ? '+' : ''}${r1(dw(t.w - pv.w))} VS LAST</span>` : ''}</div>
     <div class="rchips">${chip('&minus;' + st, null, '-', false)}${lastW ? chip('LAST ' + r1(dw(lastW)), lastW, 0, t.w === lastW) : ''}${tryW && tryW !== lastW ? chip('TRY ' + r1(dw(tryW)), tryW, 0, t.w === tryW) : ''}${chip('+' + st, null, '+', false)}</div>`;
   const reps = `<div class="m" style="margin-top:16px">${ex.side ? 'REPS PER SIDE' : 'REPS'} &middot; TARGET ${lo} TO ${hi}</div>
-    <div class="rnums" role="group" aria-label="Reps">${nums.map(n => `<button class="rn${t.r === n ? ' s' : ''}${n < lo || n > hi ? ' o' : ''}" data-act="rpick" data-i="${i}" data-j="${cj}" data-v="${n}" aria-pressed="${t.r === n}">${n}</button>`).join('')}</div>`;
+    <div class="rnums" role="group" aria-label="Reps, drag sideways for more">${nums.map(n => `<button class="rn${t.r === n ? ' s' : ''}${n < lo || n > hi ? ' o' : ''}" data-act="rpick" data-i="${i}" data-j="${cj}" data-v="${n}" aria-pressed="${t.r === n}">${n}</button>`).join('')}</div>`;
   const beat = pv ? `BEAT ${ex.noWeight ? '' : r1(dw(pv.w)) + ' x '}${pv.r}` : 'FIRST TIME';
   const left = sets.length - cj - 1;
   return doneRows + `<div class="r1c"><div class="row" style="justify-content:space-between"><span class="tag">SET ${cj + 1} OF ${sets.length}</span><span class="m">${beat}</span></div>${wt}${reps}
