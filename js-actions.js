@@ -369,7 +369,7 @@ async function act(a, el) {
     }
     case 'summary-done': go('home', {}, true); break;
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
-    case 'hist-mode': hist.mode = el.dataset.m; render(); break;
+    case 'hist-mode': hist.mode = el.dataset.m; if (LOGM.includes(hist.mode)) hist.logm = hist.mode; render(); break;
     case 'cal-nav': { const d = new Date(hist.y, hist.m + (+el.dataset.n), 1); hist.y = d.getFullYear(); hist.m = d.getMonth(); render(); break; }
     case 'wk-nav': hist.wk = kAdd(hist.wk || mondayOf(todayKey()), +el.dataset.n); hist.sel = null; render(); break;
     case 'wk-sel': hist.sel = el.dataset.k; render(); break;

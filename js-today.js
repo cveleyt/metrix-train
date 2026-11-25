@@ -74,7 +74,7 @@ function gaugeData() {
   if (g.steps > 0) out.push({ id: 'move', lab: 'Move', col: 'var(--move)', v: d.steps, pct: d.steps == null ? 0 : d.steps / g.steps, big: d.steps == null ? '-' : d.steps >= 1000 ? (d.steps / 1000).toFixed(1) + 'k' : String(d.steps), sub: 'of ' + (g.steps / 1000) + 'k steps today', tgt: (g.steps >= 1000 ? g.steps / 1000 + 'k' : g.steps), esub: 'steps to go today', say: 'steps', gap: g.steps - (d.steps || 0), unit: ' steps' });
   if (g.sleep > 0) out.push({ id: 'rest', lab: 'Rest', col: 'var(--rest)', v: d.sleep, pct: d.sleep == null ? 0 : d.sleep / g.sleep, big: d.sleep == null ? '-' : sleepTxt(d.sleep).replace(' ', '').replace(/m$/, ''), sub: 'of ' + g.sleep + ' h last night', tgt: g.sleep + 'h', esub: 'to log, last night', say: 'sleep', gap: 0, unit: '' });
   if (g.protein > 0) out.push({ id: 'prot', lab: 'Protein', col: 'var(--prot)', v: f.p || null, pct: f.p / g.protein, big: f.p ? Math.round(f.p) + '' : '-', sub: 'of ' + g.protein + ' g today', tgt: String(g.protein), esub: 'g to go today', say: 'protein', gap: g.protein - f.p, unit: ' g of protein' });
-  if (g.calories > 0) out.push({ id: 'kcal', lab: 'Energy', col: 'var(--carb)', v: f.kcal || null, pct: f.kcal / g.calories, big: f.kcal ? Math.round(f.kcal).toLocaleString() : '-', sub: 'of ' + g.calories.toLocaleString() + ' kcal today', tgt: g.calories.toLocaleString(), esub: 'kcal to go today', say: 'energy', gap: g.calories - f.kcal, unit: ' kcal' });
+  if (g.calories > 0) out.push({ id: 'kcal', lab: 'Energy', col: 'var(--acct)', v: f.kcal || null, pct: f.kcal / g.calories, big: f.kcal ? Math.round(f.kcal).toLocaleString() : '-', sub: 'of ' + g.calories.toLocaleString() + ' kcal today', tgt: g.calories.toLocaleString(), esub: 'kcal to go today', say: 'energy', gap: g.calories - f.kcal, unit: ' kcal' });
   return out;
 }
 function todaySentence(gs) {
@@ -207,6 +207,38 @@ views.train = p => {
   <button class="card" data-go="info" style="display:block;width:100%"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><div><b>Program guide</b><br><small>Exercises, tempo, rest and progression rules</small></div><span class="dim">&rsaquo;</span></div></button>`;
 };
 
+/* ---------- shared data patterns (v3.7): tick gauge line, goal bars (filled = hit, outline = missed) ---------- */
+function tickBar(pct, col) {
+  const n = 40, k = Math.round(n * Math.max(0, Math.min(1, pct || 0)));
+  return `<div class="tkb" aria-hidden="true">${[...Array(n)].map((_, i) => `<i style="background:${i < k ? col : 'color-mix(in srgb, ' + col + ' 22%, transparent)'};${i % 5 === 0 ? 'height:100%' : ''}"></i>`).join('')}</div>`;
+}
+function gaugeLine(label, val, goal, unit, col, cls) {
+  const rem = goal > 0 ? goal - val : null;
+  const tag = goal > 0 ? (rem > 0 ? Math.round(rem).toLocaleString() + ' ' + unit.toUpperCase() + ' TO GO TODAY' : rem >= -0.1 * goal ? 'GOAL REACHED' : 'OVER BY ' + Math.round(-rem).toLocaleString() + ' ' + unit.toUpperCase()) : 'NO GOAL SET';
+  return `<div class="${cls || ''}" style="margin-top:14px" role="img" aria-label="${esc(label)} ${Math.round(val)} ${unit}${goal > 0 ? ' of ' + goal + ', ' + Math.round(Math.min(1, val / goal) * 100) + ' percent' : ''}"><div class="row" style="align-items:baseline;flex-wrap:nowrap"><span style="font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)">${label}</span><span><b style="font-size:16px">${Math.round(val).toLocaleString()}</b> <span class="mono dim" style="font-size:11px">${goal > 0 ? 'OF ' + goal.toLocaleString() + ' ' : ''}${unit.toUpperCase()}</span></span></div>${goal > 0 ? tickBar(val / goal, col) : ''}<div class="mono dim" style="font-size:10.5px;margin-top:4px">${tag}</div></div>`;
+}
+function goalBars(vals, goal, col, labels, label) {
+  const W = 300, H = 90, mx = Math.max(goal, ...vals, 1) * 1.12, n = vals.length, bw = W / n;
+  const bars = vals.map((v, i) => { if (v == null) return ''; const bh = Math.max(3, v / mx * (H - 4)), x = i * bw + 5, w = bw - 10, y = H - bh; return v >= goal ? `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" style="fill:${col}"/>` : `<rect x="${(x + 1).toFixed(1)}" y="${(y + 1).toFixed(1)}" width="${(w - 2).toFixed(1)}" height="${(bh - 2).toFixed(1)}" rx="4" fill="none" style="stroke:${col}" stroke-width="2"/>`; }).join('');
+  const gy = H - goal / mx * (H - 4);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label)}">${bars}<line x1="0" x2="${W}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" stroke="var(--dim)" stroke-dasharray="4 4"/></svg><div class="mono dim" style="display:flex;font-size:9.5px;margin-top:4px">${labels.map(l => `<span style="flex:1;text-align:center">${l}</span>`).join('')}</div>`;
+}
+const dayInit = k => 'SMTWTFS'[kDate(k).getDay()];
+function fuelStatus(t, g) {
+  const head = '<div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div>';
+  let say;
+  if (!t.kcal && !t.p) say = 'Nothing logged yet today. Type what you ate above.';
+  else if (g.protein > 0) say = t.p >= g.protein ? 'Protein goal hit: ' + Math.round(t.p) + ' g.' : 'Protein is the gap: ' + Math.round(t.p) + ' of ' + g.protein + ' g, ' + Math.round(g.protein - t.p) + ' g to go.';
+  else say = Math.round(t.kcal).toLocaleString() + ' kcal logged today.';
+  return `${head}<p class="sent" style="margin-bottom:0">${esc(say)}</p><div class="card" style="padding:2px 16px 16px">${gaugeLine('Energy', t.kcal, g.calories, 'kcal', 'var(--acct)', 'kc')}${MAC.map(([kk, l, gk, col]) => gaugeLine(l, t[kk], g[gk], 'g', col)).join('')}</div>`;
+}
+function fuelWeek() {
+  const g = settings.goals; if (!(g.protein > 0)) return '';
+  const ds = lastDays(7), vals = ds.map(k => { const f = dayFood(k); return f.length ? foodTot(k).p : null; });
+  const hit = vals.filter(v => v != null && v >= g.protein).length, have = vals.filter(v => v != null).length;
+  const head = have ? 'You hit protein on ' + hit + ' of ' + have + ' logged days.' : 'No food logged in the last 7 days.';
+  return `<div class="dl"><b></b><span class="m">THIS WEEK</span><b></b></div><div class="card"><div style="font-size:16px;font-weight:700;line-height:1.3">${esc(head)}</div><div class="dim" style="font-size:12px;margin:2px 0 10px">Last 7 days, goal ${g.protein} g. Filled bar = goal hit, outline = missed</div>${goalBars(vals, g.protein, 'var(--prot)', ds.map(dayInit), 'Protein, last 7 days. ' + head)}<div class="mono dim" style="font-size:10.5px;margin-top:8px">TODAY IS STILL OPEN</div></div>`;
+}
 /* ---------- fuel ---------- */
 views.fuel = () => {
   const k = todayKey(), t = foodTot(k), g = settings.goals, list = dayFood(k);
@@ -214,20 +246,19 @@ views.fuel = () => {
   const energy = g.calories > 0
     ? `<div style="display:flex;align-items:center;gap:18px;margin-top:10px">${tickRing(150, t.kcal / g.calories, 'var(--carb)', `<div class="n" style="font-size:36px">${Math.round(t.kcal).toLocaleString()}</div><div class="m">KCAL</div>`, 60, 3, 12)}<div style="flex:1"><div class="m">${g.calories - t.kcal >= 0 ? 'REMAINING' : 'OVER BY'}</div><div class="n" style="font-size:40px;margin:4px 0 8px">${Math.abs(Math.round(g.calories - t.kcal)).toLocaleString()}</div><span class="t" style="color:var(--carb)">${Math.round(t.kcal / g.calories * 100)}% OF GOAL</span></div></div>`
     : `<div class="n" style="font-size:56px;margin:8px 0 4px">${Math.round(t.kcal).toLocaleString()} <span style="font-size:18px;color:var(--dim)">kcal</span></div><small>Set an energy goal in Me, Goals and targets, to see a ring here.</small>`;
-  return `<div class="row" style="justify-content:space-between"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Fuel</h2></div><span class="t" style="color:var(--dim)">${list.length} ${list.length === 1 ? 'ENTRY' : 'ENTRIES'}</span></div>
+  return `<div class="tblk"><span>MX / TRAIN</span><span>SHEET 03 FUEL</span><span>${esc(date)}</span></div><div class="row" style="justify-content:space-between"><div><div class="m">${esc(date)}</div><h2 style="margin:4px 0 0;font-size:52px">Fuel</h2></div><span class="t" style="color:var(--dim)">${list.length} ${list.length === 1 ? 'ENTRY' : 'ENTRIES'}</span></div>
   <div class="cut foodbox" style="margin-top:16px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="n" style="font-size:32px;text-transform:uppercase">What did you eat?</span><span class="t" style="color:var(--move)">${settings.ai && settings.ai.key ? 'AI READY' : 'NO AI KEY'}</span></div><p class="dim" style="margin:4px 0 12px;font-size:13px">Say the meal in your text, like "lunch: chicken and rice", or tap one below. No order needed.</p><textarea id="fd-name" rows="4" class="big" placeholder="e.g. 200 g grilled chicken breast, a cup of rice and a green salad with olive oil" autocomplete="off"></textarea>${mealChips()}<p class="m" style="margin:0 0 10px;font-size:9.5px">AUTO PICKS FROM YOUR TEXT, OR FROM THE TIME OF DAY</p>
   <div class="sugs" id="fd-sug"></div><div id="fd-fold">${foodsFold()}</div>
   <div class="row" style="margin-bottom:6px"><button class="btn ghost" data-act="food-db" id="fd-db">Search database</button><button class="btn ghost" data-act="scan-open" aria-label="Scan barcode">Scan</button><button class="btn" data-act="food-ai" id="fd-ai">Estimate</button></div>
   <p id="fd-aimsg" style="margin:0 0 10px;min-height:18px"><small>Fills the numbers below as an estimate. Check them before adding.</small></p><div id="fd-res"></div>
   <div class="five"><label>Kcal<input id="fd-kcal" type="number" inputmode="numeric" min="0" placeholder="0"></label><label style="color:var(--prot)">Prot<input id="fd-p" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--carb)">Carb<input id="fd-c" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fat)">Fat<input id="fd-f" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label><label style="color:var(--fib)">Fiber<input id="fd-fi" type="number" inputmode="decimal" step="any" min="0" placeholder="0"></label></div>
   <button class="btn" data-act="food-add">Add to today</button></div>
-  <div class="cut kc" style="margin-top:0"><div class="row" style="justify-content:space-between"><span class="m">ENERGY</span><span class="m">${g.calories > 0 ? 'GOAL ' + g.calories.toLocaleString() + ' KCAL' : 'NO GOAL'}</span></div>${energy}</div>
-  <div class="card" style="padding:4px 16px 12px">${MAC.map(([kk, l, gk, col], ix) => macroRow(kk, l, 'g', t[kk], g[gk], col).replace(ix === 0 ? 'border-top:1px solid var(--line)' : '@@', '')).join('')}</div>
+  ${fuelStatus(t, g)}
   ${'<div class="dl"><b></b><span class="m">TODAY BY MEAL</span><b></b></div>'}${MEALS.map(([mk, ml]) => {
     const es = list.filter(e => mealOf(e) === mk).sort((x, y) => x.t - y.t);
     if (!es.length) return `<div class="card" style="padding:12px 16px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="t" style="color:var(--dim)">EMPTY</span></div></div>`;
     const kc = es.reduce((a, e) => a + (e.kcal || 0), 0);
     return `<div class="card" style="padding:12px 16px 4px;margin-top:10px"><div class="row" style="justify-content:space-between"><span class="m">${ml.toUpperCase()}</span><span class="n kc" style="font-size:20px">${Math.round(kc)}<span style="font-size:11px;color:var(--dim)"> kcal</span></span></div>${es.map(e => `<div class="frow"><div><div style="font-weight:600">${esc(e.name || 'Food')}</div><small><span style="color:var(--prot)">P ${r1(e.p || 0)}</span> &nbsp;<span style="color:var(--carb)">C ${r1(e.c || 0)}</span> &nbsp;<span style="color:var(--fat)">F ${r1(e.f || 0)}</span> &nbsp;<span style="color:var(--fib)">Fi ${r1(e.fi || 0)}</span></small></div><div style="display:flex;align-items:center;gap:10px"><span class="n kc" style="font-size:22px">${e.kcal}<span style="font-size:11px;color:var(--dim)"> kcal</span></span><button class="mini" data-act="food-del" data-id="${e.id}" aria-label="Remove entry">Remove</button></div></div>`).join('')}</div>`;
-  }).join('')}`;
+  }).join('')}${fuelWeek()}`;
 };
 

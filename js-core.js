@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.6.2';
+const VERSION = '3.7.0';
 const CHANGELOG = [
+  { v: '3.7.0', items: ['Me is shorter: goals, program, look and units, training, and a More group. Nutrition and AI and Data and sync now open their own pages', 'Fuel: a one line summary, tick gauges for energy, protein, carbs, fat and fiber, and a protein week chart', 'Insights replaces Trends: four tabs, Week, Lifts, Body and Log. Week has a plain sentence over each chart. Filled bar means goal hit, outline means missed, so it never depends on color'] },
   { v: '3.6.2', items: ['Reps row is now a swipe strip from 1 to 50: drag it sideways with no scroll bar, tap a number to pick it. The picked number stays centered'] },
   { v: '3.6.1', items: ['Log set button: the line under it is now full strength and easy to read. Rep numbers are centered in their circle'] },
   { v: '3.6.0', items: ['New set card: tap the weight to type it, quick chips (minus, last time, try, plus), reps as one tap numbers inside your target, and one big Log set button that shows the rest time. Finished sets fold into a short list, tap one to undo', 'Today: every exercise on the session card shows last time and the weight to try', 'Today: a Body strip with your weight trend and one sentence', 'Gauges keep their own color even when empty, and show what is left instead of a dash'] },
@@ -273,5 +274,5 @@ function go(name, params, replace) {
 }
 window.addEventListener('popstate', e => { view = e.state || { name: 'home', params: {} }; render(); });
 const ALIAS = { history: 'trends', progress: 'trends', settings: 'me' };
-const tabOf = n => ({ workout: 'train', summary: 'train', info: 'train', session: 'trends', day: 'trends', goals: 'me', profile: 'me', usage: 'me', prog: 'me', progday: 'me' }[n] || n);
+const tabOf = n => ({ workout: 'train', summary: 'train', info: 'train', session: 'trends', day: 'trends', goals: 'me', profile: 'me', usage: 'me', prog: 'me', progday: 'me', nutai: 'me', datasync: 'me' }[n] || n);
 

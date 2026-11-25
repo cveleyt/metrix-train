@@ -5,7 +5,7 @@ const dkey = t => { const d = new Date(t); return d.getFullYear() + '-' + String
 const kDate = k => { const [y, m, d] = k.split('-'); return new Date(+y, +m - 1, +d); };
 const kAdd = (k, n) => { const d = kDate(k); d.setDate(d.getDate() + n); return dkey(d); };
 const kLong = k => kDate(k).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-let hist = { nq: '', mw: 0, bw: 0, pose: 'front', mode: 'trends', range: 8, ex: null, metric: 'top', y: new Date().getFullYear(), m: new Date().getMonth(), wk: null, sel: null };
+let hist = { nq: '', mw: 0, bw: 0, pose: 'front', mode: 'review', logm: 'cal', range: 8, ex: null, metric: 'top', y: new Date().getFullYear(), m: new Date().getMonth(), wk: null, sel: null };
 const SC_DEF = { workout: true, steps: true, sleep: true, protein: true, kcal: false, macros: false };
 const scoreCfg = () => Object.assign({}, SC_DEF, settings.score || {});
 function dayInfo(k) {
@@ -36,7 +36,37 @@ function prCount(s) {
   });
   return n;
 }
-const histTabs = () => `<div class="seg scr" role="tablist">${[['trends', 'Trends'], ['muscles', 'Muscles'], ['body', 'Body'], ['review', 'Review'], ['notes', 'Notes'], ['cal', 'Calendar'], ['week', 'Week'], ['list', 'Workouts']].map(([m, l]) => `<button class="mini${hist.mode === m ? ' on' : ''}" data-act="hist-mode" data-m="${m}" aria-pressed="${hist.mode === m}">${l}</button>`).join('')}</div>`;
+const LOGM = ['cal', 'week', 'list', 'notes'];
+const histTabs = () => {
+  const tabOn = LOGM.includes(hist.mode) ? 'log' : hist.mode === 'muscles' ? 'trends' : hist.mode;
+  const top = [['review', 'Week', 'review'], ['trends', 'Lifts', 'trends'], ['body', 'Body', 'body'], [hist.logm || 'cal', 'Log', 'log']];
+  let h = `<div class="seg" role="tablist" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">${top.map(([m, l, key]) => `<button class="mini${tabOn === key ? ' on' : ''}" role="tab" data-act="hist-mode" data-m="${m}" aria-selected="${tabOn === key}">${l}</button>`).join('')}</div>`;
+  if (tabOn === 'log') h += `<div class="seg" style="margin-top:8px">${[['cal', 'Calendar'], ['week', 'Week'], ['list', 'Workouts'], ['notes', 'Notes']].map(([m, l]) => `<button class="mini${hist.mode === m ? ' on' : ''}" data-act="hist-mode" data-m="${m}" aria-pressed="${hist.mode === m}">${l}</button>`).join('')}</div>`;
+  return h;
+};
+function weekCard(head, sub, vals, goal, col, ds, label) {
+  return `<div class="card" style="margin-top:12px"><div style="font-size:16px;font-weight:700;line-height:1.3">${esc(head)}</div><div class="dim" style="font-size:12px;margin:2px 0 10px">${esc(sub)}</div>${goalBars(vals, goal, col, ds.map(dayInit), label + '. ' + head)}</div>`;
+}
+function weekOverview() {
+  const g = settings.goals, mon = mondayOf(todayKey()), wk = sessions.filter(s => inWeek(s, mon)), ds = lastDays(7);
+  const doneN = DAYS.filter(x => wk.some(s => s.dayKey === x.key)).length;
+  const blocks = DAYS.map(x => { const d = wk.some(s => s.dayKey === x.key); return `<div style="flex:1;min-width:0;border-radius:12px;padding:10px 3px;text-align:center;${d ? 'background:var(--acc);color:var(--onacc);border:1.5px solid var(--acc)' : 'border:1.5px dashed var(--line2);color:var(--dim)'}"><b style="font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</b><span class="mono" style="font-size:9px;font-weight:600">${d ? 'DONE' : 'TO DO'}</span></div>`; }).join('');
+  let out = `<div style="font-size:18px;font-weight:700;line-height:1.3;margin:16px 0 0">${doneN} of ${DAYS.length} sessions done this week.</div><div class="m" style="margin-top:4px">WEEK OF ${esc(kDate(mon).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }).toUpperCase())}</div>
+  <div class="card" style="margin-top:12px"><div class="m" style="margin-bottom:8px">PROGRAM DAYS</div><div style="display:flex;gap:6px">${blocks}</div></div>`;
+  if (g.protein > 0) {
+    const v = ds.map(k => dayFood(k).length ? foodTot(k).p : null), have = v.filter(x => x != null).length, hit = v.filter(x => x != null && x >= g.protein).length;
+    out += have ? weekCard('Protein hit on ' + hit + ' of ' + have + ' logged days.', 'Last 7 days, goal ' + g.protein + ' g. Filled = hit, outline = missed', v, g.protein, 'var(--prot)', ds, 'Protein, last 7 days') : '';
+  }
+  if (g.sleep > 0) {
+    const v = ds.map(k => (daily[k] || {}).sleep == null ? null : daily[k].sleep), hv = v.filter(x => x != null);
+    if (hv.length) { const av = hv.reduce((a, b) => a + b, 0) / hv.length, diff = Math.round((g.sleep - av) * 60); out += weekCard('Sleep averaged ' + sleepTxt(av) + (diff > 0 ? ', ' + diff + ' min under goal.' : ', on goal.'), 'Last 7 nights, goal ' + g.sleep + ' h. Filled = hit, outline = missed', v, g.sleep, 'var(--rest)', ds, 'Sleep, last 7 nights'); }
+  }
+  if (g.steps > 0) {
+    const v = ds.map(k => (daily[k] || {}).steps == null ? null : daily[k].steps), hv = v.filter(x => x != null);
+    if (hv.length) { const av = Math.round(hv.reduce((a, b) => a + b, 0) / hv.length); out += weekCard('Steps averaged ' + av.toLocaleString() + ', goal ' + g.steps.toLocaleString() + '.', 'Last 7 days. Filled = hit, outline = missed', v, g.steps, 'var(--move)', ds, 'Steps, last 7 days'); }
+  }
+  return out + '<div class="dl"><b></b><span class="m">WEEKLY REVIEW</span><b></b></div>' + reviewView();
+}
 function calView() {
   const first = new Date(hist.y, hist.m, 1), lead = (first.getDay() + 6) % 7, dim = new Date(hist.y, hist.m + 1, 0).getDate(), today = todayKey();
   const cells = [];
@@ -133,7 +163,7 @@ function trendsView() {
   const bodyCard = card('BW', 'var(--body)', 'BODY WEIGHT', wa == null ? '-' : r1(dw(wa)), UW() + ' avg', tagOf(wa, wpa, v => r1(dw(v)) + ' ' + UW()), spark(wv, 'var(--body)', 330, 90, 'Body weight'), wh.length ? `Lowest ${wt(Math.min(...wh))}, highest ${wt(Math.max(...wh))}, ${wh.length} weigh-ins.${g.weight > 0 ? ' Target ' + wt(g.weight) + ', latest ' + wt(wh[wh.length - 1]) + '.' : ''}` : 'No weigh-ins in this period.');
   return `<div class="seg">${[[4, '4 weeks'], [8, '8 weeks'], [0, 'All time']].map(([r, l]) => `<button class="mini${R === r ? ' on' : ''}" data-act="range" data-r="${r}">${l}</button>`).join('')}</div>${volCard}${exCard}${bodyCard}${stepCard}${sleepCard}${fuelCard}`;
 }
-views.trends = () => `<h2 style="font-size:52px">Trends</h2>${histTabs()}` + (hist.mode === 'trends' ? trendsView() : hist.mode === 'muscles' ? muscleView() : hist.mode === 'body' ? bodyView() : hist.mode === 'review' ? reviewView() : hist.mode === 'notes' ? notesView() : hist.mode === 'cal' ? calView() : hist.mode === 'week' ? weekView() : (() => {
+views.trends = () => `<div class="tblk"><span>MX / TRAIN</span><span>SHEET 04 INSIGHTS</span><span>${esc(APPV())}</span></div><h2 style="margin:0 0 14px">Insights</h2>${histTabs()}` + (hist.mode === 'trends' || hist.mode === 'muscles' ? trendsView() + '<div class="dl"><b></b><span class="m">MUSCLES, HARD SETS PER WEEK</span><b></b></div>' + muscleView() : hist.mode === 'body' ? bodyView() : hist.mode === 'review' ? weekOverview() : hist.mode === 'notes' ? notesView() : hist.mode === 'cal' ? calView() : hist.mode === 'week' ? weekView() : (() => {
   const l = sortedDesc();
   return !l.length ? '<div class="card"><p>Finished workouts show up here.</p></div>' : l.map(s => `<div class="card"><button class="item" data-act="open-session" data-id="${s.id}"><div><b>${esc(s.name)}</b><small>Week ${s.week} &middot; ${fd(s.finishedAt)}</small></div><div class="r"><b>${doneCount(s)} sets</b><small>${Math.round(dw(volume(s))).toLocaleString()} ${UW()}</small></div></button></div>`).join('');
 })());
