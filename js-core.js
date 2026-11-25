@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.8.0';
+const VERSION = '3.8.1';
 const CHANGELOG = [
+  { v: '3.8.1', items: ['Exercise title is now the name and the plan, like Leg Press 3 x 10-15', 'Open exercise shows only the strip, logged sets and the current set. Notes, coach tip, replace, add set and step are under More', 'Effort picker shows only under the set you just logged'] },
   { v: '3.8.0', items: ['Every exercise shows a set strip and Set N of M, so you always know where you are', 'A set you just logged flashes with a check, and every logged set says how it compares with last time', 'When an exercise is finished it closes into a tinted DONE card with the top set, and NEW BEST if you beat your record. You pick the next exercise yourself'] },
   { v: '3.7.3', items: ['Fuel: protein gets a big number and bar, energy a bar, and carbs, fat and fiber small tiles. Easier to read than the tick bars', 'You can now edit a logged meal: name, meal, calories and nutrients. Tap Edit next to Remove'] },
   { v: '3.7.2', items: ['Every popup now has a close button (x) at the top that stays visible while you scroll, so you never have to scroll down to find Cancel'] },

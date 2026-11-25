@@ -46,8 +46,9 @@ function r1Sets(ex, x, i, sg, prev) {
     if (!ex.noWeight && t.w !== p.w) return (t.w > p.w ? '+' : '') + r1(dw(t.w - p.w)) + ' ' + UW() + ' vs last';
     return t.r === p.r ? 'same as last' : (t.r > p.r ? '+' : '') + (t.r - p.r) + (Math.abs(t.r - p.r) === 1 ? ' rep' : ' reps') + ' vs last';
   };
+  const lastDone = sets.reduce((m, t, j) => t.done ? j : m, -1);
   const fresh = j => flashSet && flashSet.i === i && flashSet.j === j && Date.now() - flashSet.t < 1700;
-  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone${fresh(j) ? ' sfresh' : ''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ' x '}${t.r}</b> <small class="dim">${esc(dtxt(t, j))}</small></span><span class="mono" style="color:var(--ok);font-weight:700">&#10003; LOGGED</span></button>${settings.rpe ? rpeRow(i, j, t) : ''}`).join('');
+  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone${fresh(j) ? ' sfresh' : ''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ' x '}${t.r}</b> <small class="dim">${esc(dtxt(t, j))}</small></span><span class="mono" style="color:var(--ok);font-weight:700">&#10003; LOGGED</span></button>${settings.rpe && j === lastDone ? rpeRow(i, j, t) : ''}`).join('');
   if (cj < 0) return doneRows + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
   const t = sets[cj], pv = prev ? (prev.sets[cj] || prev.sets[prev.sets.length - 1]) : null, st = incD(ex);
   const lo = ex.lo || 8, hi = ex.hi || 12;
@@ -61,8 +62,8 @@ function r1Sets(ex, x, i, sg, prev) {
     <div class="rnums" role="group" aria-label="Reps, drag sideways for more">${nums.map(n => `<button class="rn${t.r === n ? ' s' : ''}${n < lo || n > hi ? ' o' : ''}" data-act="rpick" data-i="${i}" data-j="${cj}" data-v="${n}" aria-pressed="${t.r === n}">${n}</button>`).join('')}</div>`;
   const beat = pv ? `BEAT ${ex.noWeight ? '' : r1(dw(pv.w)) + ' x '}${pv.r}` : 'FIRST TIME';
   const left = sets.length - cj - 1;
-  return doneRows + `<div class="r1c"><div class="row" style="justify-content:space-between"><span class="tag">SET ${cj + 1} OF ${sets.length}</span><span class="m">${beat}</span></div>${wt}${reps}
-    <button class="r1go" data-act="done" data-i="${i}" data-j="${cj}"><span>Log set ${cj + 1}<small>Rest ${restTxt(ex.rest)} starts${left ? ', ' + left + ' more after' : ''}</small></span><span aria-hidden="true">&#10003;</span></button></div>`;
+  return doneRows + `<div class="r1c"><div class="m">${pv ? 'LAST TIME ' + (ex.noWeight ? '' : r1(dw(pv.w)) + ' x ') + pv.r : 'FIRST TIME'}</div>${wt}${reps}
+    <button class="r1go" data-act="done" data-i="${i}" data-j="${cj}"><span>Log set ${cj + 1}</span><span aria-hidden="true">&#10003;</span></button></div>`;
 }
 function bestSet(name, excludeId) {
   let b = null;
@@ -74,7 +75,7 @@ function setStrip(x) {
   const cj = x.sets.findIndex(t => !t.done);
   return `<div class="sgs" aria-hidden="true">${x.sets.map((t, j) => `<i class="${t.done ? 'f' : j === cj ? 'c' : ''}"></i>`).join('')}</div>`;
 }
-let flashSet = null;
+let flashSet = null, moreOpen = -1;
 function exCard(c, x, i, edit) {
   const ex = exOf(x);
   const isOpen = open === i, dn = x.sets.filter(t => t.done).length, all = dn === x.sets.length && !x.skipped;
@@ -83,22 +84,24 @@ function exCard(c, x, i, edit) {
   else if (isOpen) {
     const prev = prevFor(ex, c.id), sg = suggest(ex, prev);
     const nt = notes[x.name];
-    body = `<div class="bd">${edit ? '' : replacePanel(x, i)}${nt ? `<div class="sug"><span class="tag">YOUR NOTE</span> ${nt.machine ? '<b>Machine:</b> ' + esc(nt.machine) + '<br>' : ''}${esc(nt.note || '')} ${(nt.tags || []).map(g => `<span class="t" style="color:${g === 'Pain' ? 'var(--rest)' : 'var(--dim)'}">${esc(g.toUpperCase())}</span>`).join(' ')} <small>(${fd(nt.at)})</small></div>` : ''}${ex.cue ? `<div class="cue">${esc(ex.cue)}</div>` : ''}
+    const more = `${edit ? '' : replacePanel(x, i)}${nt ? `<div class="sug"><span class="tag">YOUR NOTE</span> ${nt.machine ? '<b>Machine:</b> ' + esc(nt.machine) + '<br>' : ''}${esc(nt.note || '')} ${(nt.tags || []).map(g => `<span class="t" style="color:${g === 'Pain' ? 'var(--rest)' : 'var(--dim)'}">${esc(g.toUpperCase())}</span>`).join(' ')} <small>(${fd(nt.at)})</small></div>` : ''}${ex.note ? `<div class="cue">${esc(ex.note)}</div>` : ''}${ex.cue ? `<div class="cue">${esc(ex.cue)}</div>` : ''}
     ${edit ? '' : `<div class="sug"><span class="tag">${sg.tag}</span> ${esc(sg.text)}${sg.apply ? `<button class="mini" data-act="apply" data-i="${i}" data-w="${sg.apply}">Use ${r1(dw(sg.apply))} ${UW()}</button>` : ''}</div>`}
-    ${prev ? `<div class="last">Last time (${fd(prev.s.finishedAt)}): ${esc(fmtSets(ex, prev.sets))}</div>` : ''}
-    ${edit ? old_rows(ex, x, i, sg) : (x.warm || []).map((t, j) => warmRow(ex, t, i, j)).join('') + r1Sets(ex, x, i, sg, prev)}
     <div class="row"><button class="mini" data-act="addset" data-i="${i}">+ Set</button><button class="mini" data-act="rmset" data-i="${i}">- Set</button>${edit ? '' : `<button class="mini" data-act="warm-add" data-i="${i}">+ Warm-up</button>${(x.warm || []).length ? `<button class="mini" data-act="warm-rm" data-i="${i}">- Warm-up</button>` : ''}`}
-    ${ex.noWeight ? '' : `<button class="mini" data-act="inc" data-i="${i}">Step: ${incD(ex)} ${UW()}</button>`}${edit ? '' : `<button class="mini" data-act="skip-open" data-i="${i}">Skip exercise</button>`}</div></div>`;
+    ${ex.noWeight ? '' : `<button class="mini" data-act="inc" data-i="${i}">Step: ${incD(ex)} ${UW()}</button>`}${edit ? '' : `<button class="mini" data-act="skip-open" data-i="${i}">Skip exercise</button>`}</div>`;
+    const mo = edit || moreOpen === i;
+    body = `<div class="bd">${edit ? '' : (x.warm || []).map((t, j) => warmRow(ex, t, i, j)).join('')}${edit ? old_rows(ex, x, i, sg) : r1Sets(ex, x, i, sg, prev)}
+    ${edit ? '' : `<button class="morerow" data-act="more" data-i="${i}" aria-expanded="${mo}"><span>More</span><small>${mo ? 'hide' : 'notes, replace, add set, step'}</small><span aria-hidden="true">${mo ? '&#9652;' : '&#9662;'}</span></button>`}${mo ? `<div class="morebox">${more}</div>` : ''}</div>`;
   }
   const n = x.sets.length, cj = x.sets.findIndex(t => !t.done), ts = all ? topSet(x) : null;
   let nb = false;
   if (all && ts) { const bs = bestSet(x.name, c.id); nb = !!bs && (ex.noWeight ? ts.r > bs.r : (ts.w > bs.w || (ts.w === bs.w && ts.r > bs.r))); }
+  const spec = (x.orig || x.extra || !ex.lo) ? n + ' sets' : n + ' &times; ' + ex.lo + '-' + ex.hi + (ex.side ? ' per side' : '');
   const lab = x.skipped ? 'Skipped' : all ? 'Done' : dn > 0 || isOpen ? 'Set ' + (cj + 1) + ' of ' + n : n + ' sets';
   const sub = all && ts ? n + ' sets, top set ' + (ex.noWeight ? '' : r1(dw(ts.w)) + ' ' + UW() + ' x ') + ts.r : (x.orig || x.extra ? n + ' sets' : ex.sets + ' x ' + ex.lo + '-' + ex.hi) + (ex.side ? ' per side' : '') + ' &middot; rest ' + restTxt(ex.rest);
   return `<section class="ex ${isOpen ? 'open' : ''} ${all ? 'complete' : ''} ${x.skipped ? 'skipped' : ''}">
-  <div class="exw"><button class="exh" data-act="toggle" data-i="${i}" aria-expanded="${isOpen}"><div style="flex:1;min-width:0"><b>${esc(x.name)}</b>${ex.note ? ` <small>(${esc(ex.note)})</small>` : ''}
-  <div class="sub">${sub}</div>${x.skipped ? '' : `<div class="sgrow">${setStrip(x)}<span class="sgl">${all ? '&#10003; DONE' : lab}</span></div>`}${nb ? '<div class="nbest"><span class="tag">NEW BEST</span></div>' : ''}</div>
-  <span class="cnt">${x.skipped ? 'SKIPPED' : dn + '/' + n}</span></button>${edit ? '' : `<button class="ndot${notes[x.name] ? ' has' : ''}" data-act="note-open" data-i="${i}" aria-label="${notes[x.name] ? 'Edit note' : 'Add note'} for ${esc(x.name)}">${notes[x.name] ? 'NOTE' : '+'}</button>`}</div>${body}</section>`;
+  <div class="exw"><button class="exh" data-act="toggle" data-i="${i}" aria-expanded="${isOpen}"><div style="flex:1;min-width:0"><b>${esc(x.name)}</b> <span class="spec">&middot; ${spec}</span>
+  ${all && ts ? `<div class="sub">${sub}</div>` : ''}${x.skipped ? '' : `<div class="sgrow">${setStrip(x)}<span class="sgl">${all ? '&#10003; DONE' : lab}</span></div>`}${nb ? '<div class="nbest"><span class="tag">NEW BEST</span></div>' : ''}</div>
+  ${x.skipped ? '<span class="cnt">SKIPPED</span>' : ''}</button>${edit ? '' : `<button class="ndot${notes[x.name] ? ' has' : ''}" data-act="note-open" data-i="${i}" aria-label="${notes[x.name] ? 'Edit note' : 'Add note'} for ${esc(x.name)}">${notes[x.name] ? 'NOTE' : '+'}</button>`}</div>${body}</section>`;
 }
 const TK = 90;
 function tkSvg(sz) {

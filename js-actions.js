@@ -61,6 +61,7 @@ async function act(a, el) {
     case 'pick-apply':
       settings.override = { week: Math.max(1, parseInt($('#pk-week').value, 10) || 1), dayKey: $('#pk-day').value };
       saveSettings(); go('train', {}, true); break;
+    case 'more': moreOpen = moreOpen === i ? -1 : i; render(); break;
     case 'toggle': open = open === i ? -1 : i; render(); break;
     case 'note-open': noteModal(i); break;
     case 'nt-tag': el.classList.toggle('on'); el.setAttribute('aria-pressed', el.classList.contains('on')); break;

@@ -132,7 +132,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left
 .pbar{position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--bar)}.pbar i{display:block;height:3px;background:var(--acc);transition:width .3s}
 .pad{padding-bottom:120px}
 .ex{background:var(--g1);border:1px solid var(--line);border-radius:22px;margin-bottom:10px;overflow:hidden;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-.ex.open{border-color:var(--acct)}
+.ex.open{border-color:var(--line)}
 .exh{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;padding:14px}.exh b{font-size:15px;font-weight:650}
 .exh .cnt{font-family:var(--mono);font-weight:600;font-size:10.5px;letter-spacing:.4px;white-space:nowrap;border:1px solid var(--line2);color:var(--ink2);border-radius:7px;padding:3px 8px}
 .ex.complete .cnt{border-color:var(--ok);color:var(--ok)}
@@ -224,6 +224,9 @@ h2{font-size:34px!important;font-weight:700;letter-spacing:-.03em;line-height:1.
 .ex.complete{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--g1))}.ex.complete .sgs i.f{background:var(--ok)}.ex.complete .sgl{color:var(--ok)}
 .sdone.sfresh{animation:sflash 1.6s ease-out}@keyframes sflash{0%{background:color-mix(in srgb,var(--ok) 30%,var(--g1));box-shadow:0 0 0 2px var(--ok)}100%{background:var(--g1);box-shadow:0 0 0 0 transparent}}
 @media (prefers-reduced-motion:reduce){.sdone.sfresh{animation:none;border-color:var(--ok)}}
+.spec{color:var(--acct);font-weight:700}.exh b{font-size:20px;letter-spacing:-.02em}
+.morerow{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;margin-top:10px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--g2);color:var(--ink);font-weight:700;font-size:15px;text-align:left}.morerow small{flex:1;color:var(--dim);font-weight:400;font-size:12px}
+.morebox{margin-top:10px}
 </style>
 </head>
 <body>
@@ -235,21 +238,21 @@ h2{font-size:34px!important;font-weight:700;letter-spacing:-.03em;line-height:1.
   <button data-go="fuel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c4 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2-6 6-10z"/></svg> Fuel</button>
   <button data-go="trends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg> Insights</button>
 </nav>
-<script src="program.js?v=3.8.0"></script>
-<script src="users.js?v=3.8.0"></script>
-<script src="sync.js?v=3.8.0"></script>
-<script src="js-core.js?v=3.8.0"></script>
-<script src="js-shell.js?v=3.8.0"></script>
-<script src="js-today.js?v=3.8.0"></script>
-<script src="js-workout.js?v=3.8.0"></script>
-<script src="js-history.js?v=3.8.0"></script>
-<script src="js-me.js?v=3.8.0"></script>
-<script src="js-extras.js?v=3.8.0"></script>
-<script src="js-notes.js?v=3.8.0"></script>
-<script src="js-daily.js?v=3.8.0"></script>
-<script src="js-usage.js?v=3.8.0"></script>
-<script src="js-program.js?v=3.8.0"></script>
-<script src="js-actions.js?v=3.8.0"></script>
-<script src="js-boot.js?v=3.8.0"></script>
+<script src="program.js?v=3.8.1"></script>
+<script src="users.js?v=3.8.1"></script>
+<script src="sync.js?v=3.8.1"></script>
+<script src="js-core.js?v=3.8.1"></script>
+<script src="js-shell.js?v=3.8.1"></script>
+<script src="js-today.js?v=3.8.1"></script>
+<script src="js-workout.js?v=3.8.1"></script>
+<script src="js-history.js?v=3.8.1"></script>
+<script src="js-me.js?v=3.8.1"></script>
+<script src="js-extras.js?v=3.8.1"></script>
+<script src="js-notes.js?v=3.8.1"></script>
+<script src="js-daily.js?v=3.8.1"></script>
+<script src="js-usage.js?v=3.8.1"></script>
+<script src="js-program.js?v=3.8.1"></script>
+<script src="js-actions.js?v=3.8.1"></script>
+<script src="js-boot.js?v=3.8.1"></script>
 </body>
 </html>
