@@ -122,7 +122,7 @@ function weekStrip() {
   const did = keys.filter(k => sessions.some(s => dkey(s.finishedAt) === k)).length;
   const cells = keys.map((k, i) => {
     const tr = sessions.some(s => dkey(s.finishedAt) === k), td = k === tk, fu = k > tk;
-    const mk = tr ? `<span class="wd on">${SVG_CK.replace(/width="\d+"/, 'width="15"').replace(/height="\d+"/, 'height="15"')}</span>` : td ? '<span class="wd td"></span>' : '<span class="wd fu"></span>';
+    const mk = tr ? `<span class="wd on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>` : td ? '<span class="wd td"></span>' : '<span class="wd fu"></span>';
     return `<div><div class="mono dim" style="font-size:10px">${'MTWTFSS'[i]}</div><div style="margin:5px 0">${mk}</div><div class="mono" style="font-size:10px;${td ? 'color:var(--acc);font-weight:700' : 'color:var(--dim)'}">${td ? 'TODAY' : kDate(k).getDate()}</div></div>`;
   }).join('');
   return `<div class="card" style="margin-top:12px"><div class="row"><span class="m">THIS WEEK</span><span class="mono dim" style="font-size:11px">${did} OF ${tot} WORKOUTS</span></div><div class="wk7" role="img" aria-label="${did} of ${tot} workouts this week">${cells}</div><div class="dim" style="font-size:12.5px;margin-top:10px">Filled = trained. Ring = today. Dashed = not yet.</div></div>`;

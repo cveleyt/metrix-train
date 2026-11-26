@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.11.0';
+const VERSION = '3.11.1';
 const CHANGELOG = [
+  { v: '3.11.1', items: ['Fixed the check mark in the This week strip'] },
   { v: '3.11.0', items: ['Today: smooth solid rings replace the tick rings, a greeting, a Next up suggestion built from your protein gap and saved foods, and a This week strip', 'Me, Look and units: Metric colors with Standard, Color-safe (blues, yellows, white) and One color', 'Tap a ring to see its status in words'] },
   { v: '3.10.1', items: ['Goals are not strict: a slider in Goals sets what counts as met (default 80%). It drives Today, Fuel, Insights and the weekly review', 'Protein at 118 of 140 g now reads MET AT 80%, with the amount left shown', 'Energy uses a band of plus or minus 10%', 'Fat is a range with a LOW, IN RANGE or HIGH tag, and a Recommend button that builds the range from your calories with the steps shown'] },
   { v: '3.10.0', items: ['Workout saved shows the top set of each exercise with NEW BEST, one note box with tags, and a Done button that stays in view', 'Weekly review tags are words in outline boxes: ON TARGET within 5%, or how far under or over', 'Muscle sets: an outlined 10 to 20 box with the numbers written, and LOW, IN RANGE or HIGH with sets to go', 'Lifts tab: icons removed, empty weeks are dots, exercise progress opens on your latest exercise, and Body matches Today', 'Check-in has nothing pre-selected', 'Today sentence is shorter, the Fuel add box has no gap, and the rest timer no longer covers the last exercise'] },
