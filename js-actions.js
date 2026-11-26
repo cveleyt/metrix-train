@@ -419,6 +419,14 @@ async function act(a, el) {
     case 'metric': hist.metric = el.dataset.m; render(); break;
     case 'range': hist.range = +el.dataset.r; render(); break;
     case 'scale-set': settings.scale = parseFloat(el.dataset.v); saveSettings(); applyTheme(); render(); break;
+    case 'ring-info': toast(el.dataset.t); break;
+    case 'nu-no': settings.nu = todayKey(); saveSettings(); render(); break;
+    case 'nu-add': {
+      const f = myfoods.find(x => x.id === el.dataset.id); if (!f) break;
+      const k = todayKey(); food[k] = food[k] || []; food[k].push({ id: uid(), t: Date.now(), m: el.dataset.m, name: f.name, kcal: Math.round(f.kcal || 0), p: f.p || 0, c: f.c || 0, f: f.f || 0, fi: f.fi || 0 });
+      f.n = (f.n || 0) + 1; f.last = Date.now(); saveMy(); saveFood(); toast('Added ' + f.name); render(); break;
+    }
+    case 'cs-set': settings.cs = el.dataset.v; saveSettings(); applyTheme(); render(); break;
     case 'theme-set': settings.theme = el.dataset.v; saveSettings(); applyTheme(); render(); break;
     case 'score-in': settings.score = Object.assign({}, settings.score || {}, { [el.dataset.k]: el.checked }); saveSettings(); break;
     case 'goal-step': {

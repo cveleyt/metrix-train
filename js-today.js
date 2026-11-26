@@ -88,14 +88,44 @@ function todaySentence(gs) {
   if (w.v == null) return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' not logged yet today.';
   { const gl = Math.round(w.v + w.gap), u = w.say === 'protein' ? ' g' : ''; return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' the gap: ' + Math.round(w.v).toLocaleString() + ' of ' + gl.toLocaleString() + u + ', ' + Math.round(w.gap).toLocaleString() + u + ' to go.'; }
 }
+function solidRing(p, col, txt, sz = 76, w = 9) {
+  const r = (sz - w) / 2, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, p));
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" aria-hidden="true"><circle cx="${sz / 2}" cy="${sz / 2}" r="${r}" fill="none" stroke-width="${w}" style="stroke:color-mix(in srgb, ${col} 22%, transparent)"/>${f > 0 ? `<circle cx="${sz / 2}" cy="${sz / 2}" r="${r}" fill="none" stroke-width="${w}" stroke-linecap="round" style="stroke:${col}" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${sz / 2} ${sz / 2})"/>` : ''}<text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" style="fill:var(--ink)" font-size="16" font-weight="700" font-family="inherit">${esc(txt)}</text></svg>`;
+}
 function todayGauges() {
   const gs = gaugeData();
   const cells = gs.map(x => {
-    const emp = x.v == null, big = emp ? x.tgt : x.big, sub = emp ? x.esub : x.sub;
-    const lab = x.lab + (emp ? ', not logged, ' + x.tgt + ' ' + x.esub : ', ' + x.big + ' ' + x.sub + ', ' + Math.round(x.pct * 100) + ' percent');
-    return `<div role="img" aria-label="${esc(lab)}">${tickRing(78, x.pct, x.col, `<div class="n" style="font-size:15px;${emp ? 'color:var(--dim)' : ''}">${esc(big)}</div>`, 40, 2.4, 8, `color-mix(in srgb, ${x.col} 26%, transparent)`)}<div class="gl" style="color:${x.col}">${x.lab}</div><div class="gs">${esc(sub)}</div></div>`;
+    const emp = x.v == null, big = emp ? '-' : x.big, sub = emp ? x.tgt + (x.id === 'move' ? ' steps' : x.id === 'prot' ? ' g' : x.id === 'kcal' ? ' kcal' : '') : x.sub.replace(/^of /, '').replace(/ today$| last night$/, '');
+    const st = emp ? 'not logged' : x.id === 'kcal' ? (x.pct < 0.9 ? 'low' : x.pct > 1.1 ? 'high' : 'in band') : metV(x.v, x.id === 'prot' ? settings.goals.protein : x.id === 'move' ? settings.goals.steps : settings.goals.sleep) ? 'met at ' + Math.round(TOL() * 100) + '%' : 'to go';
+    const lab = x.lab + ', ' + (emp ? 'not logged, goal ' + x.tgt : x.big + ', ' + x.sub + ', ' + st);
+    return `<button class="gc" data-act="ring-info" data-t="${esc(lab)}" aria-label="${esc(lab)}">${solidRing(emp ? 0 : Math.min(1, x.pct), x.col, big)}<div style="font-size:12px;font-weight:700;margin-top:6px">${x.lab}</div><div class="gs">${esc(sub)}</div></button>`;
   }).join('');
   return `<p class="sent" id="tsent">${esc(todaySentence(gs))}</p><div class="gg">${cells}</div>`;
+}
+function greetBlock() {
+  const h = new Date().getHours(), gr = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening', nm = USER && USER.name ? USER.name.split(' ')[0] : '';
+  let sub = '';
+  try { const n = nextWorkout(), d = dayOf(n.dayKey); sub = doneToday() ? 'Workout done. Nice work.' : 'Week ' + n.week + '. ' + (d ? d.name : 'Rest') + ' is next.'; } catch (e) {}
+  return `<h2 style="margin:0;font-size:32px;line-height:1.1">${esc(gr + (nm ? ', ' + nm : ''))}</h2><div class="dim" style="font-size:14px;margin-top:4px">${esc(sub)}</div>`;
+}
+function nextUpCard() {
+  const g = settings.goals, k = todayKey(); if (settings.nu === k || !(g.protein > 0)) return '';
+  const t = foodTot(k), h = new Date().getHours(); if (metV(t.p, g.protein) || h >= 21) return '';
+  const ents = dayFood(k), slot = { b: 'b', s1: 'l', l: 'l', s2: 'd', d: 'd' }[mealByTime(Date.now())]; if (!slot || ents.some(e => e.m === slot)) return '';
+  const nm = (MEALS.find(m => m[0] === slot) || [0, 'This meal'])[1], gap = Math.round(g.protein - t.p);
+  const cand = myfoods.filter(f => f.p > 0).sort((a, b) => a.p - b.p), pick = cand.find(f => f.p >= gap) || cand[cand.length - 1];
+  const body = pick ? `Your saved ${esc(pick.name)} has ${Math.round(pick.p)} g. ${pick.p >= gap ? 'That closes the gap.' : 'It gets you closer.'}` : 'Add something with protein to close the gap.';
+  return `<div class="card" style="margin-top:14px;border-color:var(--prot)"><div class="row"><span class="m">NEXT UP</span>${otag('SUGGESTION', false)}</div><div style="font-size:19px;font-weight:700;line-height:1.3;margin-top:8px">${esc(nm)} is empty and protein is ${gap} g short.</div><div class="dim" style="font-size:13.5px;margin-top:6px;line-height:1.45">${body}</div><div style="display:flex;gap:8px;margin-top:12px"><button class="btn2" style="flex:1" data-act="nu-no">Not now</button>${pick ? `<button class="btn" style="flex:1.4" data-act="nu-add" data-id="${pick.id}" data-m="${slot}">Add to ${esc(nm.toLowerCase())}</button>` : `<button class="btn" style="flex:1.4" data-go="fuel">Open Fuel</button>`}</div></div>`;
+}
+function weekStrip() {
+  const tk = todayKey(), idx = (kDate(tk).getDay() + 6) % 7, keys = [...Array(7).keys()].map(i => kAdd(tk, i - idx)), tot = DAYS.length || 5;
+  const did = keys.filter(k => sessions.some(s => dkey(s.finishedAt) === k)).length;
+  const cells = keys.map((k, i) => {
+    const tr = sessions.some(s => dkey(s.finishedAt) === k), td = k === tk, fu = k > tk;
+    const mk = tr ? `<span class="wd on">${SVG_CK.replace(/width="\d+"/, 'width="15"').replace(/height="\d+"/, 'height="15"')}</span>` : td ? '<span class="wd td"></span>' : '<span class="wd fu"></span>';
+    return `<div><div class="mono dim" style="font-size:10px">${'MTWTFSS'[i]}</div><div style="margin:5px 0">${mk}</div><div class="mono" style="font-size:10px;${td ? 'color:var(--acc);font-weight:700' : 'color:var(--dim)'}">${td ? 'TODAY' : kDate(k).getDate()}</div></div>`;
+  }).join('');
+  return `<div class="card" style="margin-top:12px"><div class="row"><span class="m">THIS WEEK</span><span class="mono dim" style="font-size:11px">${did} OF ${tot} WORKOUTS</span></div><div class="wk7" role="img" aria-label="${did} of ${tot} workouts this week">${cells}</div><div class="dim" style="font-size:12.5px;margin-top:10px">Filled = trained. Ring = today. Dashed = not yet.</div></div>`;
 }
 function bodyStrip() {
   const tk = todayKey(), pts = [];
@@ -187,13 +217,13 @@ views.home = () => {
   const dt = new Date(), date = dt.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase(), light = document.documentElement.dataset.theme === 'light';
   const [nl, na] = nextStep();
   return `<div class="tblk"><span>MX / TRAIN</span><span>SHEET 01 TODAY</span><span>${esc(date)}</span></div>
-  <div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin-bottom:14px"><h2 style="margin:0">Today</h2><div class="row" style="gap:8px;flex-wrap:nowrap">
+  <div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin-bottom:14px"><div>${greetBlock()}</div><div class="row" style="gap:8px;flex-wrap:nowrap">
   <button class="ibtn" data-act="theme-flip" aria-label="${light ? 'Switch to dark theme' : 'Switch to light theme'}">${light ? SVG_MOON : SVG_SUN}</button>
   <button class="ibtn" data-go="me" aria-label="Open Me"><span class="n" style="font-size:17px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></button></div></div>
-  ${backupBanner()}${tapeBlock()}${deloadCard()}
+  ${backupBanner()}${nextUpCard()}${tapeBlock()}${deloadCard()}
   <div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div><div id="tg">${todayGauges()}</div>
   <button class="btn ghost" style="margin-top:14px" data-act="${na}">${esc(nl)}</button>
-  ${bodyStrip()}${coachNoteCard()}${dailyCard()}${streakCard()}`;
+  ${weekStrip()}${bodyStrip()}${coachNoteCard()}${dailyCard()}${streakCard()}`;
 };
 const QI = { food: '<path d="M12 3c4 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2-6 6-10z"/>', wt: '<path d="M5 20h14l-2-12H7zM9 8a3 3 0 0 1 6 0"/>', ci: '<circle cx="12" cy="12" r="9"/><path d="M8 14c1 2 7 2 8 0M9 9.5h.01M15 9.5h.01"/>', pill: '<rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-35 12 12)"/>', tr: '<path d="M3 9v6M7 6v12M17 6v12M21 9v6M7 12h10"/>', me: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>' };
 function quickAdd() {
