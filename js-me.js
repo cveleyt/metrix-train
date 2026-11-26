@@ -99,6 +99,14 @@ views.profile = () => {
   <div id="rec-box">${recBlock()}</div>`;
 };
 
+function tolList() {
+  const g = settings.goals, t = TOL(), li = (a, b) => `<div class="row" style="padding:10px 0;border-top:1px solid var(--line);font-size:14.5px"><span>${a}</span><span class="dim">${b}</span></div>`, o = [];
+  if (g.protein > 0) o.push(li('Protein ' + g.protein + ' g', 'met from ' + Math.round(g.protein * t) + ' g'));
+  if (g.steps > 0) o.push(li('Steps ' + g.steps.toLocaleString(), 'met from ' + Math.round(g.steps * t).toLocaleString()));
+  if (g.sleep > 0) { const m = Math.round(g.sleep * t * 60); o.push(li('Sleep ' + g.sleep + ' h', 'met from ' + Math.floor(m / 60) + ' h ' + (m % 60) + ' m')); }
+  o.push(li('Training, 5 per week', 'met at ' + Math.round(5 * t)));
+  return o.join('').replace('border-top:1px solid var(--line);', '');
+}
 views.goals = () => {
   const g = settings.goals, sc = scoreCfg();
   const stp = (f, l, u, step, min, v, col) => `<div style="padding:14px 0;border-top:1px solid var(--line)"><div style="font-weight:600;font-size:15px;margin-bottom:8px;color:${col}">${l}</div>
@@ -107,9 +115,12 @@ views.goals = () => {
   <button class="mini" style="height:46px;font-size:22px;text-align:center" data-act="goal-step" data-f="${f}" data-d="${step}" aria-label="Increase ${l}">+</button></div></div>`;
   const box = inner => `<div class="card" style="padding:2px 16px 4px">${inner.replace('border-top:1px solid var(--line)', '')}</div>`;
   return `<div class="row" style="justify-content:space-between"><button class="m" data-go="me">&lsaquo; ME</button><span class="m">GOALS AND TARGETS</span></div><h2 style="margin:12px 0 4px;font-size:46px">Goals</h2><p>Set each target and choose which ones count toward your Day Score.</p>
+  <div class="dl"><b></b><span class="m">HOW STRICT</span><b></b></div><div class="card"><div class="row" style="align-items:center;flex-wrap:nowrap"><div><div style="font-size:16px;font-weight:700">Counts as met at</div><div class="dim" style="font-size:12.5px;margin-top:2px">Not strict. Close enough is a win.</div></div><b id="tol-v" class="n" style="font-size:32px">${Math.round(TOL() * 100)}%</b></div>
+  <input id="tol-r" data-act="tol-in" type="range" min="70" max="100" step="5" value="${Math.round(TOL() * 100)}" aria-label="Counts as met at, percent" style="width:100%;margin:14px 0 0;accent-color:var(--acc)"><div class="mono dim" style="display:flex;justify-content:space-between;font-size:10px"><span>70%</span><span>80%</span><span>90%</span><span>100%</span></div>
+  <div id="tol-l" style="margin-top:12px;border-top:1px solid var(--line)">${tolList()}</div><p style="margin:8px 0 0"><small>Energy uses its own band of plus or minus 10%, because going over matters too.</small></p></div>
   <div class="dl"><b></b><span class="m">MOVE AND REST</span><b></b></div>${box(stp('steps', 'Daily steps', 'STEPS', 500, 1, g.steps, 'var(--move)') + stp('sleep', 'Sleep', 'HOURS', 0.25, 1, g.sleep, 'var(--rest)'))}
   <div class="dl"><b></b><span class="m">BODY</span><b></b></div>${box(stp('weight', 'Target weight', UW().toUpperCase(), 0.5, 0, g.weight > 0 ? dw(g.weight) : 0, 'var(--body)'))}
-  <div class="dl"><b></b><span class="m">FUEL</span><b></b></div>${box(stp('calories', 'Energy', 'KCAL', 50, 0, g.calories, 'var(--carb)') + stp('protein', 'Protein', 'G', 5, 0, g.protein, 'var(--prot)') + stp('carbs', 'Carbs', 'G', 10, 0, g.carbs, 'var(--carb)') + stp('fat', 'Fat', 'G', 5, 0, g.fat, 'var(--fat)') + stp('fiber', 'Fiber', 'G', 2, 0, g.fiber, 'var(--fib)'))}
+  <div class="dl"><b></b><span class="m">FUEL</span><b></b></div>${box(stp('calories', 'Energy', 'KCAL', 50, 0, g.calories, 'var(--carb)') + stp('protein', 'Protein', 'G', 5, 0, g.protein, 'var(--prot)') + stp('carbs', 'Carbs', 'G', 10, 0, g.carbs, 'var(--carb)') + stp('fat', 'Fat', 'G', 5, 0, g.fat, 'var(--fat)') + `<div style="padding:0 0 14px"><small class="dim">${g.fat > 0 ? 'Range ' + fatR(g)[0] + ' to ' + fatR(g)[1] + ' g. ' : ''}</small><button class="lnk" data-act="fat-rec">Recommend from my calories</button></div>` + stp('fiber', 'Fiber', 'G', 2, 0, g.fiber, 'var(--fib)'))}
   <div class="dl"><b></b><span class="m">DAY SCORE COUNTS</span><b></b></div><div class="card" style="padding:2px 16px">${trow('Workout, on days you trained', 'score-in', sc.workout, 'workout')}${trow('Steps', 'score-in', sc.steps, 'steps')}${trow('Sleep', 'score-in', sc.sleep, 'sleep')}${trow('Protein', 'score-in', sc.protein, 'protein')}${trow('Energy, within 10% of goal', 'score-in', sc.kcal, 'kcal')}${trow('Carbs, fat and fiber', 'score-in', sc.macros, 'macros')}</div>
   <p style="margin:10px 4px 16px"><small>A target only counts if it has a goal. Changes apply to every day, including past days.</small></p><button class="btn" data-go="me">Done</button>`;
 };

@@ -124,6 +124,11 @@ function sugHTML(q) {
   return (q ? '' : '') + list.map(f => `<button data-act="food-pick" data-id="${f.id}">${esc(f.name)} <small>${f.kcal} kcal</small></button>`).join('');
 }
 let foodsOpen = false;
+const TOL = () => { const t = +(settings.tol || 80); return (t >= 70 && t <= 100 ? t : 80) / 100; };
+const metV = (v, goal) => goal > 0 && v != null && v >= goal * TOL() - 1e-9;
+const fatR = g => g.fat > 0 ? [g.fatLo > 0 ? g.fatLo : Math.round(g.fat * 0.9), g.fatHi > 0 ? g.fatHi : Math.round(g.fat * 1.1)] : null;
+const lastKg = () => { const k = Object.keys(daily).sort().map(x => daily[x].weight).filter(v => v != null).pop(); return k || settings.goals.weight || 70; };
+const fatRec = (kcal, kg) => { const lo = Math.round(kcal * 0.25 / 9), hi = Math.round(kcal * 0.30 / 9), fl = Math.round(0.6 * kg); return { lo, hi, fl, ok: lo >= fl }; };
 const otag = (t, on) => `<span class="otg${on ? ' on' : ''}">${t}</span>`;
 function revealNums() { const b = $('#fd-numbers'); if (b && b.hidden) { b.hidden = false; const t = $('#fd-numbtn'); if (t) { t.setAttribute('aria-expanded', 'true'); t.innerHTML = 'Edit numbers \u25B4'; } } }
 function foodsList(q) {

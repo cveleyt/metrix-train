@@ -13,14 +13,14 @@ function dayInfo(k) {
   const logged = ss.length || d.steps != null || d.sleep != null || d.weight != null || dayFood(k).length;
   const t = [];
   if (sc.workout && (ss.length || (k === todayKey() && active))) t.push(['Workout', ss.length > 0]);
-  if (sc.steps) t.push(['Steps', d.steps != null && d.steps >= g.steps]);
-  if (sc.sleep) t.push(['Sleep', d.sleep != null && d.sleep >= g.sleep]);
-  if (sc.protein && g.protein > 0) t.push(['Protein', f.p >= g.protein]);
+  if (sc.steps) t.push(['Steps', d.steps != null && metV(d.steps, g.steps)]);
+  if (sc.sleep) t.push(['Sleep', d.sleep != null && metV(d.sleep, g.sleep)]);
+  if (sc.protein && g.protein > 0) t.push(['Protein', metV(f.p, g.protein)]);
   if (sc.kcal && g.calories > 0) t.push(['Energy', f.kcal > 0 && Math.abs(f.kcal - g.calories) <= 0.1 * g.calories]);
   if (sc.macros) {
     if (g.carbs > 0) t.push(['Carbs', f.c > 0 && Math.abs(f.c - g.carbs) <= 0.1 * g.carbs]);
-    if (g.fat > 0) t.push(['Fat', f.f > 0 && Math.abs(f.f - g.fat) <= 0.1 * g.fat]);
-    if (g.fiber > 0) t.push(['Fiber', f.fi >= g.fiber]);
+    if (g.fat > 0) t.push(['Fat', f.f > 0 && f.f >= fatR(g)[0] && f.f <= fatR(g)[1]]);
+    if (g.fiber > 0) t.push(['Fiber', metV(f.fi, g.fiber)]);
   }
   return { k, d, f, ss, logged, hit: t.filter(x => x[1]).length, of: t.length, t };
 }
@@ -54,7 +54,7 @@ function weekOverview() {
   let out = `<div style="font-size:18px;font-weight:700;line-height:1.3;margin:16px 0 0">${doneN} of ${DAYS.length} sessions done this week.</div><div class="m" style="margin-top:4px">WEEK OF ${esc(kDate(mon).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }).toUpperCase())}</div>
   <div class="card" style="margin-top:12px"><div class="m" style="margin-bottom:8px">PROGRAM DAYS</div><div style="display:flex;gap:6px">${blocks}</div></div>`;
   if (g.protein > 0) {
-    const v = ds.map(k => dayFood(k).length ? foodTot(k).p : null), have = v.filter(x => x != null).length, hit = v.filter(x => x != null && x >= g.protein).length;
+    const v = ds.map(k => dayFood(k).length ? foodTot(k).p : null), have = v.filter(x => x != null).length, hit = v.filter(x => x != null && metV(x, g.protein)).length;
     out += have ? weekCard('Protein hit on ' + hit + ' of ' + have + ' logged days.', 'Last 7 days, goal ' + g.protein + ' g. Filled = hit, outline = missed. Dot = nothing logged', v, g.protein, 'var(--prot)', ds, 'Protein, last 7 days') : '';
   }
   if (g.sleep > 0) {
@@ -102,7 +102,7 @@ function weekView() {
   if (s0) dl.push(dial('Workout', sets + '/' + tot, 'sets', tot ? sets / tot : 1, true, 'DONE', 'var(--acct)'));
   dl.push(dial('Move', i.d.steps == null ? '-' : i.d.steps.toLocaleString(), 'steps', i.d.steps == null ? 0 : i.d.steps / g.steps, i.d.steps >= g.steps, i.d.steps == null ? 'NOT LOGGED' : i.d.steps >= g.steps ? 'HIT' : 'MISSED', 'var(--move)'));
   dl.push(dial('Rest', i.d.sleep == null ? '-' : sleepTxt(i.d.sleep), 'sleep', i.d.sleep == null ? 0 : i.d.sleep / g.sleep, i.d.sleep >= g.sleep, i.d.sleep == null ? 'NOT LOGGED' : i.d.sleep >= g.sleep ? 'HIT' : 'MISSED BY ' + Math.round((g.sleep - i.d.sleep) * 60) + ' MIN', 'var(--rest)'));
-  dl.push(dial('Protein', i.f.p ? Math.round(i.f.p) + ' g' : '-', 'protein', g.protein > 0 ? i.f.p / g.protein : 0, i.f.p >= g.protein, !i.f.p ? 'NOT LOGGED' : i.f.p >= g.protein ? 'HIT' : 'MISSED BY ' + Math.round(g.protein - i.f.p) + ' G', 'var(--prot)'));
+  dl.push(dial('Protein', i.f.p ? Math.round(i.f.p) + ' g' : '-', 'protein', g.protein > 0 ? i.f.p / g.protein : 0, metV(i.f.p, g.protein), !i.f.p ? 'NOT LOGGED' : i.f.p >= g.protein ? 'HIT' : 'MISSED BY ' + Math.round(g.protein - i.f.p) + ' G', 'var(--prot)'));
   const vol = s0 ? Math.round(volume(s0)) : null;
   return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin-bottom:10px"><button class="mini" style="width:44px;height:44px;flex:none" data-act="wk-nav" data-n="-7" aria-label="Previous week">&lsaquo;</button><b>Week of ${kLong(mon)}</b><button class="mini" style="width:44px;height:44px;flex:none" data-act="wk-nav" data-n="7" aria-label="Next week">&rsaquo;</button></div>
   <div class="wkrow">${days.map(x => `<button class="wkd${x.k === sel ? ' sel' : ''}" data-act="wk-sel" data-k="${x.k}" aria-label="${kLong(x.k)}"><span>${kDate(x.k).toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase()}</span><b>${kDate(x.k).getDate()}</b><span>${x.logged ? scoreTxt(x) || '-' : 'NONE'}</span></button>`).join('')}</div>

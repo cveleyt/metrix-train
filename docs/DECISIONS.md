@@ -45,3 +45,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.8.1 | Simpler open exercise: title is name and sets x reps, extras under More, effort picker only under newest logged set, single border | Tester said too much info, still confusing |
 | 3.9.0 | Done state on Today and Train, weight carried to next set, Fuel status first with compact add and tappable meals, merged Body card, supplement tick redraw, quick add icons, shorter Insights charts | Tester screenshots review of every screen |
 | 3.10.0 | Round 9: saved screen with top sets and one note, review tags in words, muscle range box, Lifts cleanup, check-in nothing preselected, small fixes |
+| 3.10.1 | Goal tolerance slider (80% default), calories band 10%, fat range with formula recommendation, one rule for Today, Fuel, Insights and review |

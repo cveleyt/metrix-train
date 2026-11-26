@@ -53,8 +53,8 @@ function scoreCompact() {
   const k = todayKey(), i = dayInfo(k), g = settings.goals, d = daily[k] || {}, f = foodTot(k);
   const row = (lab, tag, col) => `<div class="row" style="justify-content:space-between;margin-top:7px;flex-wrap:nowrap"><span style="font-size:13px">${lab}</span><span class="t" style="color:${col}">${tag}</span></div>`;
   const rows = row('Rest ' + (d.sleep == null ? '' : sleepTxt(d.sleep)), d.sleep == null ? 'NOT LOGGED' : d.sleep >= g.sleep ? 'HIT' : 'MISSED', 'var(--rest)')
-    + row('Move ' + (d.steps == null ? '' : d.steps.toLocaleString()), d.steps == null ? 'NOT LOGGED' : d.steps >= g.steps ? 'HIT' : Math.round(d.steps / g.steps * 100) + '%', 'var(--move)')
-    + row('Protein ' + (f.p ? Math.round(f.p) + ' g' : ''), !f.p ? 'NOT LOGGED' : g.protein > 0 && f.p >= g.protein ? 'HIT' : g.protein > 0 ? Math.round(f.p / g.protein * 100) + '%' : 'LOGGED', 'var(--prot)')
+    + row('Move ' + (d.steps == null ? '' : d.steps.toLocaleString()), d.steps == null ? 'NOT LOGGED' : metV(d.steps, g.steps) ? 'MET' : Math.round(d.steps / g.steps * 100) + '%', 'var(--move)')
+    + row('Protein ' + (f.p ? Math.round(f.p) + ' g' : ''), !f.p ? 'NOT LOGGED' : metV(f.p, g.protein) ? 'MET' : g.protein > 0 ? Math.round(f.p / g.protein * 100) + '%' : 'LOGGED', 'var(--prot)')
     + row('Train ' + (i.ss.length ? '' : active ? '' : (nextWorkout().dayKey ? (dayOf(nextWorkout().dayKey) || DAYS[0]).name : '')), i.ss.length ? 'DONE' : active ? 'IN PROGRESS' : 'NEXT', 'var(--acct)');
   return `<div class="cut" style="padding:14px 16px"><div class="row" style="gap:14px;flex-wrap:nowrap">${tickRing(120, i.of ? i.hit / i.of : 0, 'var(--acc)', `<div class="n" style="font-size:42px">${i.hit}<span style="font-size:20px;color:var(--dim)">/${i.of}</span></div>`, 48, 3, 10)}<div style="flex:1;min-width:0"><div class="m">DAY SCORE</div>${rows}</div></div></div>`;
 }
@@ -82,8 +82,8 @@ function todaySentence(gs) {
   const have = gs.filter(x => x.v != null);
   if (!gs.length) return 'Set your targets in Me to see how today is going.';
   if (!have.length) return 'Nothing logged yet today. Start with your first meal or your steps.';
-  const open = gs.filter(x => x.pct < 1 && x.id !== 'rest' && x.id !== 'kcal');
-  if (!open.length) return gs.every(x => x.pct >= 1 || x.v == null) ? 'Every target you have logged today is met.' : 'Protein and steps are on target today.';
+  const open = gs.filter(x => x.pct < TOL() - 1e-9 && x.id !== 'rest' && x.id !== 'kcal');
+  if (!open.length) return gs.every(x => x.pct >= TOL() - 1e-9 || x.v == null) ? 'Every target you have logged today is met at ' + Math.round(TOL() * 100) + '%.' : 'Protein and steps are on target today.';
   const w = open.sort((a, b) => a.pct - b.pct)[0];
   if (w.v == null) return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' not logged yet today.';
   { const gl = Math.round(w.v + w.gap), u = w.say === 'protein' ? ' g' : ''; return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' the gap: ' + Math.round(w.v).toLocaleString() + ' of ' + gl.toLocaleString() + u + ', ' + Math.round(w.gap).toLocaleString() + u + ' to go.'; }
@@ -262,7 +262,7 @@ function gaugeLine(label, val, goal, unit, col, cls) {
 }
 function goalBars(vals, goal, col, labels, label) {
   const W = 300, H = 70, mx = Math.max(goal, ...vals.filter(v => v != null), 1) * 1.12, n = vals.length, bw = W / n;
-  const bars = vals.map((v, i) => { if (v == null) return `<circle cx="${(i * bw + bw / 2).toFixed(1)}" cy="${H - 4}" r="2.5" style="fill:var(--dim)" opacity=".6"/>`; const bh = Math.max(3, v / mx * (H - 4)), x = i * bw + 5, w = bw - 10, y = H - bh; return v >= goal ? `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" style="fill:${col}"/>` : `<rect x="${(x + 1).toFixed(1)}" y="${(y + 1).toFixed(1)}" width="${(w - 2).toFixed(1)}" height="${(bh - 2).toFixed(1)}" rx="4" fill="none" style="stroke:${col}" stroke-width="2"/>`; }).join('');
+  const bars = vals.map((v, i) => { if (v == null) return `<circle cx="${(i * bw + bw / 2).toFixed(1)}" cy="${H - 4}" r="2.5" style="fill:var(--dim)" opacity=".6"/>`; const bh = Math.max(3, v / mx * (H - 4)), x = i * bw + 5, w = bw - 10, y = H - bh; return metV(v, goal) ? `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" style="fill:${col}"/>` : `<rect x="${(x + 1).toFixed(1)}" y="${(y + 1).toFixed(1)}" width="${(w - 2).toFixed(1)}" height="${(bh - 2).toFixed(1)}" rx="4" fill="none" style="stroke:${col}" stroke-width="2"/>`; }).join('');
   const gy = H - goal / mx * (H - 4);
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${esc(label)}">${bars}<line x1="0" x2="${W}" y1="${gy.toFixed(1)}" y2="${gy.toFixed(1)}" stroke="var(--dim)" stroke-dasharray="4 4"/></svg><div class="mono dim" style="display:flex;font-size:9.5px;margin-top:4px">${labels.map(l => `<span style="flex:1;text-align:center">${l}</span>`).join('')}</div>`;
 }
@@ -273,18 +273,29 @@ function pbar(v, goal, col, h) {
 }
 function leftTxt(v, goal, unit) {
   if (!(goal > 0)) return 'No goal set';
-  const r = goal - v;
-  return r > 0 ? Math.round(r).toLocaleString() + ' ' + unit + ' left' : r >= -0.1 * goal ? 'Goal reached' : 'Over by ' + Math.round(-r).toLocaleString() + ' ' + unit;
+  const r = goal - v, u = unit ? ' ' + unit : '';
+  if (v > goal * 1.1) return 'Over by ' + Math.round(v - goal).toLocaleString() + u;
+  if (r <= 0) return 'Goal reached';
+  return Math.round(r).toLocaleString() + u + ' to go' + (metV(v, goal) ? ', met' : '');
+}
+function fatTile(t, g) {
+  const [lo, hi] = fatR(g), v = Math.round(t.f), mx = Math.max(hi * 1.25, v * 1.05, 1), pos = x => (x / mx * 100).toFixed(1) + '%';
+  const st = v === 0 ? 'NOT LOGGED' : v < lo ? 'LOW, ' + (lo - v) + ' TO GO' : v > hi ? 'HIGH, ' + (v - hi) + ' OVER' : 'IN RANGE';
+  return `<div style="background:var(--g2);border-radius:14px;padding:12px 10px;min-width:0" role="img" aria-label="Fat ${v} grams, range ${lo} to ${hi}, ${st.toLowerCase()}"><div class="mono dim" style="font-size:10px;letter-spacing:.5px">FAT</div><div style="font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.02em">${v}<span class="dim" style="font-size:12px;font-weight:500"> g</span></div><div class="dim" style="font-size:11.5px">${lo} to ${hi} g</div><div style="position:relative;height:6px;border-radius:99px;background:var(--g3);margin:8px 0 7px"><i style="position:absolute;left:${pos(lo)};width:${((hi - lo) / mx * 100).toFixed(1)}%;top:-2px;bottom:-2px;border:1.5px solid var(--dim);border-radius:5px"></i><i style="position:absolute;left:0;top:0;bottom:0;width:${pos(Math.min(v, mx))};background:var(--fat);border-radius:99px"></i></div>${otag(st, st === 'IN RANGE')}</div>`;
 }
 function fuelStatus(t, g) {
   const head = '<div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div>';
   let say;
   if (!t.kcal && !t.p) say = 'Nothing logged yet today. Add what you ate below.';
-  else if (g.protein > 0) say = t.p >= g.protein ? 'Protein goal hit: ' + Math.round(t.p) + ' g.' : 'Protein is the gap: ' + Math.round(t.p) + ' of ' + g.protein + ' g, ' + Math.round(g.protein - t.p) + ' g to go.';
+  else if (g.protein > 0) {
+    const fr = fatR(g);
+    say = metV(t.p, g.protein) ? 'Protein is met at ' + Math.round(t.p) + ' of ' + g.protein + ' g.' : 'Protein is the gap: ' + Math.round(t.p) + ' of ' + g.protein + ' g, ' + Math.round(g.protein - t.p) + ' g to go.';
+    if (metV(t.p, g.protein) && fr && t.f > 0 && t.f < fr[0]) say += ' Fat is the gap: ' + Math.round(fr[0] - t.f) + ' g to reach the low end of your range.';
+  }
   else say = Math.round(t.kcal).toLocaleString() + ' kcal logged today.';
-  const hero = `<div role="img" aria-label="Protein ${Math.round(t.p)} grams${g.protein > 0 ? ' of ' + g.protein + ', ' + leftTxt(t.p, g.protein, 'g') : ''}"><div class="mono dim" style="font-size:11px;letter-spacing:.6px">PROTEIN, TODAY</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span style="font-size:48px;font-weight:700;letter-spacing:-.03em;line-height:1">${Math.round(t.p)}</span><span class="dim" style="font-size:15px">${g.protein > 0 ? 'of ' + g.protein + ' g' : 'g'}</span></div>${g.protein > 0 ? `<div style="margin:10px 0 6px">${pbar(t.p, g.protein, 'var(--prot)', 16)}</div>` : ''}<div style="font-size:14px;font-weight:600">${esc(leftTxt(t.p, g.protein, 'g'))}</div></div>`;
-  const en = `<div class="kc" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)" role="img" aria-label="Energy ${Math.round(t.kcal)} kilocalories${g.calories > 0 ? ' of ' + g.calories : ''}"><div class="row" style="align-items:baseline;flex-wrap:nowrap"><span style="font-weight:600">Energy</span><span><b style="font-size:17px">${Math.round(t.kcal).toLocaleString()}</b><span class="dim" style="font-size:13px">${g.calories > 0 ? ' / ' + g.calories.toLocaleString() : ''} kcal</span></span></div>${g.calories > 0 ? `<div style="margin:7px 0 4px">${pbar(t.kcal, g.calories, 'var(--acct)', 10)}</div>` : ''}<div class="dim" style="font-size:12.5px;text-align:right">${esc(leftTxt(t.kcal, g.calories, 'kcal'))}</div></div>`;
-  const tiles = MAC.slice(1).map(([kk, l, gk, col]) => `<div style="background:var(--g2);border-radius:14px;padding:12px 10px;min-width:0" role="img" aria-label="${l} ${Math.round(t[kk])} grams${g[gk] > 0 ? ' of ' + g[gk] + ', ' + leftTxt(t[kk], g[gk], 'g') : ''}"><div class="mono dim" style="font-size:10px;letter-spacing:.5px">${l.toUpperCase()}</div><div style="font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.02em">${Math.round(t[kk])}<span class="dim" style="font-size:12px;font-weight:500"> g</span></div><div class="dim" style="font-size:11.5px">${g[gk] > 0 ? 'of ' + g[gk] + ' g' : 'no goal'}</div>${g[gk] > 0 ? `<div style="margin:8px 0 5px">${pbar(t[kk], g[gk], col, 6)}</div>` : '<div style="height:19px"></div>'}<div style="font-size:11.5px;font-weight:600">${esc(g[gk] > 0 ? leftTxt(t[kk], g[gk], '').trim() : '')}</div></div>`).join('');
+  const hero = `<div role="img" aria-label="Protein ${Math.round(t.p)} grams${g.protein > 0 ? ' of ' + g.protein + ', ' + leftTxt(t.p, g.protein, 'g') : ''}"><div class="mono dim" style="font-size:11px;letter-spacing:.6px">PROTEIN, TODAY</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span style="font-size:48px;font-weight:700;letter-spacing:-.03em;line-height:1">${Math.round(t.p)}</span><span class="dim" style="font-size:15px">${g.protein > 0 ? 'of ' + g.protein + ' g' : 'g'}</span></div>${g.protein > 0 ? `<div style="margin:10px 0 6px">${pbar(t.p, g.protein, 'var(--prot)', 16)}</div>` : ''}<div class="row" style="align-items:center;flex-wrap:nowrap"><span style="font-size:14px;font-weight:600">${esc(leftTxt(t.p, g.protein, 'g').replace(', met', ''))}</span>${metV(t.p, g.protein) ? otag('MET AT ' + Math.round(TOL() * 100) + '%', true) : ''}</div></div>`;
+  const en = `<div class="kc" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)" role="img" aria-label="Energy ${Math.round(t.kcal)} kilocalories${g.calories > 0 ? ' of ' + g.calories : ''}"><div class="row" style="align-items:baseline;flex-wrap:nowrap"><span style="font-weight:600">Energy</span><span><b style="font-size:17px">${Math.round(t.kcal).toLocaleString()}</b><span class="dim" style="font-size:13px">${g.calories > 0 ? ' / ' + g.calories.toLocaleString() : ''} kcal</span></span></div>${g.calories > 0 ? `<div style="margin:7px 0 4px">${pbar(t.kcal, g.calories, 'var(--acct)', 10)}</div>` : ''}<div class="row" style="align-items:center;flex-wrap:nowrap"><span class="dim" style="font-size:12.5px">${g.calories > 0 ? 'Band ' + Math.round(g.calories * 0.9).toLocaleString() + ' to ' + Math.round(g.calories * 1.1).toLocaleString() : ''}</span>${g.calories > 0 && t.kcal > 0 ? otag(t.kcal < g.calories * 0.9 ? 'LOW' : t.kcal > g.calories * 1.1 ? 'HIGH' : 'IN BAND', t.kcal >= g.calories * 0.9 && t.kcal <= g.calories * 1.1) : ''}</div></div>`;
+  const tiles = MAC.slice(1).map(([kk, l, gk, col]) => gk === 'fat' && g.fat > 0 ? fatTile(t, g) : `<div style="background:var(--g2);border-radius:14px;padding:12px 10px;min-width:0" role="img" aria-label="${l} ${Math.round(t[kk])} grams${g[gk] > 0 ? ' of ' + g[gk] + ', ' + leftTxt(t[kk], g[gk], 'g') : ''}"><div class="mono dim" style="font-size:10px;letter-spacing:.5px">${l.toUpperCase()}</div><div style="font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.02em">${Math.round(t[kk])}<span class="dim" style="font-size:12px;font-weight:500"> g</span></div><div class="dim" style="font-size:11.5px">${g[gk] > 0 ? 'of ' + g[gk] + ' g' : 'no goal'}</div>${g[gk] > 0 ? `<div style="margin:8px 0 5px">${pbar(t[kk], g[gk], col, 6)}</div>` : '<div style="height:19px"></div>'}<div style="font-size:11.5px;font-weight:600">${esc(g[gk] > 0 ? leftTxt(t[kk], g[gk], '').trim() : '')}</div></div>`).join('');
   return `${head}<p class="sent" style="margin-bottom:10px">${esc(say)}</p><div class="card">${hero}${en}<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px">${tiles}</div></div>`;
 }
 let efMeal = null;
@@ -301,8 +312,8 @@ function foodEdit(id) {
 function fuelWeek() {
   const g = settings.goals; if (!(g.protein > 0)) return '';
   const ds = lastDays(7), vals = ds.map(k => { const f = dayFood(k); return f.length ? foodTot(k).p : null; });
-  const hit = vals.filter(v => v != null && v >= g.protein).length, have = vals.filter(v => v != null).length;
-  const head = have ? 'You hit protein on ' + hit + ' of ' + have + ' logged days.' : 'No food logged in the last 7 days.';
+  const hit = vals.filter(v => v != null && metV(v, g.protein)).length, have = vals.filter(v => v != null).length;
+  const head = have ? 'You met protein on ' + hit + ' of ' + have + ' logged days.' : 'No food logged in the last 7 days.';
   return `<div class="dl"><b></b><span class="m">THIS WEEK</span><b></b></div><div class="card"><div style="font-size:16px;font-weight:700;line-height:1.3">${esc(head)}</div><div class="dim" style="font-size:12px;margin:2px 0 10px">Last 7 days, goal ${g.protein} g. Filled bar = goal hit, outline = missed</div>${goalBars(vals, g.protein, 'var(--prot)', ds.map(dayInit), 'Protein, last 7 days. ' + head)}<div class="mono dim" style="font-size:10.5px;margin-top:8px">TODAY IS STILL OPEN</div></div>`;
 }
 /* ---------- fuel ---------- */

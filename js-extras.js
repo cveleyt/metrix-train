@@ -119,7 +119,7 @@ function reviewData() {
   R.three = R.w0 != null && R.w1 != null && R.w2 != null;
   const tips = [], p = settings.profile || {}, goal = p.goal;
   if (R.tr < R.tot) tips.push({ t: 'You trained ' + R.tr + ' of ' + R.tot + ' days in the last 7. Plan the missing sessions on fixed days and keep them short if needed.' });
-  if (g.protein > 0 && R.pro != null && R.pro < g.protein * 0.9) tips.push({ t: 'Protein averaged ' + Math.round(R.pro) + ' g, ' + Math.round(g.protein - R.pro) + ' g under your goal. A protein snack or shake closes most of that.' });
+  if (g.protein > 0 && R.pro != null && !metV(R.pro, g.protein)) tips.push({ t: 'Protein averaged ' + Math.round(R.pro) + ' g, ' + Math.round(g.protein - R.pro) + ' g under your goal. A protein snack or shake closes most of that.' });
   if (g.steps > 0 && R.st != null && R.st < g.steps * 0.8) tips.push({ t: 'Steps averaged ' + Math.round(R.st).toLocaleString() + ', under 80% of your goal. A 15 minute walk after a meal adds about 1,500 steps.' });
   if (g.sleep > 0 && R.sl != null && R.sl < g.sleep - 0.75) tips.push({ t: 'Sleep averaged ' + sleepTxt(R.sl) + ', short of your ' + g.sleep + ' h goal. Poor sleep slows recovery and raises hunger.' });
   const mon0 = mondayOf(tk), pains = names => names, painWk = o => new Set(notelog.filter(n => (n.tags || []).includes('Pain') && mondayOf(dkey(n.t)) === kAdd(mon0, 7 * o)).map(n => n.name));
@@ -140,10 +140,11 @@ function reviewData() {
 function reviewView() {
   const R = reviewData(), g = settings.goals, cache = settings.review && settings.review.at === todayKey() ? settings.review.text : '';
   const row = (lab, v, goalTxt, tag, col) => `<div class="li"><span><b>${lab}</b><br><small>${goalTxt}</small></span><span style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap"><span class="n" style="font-size:20px;color:var(--ink);white-space:nowrap">${v}</span> ${otag(tag, col === 'var(--ok)')}</span></div>`;
-  const vs = (v, goal, unit, f) => { if (v == null) return ['NO DATA', '']; if (!(goal > 0)) return ['NO GOAL', '']; if (Math.abs(v - goal) <= goal * 0.05) return ['ON TARGET', 'var(--ok)']; const d = f ? f(Math.abs(v - goal)) : Math.round(Math.abs(v - goal)).toLocaleString() + (unit ? ' ' + unit : ''); return [d + (v < goal ? ' UNDER' : ' OVER'), '']; };
-  const [a1, c1] = vs(R.pro, g.protein, 'G'), [a2, c2] = vs(R.st, g.steps, ''), [a3, c3] = vs(R.sl, g.sleep, '', d => Math.round(d * 60) + ' MIN'), kt = vs(R.kc, g.calories, 'KCAL');
+  const vs = (v, goal, unit, f) => { if (v == null) return ['NO DATA', '']; if (!(goal > 0)) return ['NO GOAL', '']; if (metV(v, goal)) return ['MET', 'var(--ok)']; const d = f ? f(goal - v) : Math.round(goal - v).toLocaleString() + (unit ? ' ' + unit : ''); return [d + ' TO GO', '']; };
+  const band = (v, goal) => { if (v == null) return ['NO DATA', '']; if (!(goal > 0)) return ['NO GOAL', '']; if (v >= goal * 0.9 && v <= goal * 1.1) return ['IN BAND', 'var(--ok)']; return [Math.round(Math.abs(v - goal)).toLocaleString() + ' KCAL ' + (v < goal ? 'LOW' : 'HIGH'), '']; };
+  const [a1, c1] = vs(R.pro, g.protein, 'G'), [a2, c2] = vs(R.st, g.steps, ''), [a3, c3] = vs(R.sl, g.sleep, '', d => Math.round(d * 60) + ' MIN'), kt = band(R.kc, g.calories);
   const wTag = R.slope == null ? 'NO TREND YET' : Math.abs(R.slope) < 0.05 ? 'FLAT' : (R.slope > 0 ? 'UP ' : 'DOWN ') + r1(Math.abs(dw(R.slope))) + ' ' + UW() + ' A WEEK';
-  const tr = ['TRAINING', R.tr + ' of ' + R.tot, 'Workouts in the last 7 days', R.tr >= R.tot ? 'ALL DONE' : (R.tot - R.tr) + ' TO GO'];
+  const tr = ['TRAINING', R.tr + ' of ' + R.tot, 'Workouts in the last 7 days', R.tr >= Math.round(R.tot * TOL()) ? (R.tr >= R.tot ? 'ALL DONE' : 'MET') : (R.tot - R.tr) + ' TO GO'];
   return `<div class="card" style="padding:6px 16px"><div class="m" style="padding:10px 0 2px">LAST 7 DAYS</div>
   ${row(tr[0], tr[1], tr[2], tr[3], R.tr >= R.tot ? 'var(--ok)' : 'var(--rest)')}
   ${row('PROTEIN', R.pro == null ? '-' : Math.round(R.pro) + ' g', 'Daily average, goal ' + (g.protein > 0 ? g.protein + ' g' : 'not set'), a1, c1)}
@@ -151,7 +152,7 @@ function reviewView() {
   ${row('STEPS', R.st == null ? '-' : Math.round(R.st).toLocaleString(), 'Daily average, goal ' + (g.steps || 0).toLocaleString(), a2, c2)}
   ${row('SLEEP', R.sl == null ? '-' : sleepTxt(R.sl), 'Nightly average, goal ' + g.sleep + ' h', a3, c3)}
   ${row('WEIGHT', R.w0 == null ? '-' : wt(R.w0), 'Average this week', wTag)}</div>
-  <div class="card"><div class="m">HOW THE TAGS WORK</div><p style="margin:8px 0 0"><small>ON TARGET means within 5% of your goal. UNDER or OVER says by how much. Training counts workouts done in the last 7 days against your plan. Outline tags only, so nothing depends on color.</small></p></div>
+  <div class="card"><div class="m">HOW THE TAGS WORK</div><p style="margin:8px 0 0"><small>MET means you reached your threshold, set in Goals (now ${Math.round(TOL() * 100)}%). Below it, the tag says how much is left. Energy uses a band of plus or minus 10%. Training counts workouts done in the last 7 days against your plan. Outline tags only, so nothing depends on color.</small></p></div>
   <div class="cut"><div class="row" style="justify-content:space-between"><span class="m">SUGGESTIONS</span><span class="t" style="color:var(--move)">FROM YOUR NUMBERS</span></div>
   ${R.tips.length ? R.tips.map((t, i) => `<p style="margin:10px 0 0">${i + 1}. ${esc(t.t)}</p>${t.apply ? `<button class="btn ghost" data-act="rv-apply" data-d="${t.apply}" style="margin-top:8px">${t.apply < 0 ? 'Lower' : 'Raise'} calorie goal by 150</button>` : ''}`).join('') : '<p style="margin:10px 0 0">Everything is on track. Keep going.</p>'}
   <p style="margin:12px 0 0"><small>Nothing changes by itself. You decide. These are general tips, not medical advice.</small></p></div>

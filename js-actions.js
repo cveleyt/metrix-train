@@ -223,12 +223,31 @@ async function act(a, el) {
       if (!Object.keys(daily[k]).length) delete daily[k];
       saveDaily(); refreshRings(); break;
     }
+    case 'tol-in': {
+      const v = Math.min(100, Math.max(70, parseInt(el.value, 10) || 80)); settings.tol = v; saveSettings();
+      const a = $('#tol-v'), l = $('#tol-l'); if (a) a.textContent = v + '%'; if (l) l.innerHTML = tolList(); break;
+    }
+    case 'fat-rec': {
+      const g = settings.goals; if (!(g.calories > 0)) { toast('Set your energy goal first'); break; }
+      const kg = lastKg(), r = fatRec(g.calories, kg), cur = g.fat > 0 ? Math.round(g.fat * 9 / g.calories * 100) : 0;
+      const tr = (a, b) => `<div class="row" style="padding:9px 0;border-top:1px solid var(--line);font-size:14px"><span class="dim">${a}</span><b>${b}</b></div>`;
+      showModal(`<div class="m" style="color:var(--acct)">FAT GOAL</div><div class="n" style="font-size:44px;margin:6px 0 2px">${r.lo} to ${r.hi}<span class="dim" style="font-size:16px"> g per day</span></div>
+      <p><small>${g.fat > 0 ? 'Your current goal is ' + g.fat + ' g, which is ' + cur + '% of your energy. The usual range is 25 to 30%.' : 'No fat goal yet.'}</small></p>
+      <div class="m" style="margin:10px 0 2px">HOW THE NUMBER IS BUILT</div>${tr('Energy goal', g.calories.toLocaleString() + ' kcal')}${tr('Fat share, 25 to 30%', Math.round(g.calories * .25) + ' to ' + Math.round(g.calories * .3) + ' kcal')}${tr('Divided by 9 kcal per g', r.lo + ' to ' + r.hi + ' g')}${tr('Floor, 0.6 g per kg x ' + r1(kg) + ' kg', r.fl + ' g, ' + (r.ok ? 'passed' : 'raised'))}
+      <p style="margin-top:10px"><small>The numbers come from a formula, not from the AI. You choose.</small></p>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn2" style="flex:1" data-act="mdl-close">${g.fat > 0 ? 'Keep ' + g.fat + ' g' : 'Not now'}</button><button class="btn" style="flex:1" data-act="fat-use" data-lo="${Math.max(r.lo, r.fl)}" data-hi="${Math.max(r.hi, r.fl)}">Use ${Math.max(r.lo, r.fl)} to ${Math.max(r.hi, r.fl)} g</button></div>`);
+      break;
+    }
+    case 'fat-use': {
+      const lo = +el.dataset.lo, hi = +el.dataset.hi; settings.goals.fat = Math.round((lo + hi) / 2); settings.goals.fatLo = lo; settings.goals.fatHi = hi; saveSettings(); closeModal(); render(); break;
+    }
     case 'goal-in': {
       const f = el.dataset.f, v = parseFloat(String(el.value).replace(',', '.'));
       if (v > 0) settings.goals[f] = f === 'weight' ? rnd(fw(v)) : v;
       else if (f === 'steps') settings.goals[f] = 10000;
       else if (f === 'sleep') settings.goals[f] = 8;
       else delete settings.goals[f];
+      if (f === 'fat') { delete settings.goals.fatLo; delete settings.goals.fatHi; }
       saveSettings(); break;
     }
     case 'rep-open': replacing = i; render(); break;
@@ -483,6 +502,7 @@ document.addEventListener('input', e => {
   else if (e.target.id === 'fd-g') applyDb();
   else if (e.target.id === 'fd-fq') { $('#fd-fl').innerHTML = foodsList(e.target.value); }
   else if (e.target.id === 'nt-q') act('nq-in', e.target);
+  else if (e.target.id === 'tol-r') act('tol-in', e.target);
 });
 window.addEventListener('mxsync', () => { const e = $('#sync-st'); if (e && window.MXSYNC) e.textContent = MXSYNC.label(); });
 document.addEventListener('pointerdown', unlockAudio);
