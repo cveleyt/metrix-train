@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.14.4';
+const VERSION = '3.14.5';
 const CHANGELOG = [
+  { v: '3.14.5', items: ['Editing a finished workout has the EACH SIDE toggle for each exercise'] },
   { v: '3.14.4', items: ['Weight and reps boxes line up: labels, numbers and the - and + buttons sit at the same height'] },
   { v: '3.14.3', items: ['Rest timer bubble removed (the rest timer stays inside the set card)', '+ and - under weight and reps, and the note button, are now centered'] },
   { v: '3.14.2', items: ['EACH SIDE toggle next to WEIGHT on every exercise with weight'] },

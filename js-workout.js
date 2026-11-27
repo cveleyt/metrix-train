@@ -35,7 +35,8 @@ function resetSets(x) {
 }
 /* R1 set card (v3.5): finished sets as compact rows, one big card for the current set. */
 function old_rows(ex, x, i, sg) {
-  return `<div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || UW())}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>`
+  const po = exOpt(x.name);
+  return (ex.noWeight ? '' : `<div class="wrow" style="margin-bottom:8px"><button class="eachtg${po.ps ? ' on' : ''}" data-act="ps-tog" data-n="${esc(x.name)}" aria-pressed="${!!po.ps}">${po.ps ? '&#10003; ' : ''}EACH SIDE</button><small class="dim">${po.ps ? 'Weights below are per side' : 'Turn on if the weights below are per side'}</small></div>`) + `<div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || UW())}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>`
     + x.sets.map((t, j) => setRow(ex, t, i, j)).join('');
 }
 function centerReps() { document.querySelectorAll('.rnums').forEach(r => { const s = r.querySelector('.rn.s'); if (s) r.scrollLeft = s.offsetLeft - (r.clientWidth - s.offsetWidth) / 2; }); }
