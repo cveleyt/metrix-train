@@ -56,8 +56,7 @@ function r1Sets(ex, x, i, sg, prev) {
   const lt = lastDone >= 0 ? sets[lastDone] : null;
   const resultPanel = !lt || edit_() ? '' : (() => {
     const bs = bestSet(x.name, cur().id), nb = !!bs && !ex.noWeight && (lt.w > bs.w || (lt.w === bs.w && lt.r > bs.r));
-    const run = timer && (timer.state || 'run') !== 'idle';
-    const rest = timer ? `<div class="row" style="align-items:center;flex-wrap:nowrap;gap:12px;margin-top:12px;border-top:1px solid var(--line);padding-top:12px"><div><div class="m">REST</div><div id="ir-time" class="n" style="font-size:30px;line-height:1.1">${run ? fdur(Math.max(0, Math.ceil(timer.min - tel(timer))) * 1000) : fdur(timer.min * 1000)}</div></div><div class="bar" style="flex:1;margin:0"><i id="ir-fill" style="background:var(--acc);width:${run ? Math.min(100, tel(timer) / timer.max * 100).toFixed(0) : 0}%"></i></div>${run ? '<button class="mini" data-act="tskip">Skip</button>' : '<button class="mini" data-act="tstart">Start</button>'}</div>` : '';
+    const rest = '';
     return `<div class="resp"><div class="row" style="align-items:center"><b style="font-size:17px">Set ${lastDone + 1} logged</b>${nb ? `<span class="nbt${fresh(lastDone) ? ' pop' : ''}">NEW BEST</span>` : ''}</div>${nb ? `<div style="font-size:14px;margin-top:6px;color:var(--ink2)">${lt.w > bs.w ? '+' + r1(dw(lt.w - bs.w)) + ' ' + UW() : '+' + (lt.r - bs.r) + (lt.r - bs.r === 1 ? ' rep' : ' reps')} on your best (${r1(dw(bs.w))} x ${bs.r})</div>` : ''}<div style="font-size:15px;margin-top:6px"><b>${ex.noWeight ? '' : r1(dw(lt.w)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${lt.r}</b> <span class="dim">${esc(dtxt(lt, lastDone))}</span></div>${rpeOn() ? rpeRow(i, lastDone, lt).replace('HOW HARD', 'HOW HARD WAS IT? OPTIONAL') : ''}${rest}</div>`;
   })();
   if (cj < 0) return resultPanel + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
@@ -155,9 +154,13 @@ function popupHTML() {
 function timerBar() {
   if (timer) {
     const st = timer.state || 'run';
-    const mid = st === 'idle' ? '<button class="mini" data-act="tstart">Start</button>' : st === 'run' ? '<button class="mini" data-act="tpause">Pause</button>' : '<button class="mini" data-act="tresume">Resume</button>';
-    let fp = null; try { fp = JSON.parse(localStorage.getItem('mx.fab')); } catch (e) {}
-    return `<button class="tfab" id="tfab" data-act="tshow" aria-label="Open rest timer" style="${fp ? 'left:' + fp.fx * 100 + '%;top:' + fp.fy * 100 + '%' : ''}"><div id="tmr-fill" class="fill"></div><b id="tmr-main">0:00</b><span class="fs" id="tfab-st"></span><small id="tmr-lab"></small></button>`;
+    const ctl = st === 'idle' ? '<button class="mini" data-act="tstart">Start</button>' : st === 'pause' ? '<button class="mini" data-act="tresume">Resume</button>' : '<button class="mini" data-act="t+30">+30 s</button>';
+    const mn = timer.min, mx = Math.max(timer.max, timer.min), pm = mx ? mn / mx * 100 : 100;
+    return `<div class="tbar rb" id="rbar" role="timer" aria-live="off"><div class="tin2"><div class="row" style="flex-wrap:nowrap;justify-content:space-between;align-items:flex-end">
+    <div style="min-width:0"><div class="m" id="rb-lab" style="margin:0">REST${timer.next ? ', NEXT ' + esc(timer.next.replace(/,.*$/, '').toUpperCase()) : ''}</div><b id="rb-time" class="rbt">${fdur(mn * 1000)}</b></div>
+    <div class="row" style="flex-wrap:nowrap;gap:8px">${ctl}<button class="mini" data-act="tskip">Skip</button></div></div>
+    <div class="rbtrack"><i id="rb-fill"></i>${mx > mn ? `<b style="left:${pm.toFixed(1)}%"></b>` : ''}<b style="left:calc(100% - 2px)"></b></div>
+    <div class="row m" style="margin:0;justify-content:space-between;flex-wrap:nowrap"><span>0:00</span>${mx > mn ? `<span>READY ${fdur(mn * 1000)}</span>` : ''}<span>${mx > mn ? 'MAX ' : 'READY '}${fdur(mx * 1000)}</span></div></div></div>`;
   }
   return `<div class="tbar"><div class="tin"><small>Rest timer</small><div class="row">${[60, 90, 120, 180].map(s => `<button class="mini" data-act="tpre" data-s="${s}">${fdur(s * 1000)}</button>`).join('')}</div></div></div>`;
 }
