@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.14.2';
+const VERSION = '3.14.3';
 const CHANGELOG = [
+  { v: '3.14.3', items: ['Rest timer bubble removed (the rest timer stays inside the set card)', '+ and - under weight and reps, and the note button, are now centered'] },
   { v: '3.14.2', items: ['EACH SIDE toggle next to WEIGHT on every exercise with weight'] },
   { v: '3.14.1', items: ['Exercises you have not started show all dashed circles, so only the one you are doing has the ring'] },
   { v: '3.14.0', items: ['New set indicators: numbered circles (check = logged, ring = now, dashed = to do), "Set 3 of 4", and a line of what you logged. Tap a logged set to fix its weight and reps, or remove it', 'Edit workout button on the finished summary and on Today after a workout is done'] },

@@ -53,3 +53,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.14.0 | Set circles plus logged-sets line with tap-to-fix; Edit workout on summary and Today | Top set indicators were hard to read; done workouts could only be edited from History |
 | 3.14.1 | Unstarted collapsed cards show no ring | Matches approved board; ring means the set you are on |
 | 3.14.2 | EACH SIDE pill beside WEIGHT label on every weighted exercise; removed duplicate in More | User drew the placement |
+| 3.14.3 | Floating rest timer bubble hidden; stepper and note buttons centered with flex | User request; inline rest timer remains in the set card |
