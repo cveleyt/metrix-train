@@ -54,3 +54,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.14.1 | Unstarted collapsed cards show no ring | Matches approved board; ring means the set you are on |
 | 3.14.2 | EACH SIDE pill beside WEIGHT label on every weighted exercise; removed duplicate in More | User drew the placement |
 | 3.14.3 | Floating rest timer bubble hidden; stepper and note buttons centered with flex | User request; inline rest timer remains in the set card |
+| 3.14.4 | Weight and reps boxes aligned with fixed label, number and sub heights, stepper pinned to bottom | Pill made weight box taller than reps |
