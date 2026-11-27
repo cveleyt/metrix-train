@@ -50,3 +50,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.12.0 | Weight per side (Dumbbell, Smith) with bar weight, effort picker on by default in the set card, AI estimate as a full-width button |
 | 3.13.0 | Set card rework: pre-filled fields with plus and minus, one-tap Log, result panel with NEW BEST, effort and inline rest timer; timer popup no longer auto-opens |
 | 3.13.1 | Primary buttons use white text on a deeper blue (--accf); + menu closes on every choice and on any navigation | Dark text on blue was hard to read; Resume workout left the sheet open |
+| 3.14.0 | Set circles plus logged-sets line with tap-to-fix; Edit workout on summary and Today | Top set indicators were hard to read; done workouts could only be edited from History |

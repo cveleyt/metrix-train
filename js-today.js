@@ -175,7 +175,7 @@ function doneCard(s) {
   return `<div class="sess dnc"><div class="row" style="justify-content:space-between"><span class="m dtag">${SVG_CK} DONE TODAY</span><span class="m">${esc(fd(s.finishedAt).toUpperCase())}${mins ? ' &middot; ' + mins + ' MIN' : ''}</span></div>
   <div class="n" style="font-size:34px;margin:8px 0 4px">${esc(s.name)}</div><div style="font-weight:600">${doneCount(s)} sets &middot; ${Math.round(dw(volume(s))).toLocaleString()} ${UW()} volume</div>
   ${nb.length ? `<div style="margin-top:8px"><span class="tag">NEW BEST</span> <small class="dim">${esc(nb.slice(0, 3).join(', '))}</small></div>` : ''}
-  <button class="btn" style="margin-top:14px" data-act="view-sum" data-id="${esc(s.id)}">View summary</button></div>`;
+  <div class="row" style="gap:8px;margin-top:14px;flex-wrap:nowrap"><button class="btn" style="flex:1" data-act="view-sum" data-id="${esc(s.id)}">View summary</button><button class="btn ghost" style="flex:1" data-act="edit-session" data-id="${esc(s.id)}">Edit</button></div></div>`;
 }
 function nextRow() {
   const n = nextWorkout(), d = dayOf(n.dayKey) || DAYS[0], sets = d.exercises.reduce((a, e) => a + e.sets, 0);

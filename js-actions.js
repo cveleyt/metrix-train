@@ -148,6 +148,15 @@ async function act(a, el) {
       const v = parseFloat(String(el.value).replace(',', '.'));
       setW(cur(), i, j, isNaN(v) || v < 0 ? 0 : rnd(fw(v))); persist(); syncInputs(i); updGo(i, j); { const pt = $('#pstot-' + i); if (pt) pt.textContent = psTot(cur().exercises[i], isNaN(v) || v < 0 ? 0 : rnd(fw(v))); } break;
     }
+    case 'fix-open': fixSet = fixSet && fixSet.i === i && fixSet.j === j ? null : { i, j }; render(); break;
+    case 'fix-cancel': fixSet = null; render(); break;
+    case 'fix-save': {
+      const t = cur().exercises[i].sets[j], wv = $('#fx-w'), rv = $('#fx-r');
+      if (wv) { const v = parseFloat(String(wv.value).replace(',', '.')); t.w = isNaN(v) || v < 0 ? 0 : rnd(fw(v)); }
+      if (rv) { const v = parseInt(rv.value, 10); t.r = isNaN(v) || v < 0 ? 0 : v; }
+      fixSet = null; persist(); render(); toast('Set ' + (j + 1) + ' fixed'); break;
+    }
+    case 'fix-undo': cur().exercises[i].sets[j].done = false; fixSet = null; persist(); render(); break;
     case 'rstep': { const q = cur().exercises[i].sets[j]; q.r = Math.max(0, (q.r || 0) + (el.dataset.d === '+' ? 1 : -1)); persist(); render(); break; }
     case 'r-in': {
       const v = parseInt(el.value, 10); cur().exercises[i].sets[j].r = isNaN(v) || v < 0 ? 0 : v; persist(); updGo(i, j); break;

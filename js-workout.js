@@ -59,7 +59,7 @@ function r1Sets(ex, x, i, sg, prev) {
     const rest = timer ? `<div class="row" style="align-items:center;flex-wrap:nowrap;gap:12px;margin-top:12px;border-top:1px solid var(--line);padding-top:12px"><div><div class="m">REST</div><div id="ir-time" class="n" style="font-size:30px;line-height:1.1">${run ? fdur(Math.max(0, Math.ceil(timer.min - tel(timer))) * 1000) : fdur(timer.min * 1000)}</div></div><div class="bar" style="flex:1;margin:0"><i id="ir-fill" style="background:var(--acc);width:${run ? Math.min(100, tel(timer) / timer.max * 100).toFixed(0) : 0}%"></i></div>${run ? '<button class="mini" data-act="tskip">Skip</button>' : '<button class="mini" data-act="tstart">Start</button>'}</div>` : '';
     return `<div class="resp"><div class="row" style="align-items:center"><b style="font-size:17px">Set ${lastDone + 1} logged</b>${nb ? otag('NEW BEST', true) : ''}</div><div style="font-size:15px;margin-top:6px"><b>${ex.noWeight ? '' : r1(dw(lt.w)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${lt.r}</b> <span class="dim">${esc(dtxt(lt, lastDone))}</span></div>${rpeOn() ? rpeRow(i, lastDone, lt).replace('HOW HARD', 'HOW HARD WAS IT? OPTIONAL') : ''}${rest}</div>`;
   })();
-  if (cj < 0) return doneRows + resultPanel + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
+  if (cj < 0) return resultPanel + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
   const t = sets[cj], pv = prev ? (prev.sets[cj] || prev.sets[prev.sets.length - 1]) : null, st = incD(ex);
   const lo = ex.lo || 8, hi = ex.hi || 12;
   const cur_ = r1(dw(t.w || 0)), tryW = sg && sg.apply ? sg.apply : 0, lastW = pv ? pv.w : 0, prevW = cj > 0 && sets[cj - 1].done && sets[cj - 1].w ? sets[cj - 1].w : 0;
@@ -69,7 +69,7 @@ function r1Sets(ex, x, i, sg, prev) {
   const rfield = `<div class="ffield"><div class="m">${ex.side ? 'REPS PER SIDE' : 'REPS'}</div><label class="fnum"><input data-act="r-in" data-i="${i}" data-j="${cj}" type="number" inputmode="numeric" min="0" value="${t.r || ''}" placeholder="0" aria-label="Reps of set ${cj + 1}"></label><div class="dim fsub">${pv ? 'last time ' + pv.r : 'target ' + lo + ' to ' + hi}</div>${stepBtns('rstep', 'data-i="' + i + '" data-j="' + cj + '"')}</div>`;
   const chips = ex.noWeight ? '' : `<div class="rchips" style="margin-top:10px">${prevW ? chip('SET ' + cj + ' ' + r1(dw(prevW)), prevW, 0, t.w === prevW) : ''}${lastW && lastW !== prevW ? chip('LAST ' + r1(dw(lastW)), lastW, 0, t.w === lastW) : ''}${tryW && tryW !== lastW ? chip('TRY ' + r1(dw(tryW)), tryW, 0, t.w === tryW) : ''}</div>`;
   const beat = pv ? 'BEAT ' + (ex.noWeight ? '' : r1(dw(pv.w)) + ' x ') + pv.r : 'FIRST TIME';
-  return doneRows + resultPanel + `<div class="r1c"><div class="row" style="align-items:center"><span class="m">SET ${cj + 1} OF ${sets.length}</span>${otag(beat, true)}</div><div class="fgrid">${wfield}${rfield}</div>${chips}
+  return resultPanel + `<div class="r1c"><div class="row" style="align-items:center"><span class="m">SET ${cj + 1} OF ${sets.length}</span>${otag(beat, true)}</div><div class="fgrid">${wfield}${rfield}</div>${chips}
     <button class="r1go" id="r1go-${i}" data-act="done" data-i="${i}" data-j="${cj}"><span id="r1go-t-${i}">Log ${ex.noWeight ? '' : cur_ + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${t.r || 0}</span><span aria-hidden="true">&#10003;</span></button></div>`;
 }
 function bestSet(name, excludeId) {
@@ -78,10 +78,24 @@ function bestSet(name, excludeId) {
   return b;
 }
 function topSet(x) { return x.sets.filter(t => t.done).reduce((b, t) => (!b || t.w > b.w || (t.w === b.w && t.r > b.r)) ? t : b, null); }
-function setStrip(x) {
+const CK_S = '<svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function setStrip(x, big, i) {
   const cj = x.sets.findIndex(t => !t.done);
-  return `<div class="sgs" aria-hidden="true">${x.sets.map((t, j) => `<i class="${t.done ? 'f' : j === cj ? 'c' : ''}"></i>`).join('')}</div>`;
+  return `<div class="sdots${big ? ' big' : ''}">${x.sets.map((t, j) => t.done ? `<span class="sd f"${big ? ` data-act="fix-open" data-i="${i}" data-j="${j}" role="button" aria-label="Set ${j + 1} logged. Tap to fix"` : ' aria-hidden="true"'}>${CK_S}</span>` : `<span class="sd ${j === cj ? 'c' : 'u'}" aria-hidden="true">${j + 1}</span>`).join('')}</div>`;
 }
+function logLine(ex, x, i) {
+  const po = exOpt(x.name), ds = x.sets.map((t, j) => [t, j]).filter(a => a[0].done);
+  if (!ds.length) return '';
+  const chips = ds.map(([t, j]) => `<button class="lgc${fixSet && fixSet.i === i && fixSet.j === j ? ' on' : ''}" data-act="fix-open" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1}: ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to fix">${ex.noWeight ? '' : r1(dw(t.w)) + (po.ps ? ' each' : '') + ' x '}${t.r}</button>`).join('');
+  let panel = '';
+  if (fixSet && fixSet.i === i && x.sets[fixSet.j] && x.sets[fixSet.j].done) {
+    const j = fixSet.j, t = x.sets[j];
+    panel = `<div class="fixp"><div class="m">FIXING SET ${j + 1}</div><div class="fgrid">${ex.noWeight ? '' : `<div class="ffield"><div class="m">${po.ps ? UW().toUpperCase() + ' EACH SIDE' : esc(ex.wlabel || 'WEIGHT')}</div><label class="fnum"><input id="fx-w" type="number" inputmode="decimal" step="any" min="0" value="${t.w ? r1(dw(t.w)) : ''}" aria-label="Weight of set ${j + 1}"><span class="dim">${UW()}</span></label></div>`}<div class="ffield"><div class="m">${ex.side ? 'REPS PER SIDE' : 'REPS'}</div><label class="fnum"><input id="fx-r" type="number" inputmode="numeric" min="0" value="${t.r || ''}" aria-label="Reps of set ${j + 1}"></label></div></div>
+    <div class="row" style="gap:8px;margin-top:10px"><button class="r1go fxs" style="margin:0;height:50px;flex:1" data-act="fix-save" data-i="${i}" data-j="${j}"><span>Save set ${j + 1}</span></button><button class="mini" data-act="fix-cancel">Cancel</button><button class="mini" data-act="fix-undo" data-i="${i}" data-j="${j}">Remove log</button></div></div>`;
+  }
+  return `<div class="lgl">${chips}</div>${panel}`;
+}
+let fixSet = null;
 let flashSet = null, moreOpen = -1;
 function exCard(c, x, i, edit) {
   const ex = exOf(x);
@@ -97,7 +111,7 @@ function exCard(c, x, i, edit) {
     <div class="row"><button class="mini" data-act="addset" data-i="${i}">+ Set</button><button class="mini" data-act="rmset" data-i="${i}">- Set</button>${edit ? '' : `<button class="mini" data-act="warm-add" data-i="${i}">+ Warm-up</button>${(x.warm || []).length ? `<button class="mini" data-act="warm-rm" data-i="${i}">- Warm-up</button>` : ''}`}
     ${ex.noWeight ? '' : `<button class="mini" data-act="inc" data-i="${i}">Step: ${incD(ex)} ${UW()}</button>`}${edit ? '' : `<button class="mini" data-act="skip-open" data-i="${i}">Skip exercise</button>`}</div>`;
     const mo = edit || moreOpen === i;
-    body = `<div class="bd">${edit ? '' : (x.warm || []).map((t, j) => warmRow(ex, t, i, j)).join('')}${edit ? old_rows(ex, x, i, sg) : r1Sets(ex, x, i, sg, prev)}
+    body = `<div class="bd">${edit ? '' : (x.warm || []).map((t, j) => warmRow(ex, t, i, j)).join('')}${edit ? old_rows(ex, x, i, sg) : logLine(ex, x, i) + r1Sets(ex, x, i, sg, prev)}
     ${edit ? '' : `<button class="morerow" data-act="more" data-i="${i}" aria-expanded="${mo}"><span>More</span><small>${mo ? 'hide' : 'notes, replace, add set, step'}</small><span aria-hidden="true">${mo ? '&#9652;' : '&#9662;'}</span></button>`}${mo ? `<div class="morebox">${more}</div>` : ''}</div>`;
   }
   const n = x.sets.length, cj = x.sets.findIndex(t => !t.done), ts = all ? topSet(x) : null;
@@ -108,7 +122,7 @@ function exCard(c, x, i, edit) {
   const sub = all && ts ? n + ' sets, top set ' + (ex.noWeight ? '' : r1(dw(ts.w)) + ' ' + UW() + ' x ') + ts.r : (x.orig || x.extra ? n + ' sets' : ex.sets + ' x ' + ex.lo + '-' + ex.hi) + (ex.side ? ' per side' : '') + ' &middot; rest ' + restTxt(ex.rest);
   return `<section class="ex ${isOpen ? 'open' : ''} ${all ? 'complete' : ''} ${x.skipped ? 'skipped' : ''}">
   <div class="exw"><button class="exh" data-act="toggle" data-i="${i}" aria-expanded="${isOpen}"><div style="flex:1;min-width:0"><b>${esc(x.name)}</b> <span class="spec">&middot; ${spec}</span>
-  ${all && ts ? `<div class="sub">${sub}</div>` : ''}${x.skipped ? '' : `<div class="sgrow">${setStrip(x)}<span class="sgl">${all ? '&#10003; DONE' : lab}</span></div>`}${nb ? '<div class="nbest"><span class="tag">NEW BEST</span></div>' : ''}</div>
+  ${all && ts ? `<div class="sub">${sub}</div>` : ''}${x.skipped ? '' : isOpen && !edit ? `<div class="sgrow">${setStrip(x, true, i)}<span class="sgr"><b>${all ? 'All ' + n + ' sets done' : 'Set ' + (cj + 1) + ' of ' + n}</b><small>${dn} logged</small></span></div>` : `<div class="sgrow">${setStrip(x)}<span class="sgl">${all ? '&#10003; DONE' : lab}</span></div>`}${nb ? '<div class="nbest"><span class="tag">NEW BEST</span></div>' : ''}</div>
   ${x.skipped ? '<span class="cnt">SKIPPED</span>' : ''}</button>${edit ? '' : `<button class="ndot${notes[x.name] ? ' has' : ''}" data-act="note-open" data-i="${i}" aria-label="${notes[x.name] ? 'Edit note' : 'Add note'} for ${esc(x.name)}">${notes[x.name] ? 'NOTE' : '+'}</button>`}</div>${body}</section>`;
 }
 const TK = 90;
@@ -185,6 +199,6 @@ views.summary = p => {
   <div class="mchips" role="group" aria-label="Note type" style="margin-top:8px">${FB_TAGS.map(g => `<button type="button" class="ntg${saved && (saved.tags || []).includes(g) ? ' on' : ''}" data-act="nt-tag" aria-pressed="${!!(saved && (saved.tags || []).includes(g))}">${g}</button>`).join('')}</div>
   <small class="dim" style="display:block;margin-top:8px">Saved when you tap Done. Leave it empty to skip.</small></div>
   <div class="card"><span class="tag">NEXT WORKOUT</span><h3>${esc(nd.name)}, week ${n.week}</h3></div>
-  <div style="position:sticky;bottom:0;padding:14px 0 18px;background:linear-gradient(transparent,var(--bg) 30%)"><button class="btn" data-act="summary-done" data-id="${esc(s.id)}">Done</button></div>`;
+  <div style="position:sticky;bottom:0;padding:14px 0 18px;background:linear-gradient(transparent,var(--bg) 30%)"><button class="btn ghost" style="margin-bottom:10px" data-act="edit-session" data-id="${esc(s.id)}">Edit workout</button><button class="btn" data-act="summary-done" data-id="${esc(s.id)}">Done</button></div>`;
 };
 

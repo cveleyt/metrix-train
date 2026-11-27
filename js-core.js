@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.13.1';
+const VERSION = '3.14.0';
 const CHANGELOG = [
+  { v: '3.14.0', items: ['New set indicators: numbered circles (check = logged, ring = now, dashed = to do), "Set 3 of 4", and a line of what you logged. Tap a logged set to fix its weight and reps, or remove it', 'Edit workout button on the finished summary and on Today after a workout is done'] },
   { v: '3.13.1', items: ['Buttons that were dark text on blue are now white text on a deeper blue', 'The + menu now always closes when you pick something, including Resume workout'] },
   { v: '3.13.0', items: ['Set card: weight and reps are pre-filled with big minus and plus, and the button says exactly what it will log, for example Log 30 kg each x 10', 'After you log, the card shows Set N logged, NEW BEST, the change vs last time, one optional effort tap, and the rest timer inside the card', 'The rest timer no longer pops up over the screen on its own'] },
   { v: '3.12.0', items: ['Weight per side: Dumbbell and Smith exercises log "kg each side" with the total shown, volume counts both sides, and a switch plus optional bar weight live in More', 'Effort (6 to 10) is now on by default, sits in the set card before you log, and each logged set shows its RPE', 'Estimate with AI is a full-width button under Saved, Scan and Search'] },
@@ -283,6 +284,7 @@ try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () 
 /* ---------- navigation ---------- */
 function go(name, params, replace) {
   { const sm = document.querySelector('#mdl.sheet'); if (sm) closeModal(); }
+  fixSet = null;
   view = { name, params: params || {} };
   const st = { name: view.name, params: view.params };
   try { replace ? history.replaceState(st, '') : history.pushState(st, ''); } catch (e) {}
