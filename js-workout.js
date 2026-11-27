@@ -58,7 +58,7 @@ function r1Sets(ex, x, i, sg, prev) {
     const bs = bestSet(x.name, cur().id), nb = !!bs && !ex.noWeight && (lt.w > bs.w || (lt.w === bs.w && lt.r > bs.r));
     const run = timer && (timer.state || 'run') !== 'idle';
     const rest = timer ? `<div class="row" style="align-items:center;flex-wrap:nowrap;gap:12px;margin-top:12px;border-top:1px solid var(--line);padding-top:12px"><div><div class="m">REST</div><div id="ir-time" class="n" style="font-size:30px;line-height:1.1">${run ? fdur(Math.max(0, Math.ceil(timer.min - tel(timer))) * 1000) : fdur(timer.min * 1000)}</div></div><div class="bar" style="flex:1;margin:0"><i id="ir-fill" style="background:var(--acc);width:${run ? Math.min(100, tel(timer) / timer.max * 100).toFixed(0) : 0}%"></i></div>${run ? '<button class="mini" data-act="tskip">Skip</button>' : '<button class="mini" data-act="tstart">Start</button>'}</div>` : '';
-    return `<div class="resp"><div class="row" style="align-items:center"><b style="font-size:17px">Set ${lastDone + 1} logged</b>${nb ? otag('NEW BEST', true) : ''}</div><div style="font-size:15px;margin-top:6px"><b>${ex.noWeight ? '' : r1(dw(lt.w)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${lt.r}</b> <span class="dim">${esc(dtxt(lt, lastDone))}</span></div>${rpeOn() ? rpeRow(i, lastDone, lt).replace('HOW HARD', 'HOW HARD WAS IT? OPTIONAL') : ''}${rest}</div>`;
+    return `<div class="resp"><div class="row" style="align-items:center"><b style="font-size:17px">Set ${lastDone + 1} logged</b>${nb ? `<span class="nbt${fresh(lastDone) ? ' pop' : ''}">NEW BEST</span>` : ''}</div>${nb ? `<div style="font-size:14px;margin-top:6px;color:var(--ink2)">${lt.w > bs.w ? '+' + r1(dw(lt.w - bs.w)) + ' ' + UW() : '+' + (lt.r - bs.r) + (lt.r - bs.r === 1 ? ' rep' : ' reps')} on your best (${r1(dw(bs.w))} x ${bs.r})</div>` : ''}<div style="font-size:15px;margin-top:6px"><b>${ex.noWeight ? '' : r1(dw(lt.w)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${lt.r}</b> <span class="dim">${esc(dtxt(lt, lastDone))}</span></div>${rpeOn() ? rpeRow(i, lastDone, lt).replace('HOW HARD', 'HOW HARD WAS IT? OPTIONAL') : ''}${rest}</div>`;
   })();
   if (cj < 0) return resultPanel + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
   const t = sets[cj], pv = prev ? (prev.sets[cj] || prev.sets[prev.sets.length - 1]) : null, st = incD(ex);
@@ -82,12 +82,12 @@ function topSet(x) { return x.sets.filter(t => t.done).reduce((b, t) => (!b || t
 const CK_S = '<svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 function setStrip(x, big, i) {
   const cj = !big && !x.sets.some(t => t.done) ? -1 : x.sets.findIndex(t => !t.done);
-  return `<div class="sdots${big ? ' big' : ''}">${x.sets.map((t, j) => t.done ? `<span class="sd f"${big ? ` data-act="fix-open" data-i="${i}" data-j="${j}" role="button" aria-label="Set ${j + 1} logged. Tap to fix"` : ' aria-hidden="true"'}>${CK_S}</span>` : `<span class="sd ${j === cj ? 'c' : 'u'}" aria-hidden="true">${j + 1}</span>`).join('')}</div>`;
+  return `<div class="sdots${big ? ' big' : ''}${big && x.sets.length > 4 ? ' many' : ''}">${x.sets.map((t, j) => t.done ? `<span class="sd f"${big ? ` data-act="fix-open" data-i="${i}" data-j="${j}" role="button" aria-label="Set ${j + 1} logged. Tap to fix"` : ' aria-hidden="true"'}>${CK_S}</span>` : `<span class="sd ${j === cj ? 'c' : 'u'}" aria-hidden="true">${j + 1}</span>`).join('')}</div>`;
 }
 function logLine(ex, x, i) {
   const po = exOpt(x.name), ds = x.sets.map((t, j) => [t, j]).filter(a => a[0].done);
   if (!ds.length) return '';
-  const chips = ds.map(([t, j]) => `<button class="lgc${fixSet && fixSet.i === i && fixSet.j === j ? ' on' : ''}" data-act="fix-open" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1}: ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to fix">${ex.noWeight ? '' : r1(dw(t.w)) + (po.ps ? ' each' : '') + ' x '}${t.r}</button>`).join('');
+  const chips = ds.map(([t, j]) => `<button class="lgc${fixSet && fixSet.i === i && fixSet.j === j ? ' on' : ''}${flashSet && flashSet.i === i && flashSet.j === j && Date.now() - flashSet.t < 1700 ? ' sfresh' : ''}" data-act="fix-open" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1}: ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to fix">${ex.noWeight ? '' : r1(dw(t.w)) + (po.ps ? ' each' : '') + ' x '}${t.r}</button>`).join('');
   let panel = '';
   if (fixSet && fixSet.i === i && x.sets[fixSet.j] && x.sets[fixSet.j].done) {
     const j = fixSet.j, t = x.sets[j];
@@ -121,9 +121,9 @@ function exCard(c, x, i, edit) {
   const spec = (x.orig || x.extra || !ex.lo) ? n + (n === 1 ? ' set' : ' sets') : n + ' &times; ' + ex.lo + '-' + ex.hi + (ex.side ? ' per side' : '');
   const lab = x.skipped ? 'Skipped' : all ? 'Done' : dn > 0 || isOpen ? 'Set ' + (cj + 1) + ' of ' + n : n + (n === 1 ? ' set' : ' sets');
   const sub = all && ts ? n + ' sets, top set ' + (ex.noWeight ? '' : r1(dw(ts.w)) + ' ' + UW() + ' x ') + ts.r : (x.orig || x.extra ? n + (n === 1 ? ' set' : ' sets') : ex.sets + ' x ' + ex.lo + '-' + ex.hi) + (ex.side ? ' per side' : '') + ' &middot; rest ' + restTxt(ex.rest);
-  return `<section class="ex ${isOpen ? 'open' : ''} ${all ? 'complete' : ''} ${x.skipped ? 'skipped' : ''}">
+  return `<section class="ex ${isOpen ? 'open' : ''} ${all ? 'complete' : ''} ${edit ? 'editing' : ''} ${x.skipped ? 'skipped' : ''}">
   <div class="exw"><button class="exh" data-act="toggle" data-i="${i}" aria-expanded="${isOpen}"><div style="flex:1;min-width:0"><b>${esc(x.name)}</b> <span class="spec">&middot; ${spec}</span>
-  ${all && ts ? `<div class="sub">${sub}</div>` : ''}${x.skipped ? '' : isOpen && !edit ? `<div class="sgrow">${setStrip(x, true, i)}<span class="sgr"><b>${all ? 'All ' + n + ' sets done' : 'Set ' + (cj + 1) + ' of ' + n}</b><small>${dn} logged</small></span></div>` : `<div class="sgrow">${setStrip(x)}<span class="sgl">${all ? '&#10003; DONE' : lab}</span></div>`}${nb ? '<div class="nbest"><span class="tag">NEW BEST</span></div>' : ''}</div>
+  ${all && ts ? `<div class="sub">${sub}</div>` : ''}${x.skipped ? '' : isOpen && !edit ? `<div class="sgrow">${setStrip(x, true, i)}<span class="sgr"><b>${all ? 'All ' + n + ' sets done' : 'Set ' + (cj + 1) + ' of ' + n}</b><small>${dn} logged</small></span></div>` : `<div class="sgrow">${setStrip(x)}<span class="sgl">${all ? '&#10003; DONE' : lab}</span></div>`}${nb ? '<div class="nbest"><span class="nbt">NEW BEST</span></div>' : ''}</div>
   ${x.skipped ? '<span class="cnt">SKIPPED</span>' : ''}</button>${edit ? '' : `<button class="ndot${notes[x.name] ? ' has' : ''}" data-act="note-open" data-i="${i}" aria-label="${notes[x.name] ? 'Edit note' : 'Add note'} for ${esc(x.name)}">${notes[x.name] ? 'NOTE' : '+'}</button>`}</div>${body}</section>`;
 }
 const TK = 90;
@@ -188,7 +188,7 @@ views.summary = p => {
   const n = nextWorkout(), nd = dayOf(n.dayKey) || DAYS[0];
   const rowsT = s.exercises.map(x => {
     const ts = topSet(x), sk = x.skipped || !ts, bs = ts && bestSet(x.name, s.id), nb = !!ts && !!bs && (isNW(x.name) ? ts.r > bs.r : (ts.w > bs.w || (ts.w === bs.w && ts.r > bs.r)));
-    return `<div class="row" style="padding:11px 0;border-top:1px solid var(--line);align-items:center;flex-wrap:nowrap"><div><b>${esc(x.name)}</b><br><small class="dim">${sk ? 'Skipped' : doneCount({ exercises: [x] }) + (doneCount({ exercises: [x] }) === 1 ? ' set' : ' sets')}</small></div><div style="text-align:right">${nb ? otag('NEW BEST', true) + '<br>' : ''}<small class="dim">${sk ? '' : isNW(x.name) ? ts.r + ' reps' : r1(dw(ts.w)) + ' ' + UW() + ' x ' + ts.r}</small></div></div>`;
+    return `<div class="row sumr" style="padding:11px 0;border-top:1px solid var(--line);align-items:center;flex-wrap:nowrap"><div><b>${esc(x.name)}</b><br><small class="dim">${sk ? 'Skipped' : doneCount({ exercises: [x] }) + (doneCount({ exercises: [x] }) === 1 ? ' set' : ' sets')}</small></div><div style="text-align:right">${nb ? '<span class="nbt">NEW BEST</span><br>' : ''}<span class="sv">${sk ? '' : isNW(x.name) ? ts.r + ' reps' : r1(dw(ts.w)) + ' ' + UW() + ' x ' + ts.r}</span></div></div>`;
   }).join('');
   const saved = feedback.find(f => f.sid === s.id);
   return `<h2>Workout saved</h2>

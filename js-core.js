@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.15.0';
+const VERSION = '3.16.0';
 const CHANGELOG = [
+  { v: '3.16.0', items: ['Everything is bigger: Medium is now full size (Small and Large around it)', 'Small labels are at least 11 px, and small buttons are easier to hit', 'NEW BEST is a filled tag with how much you beat it by', 'The set you just logged flashes in the line of sets', 'Energy has its own amber color, so it no longer looks like protein', 'Workout summary values line up on the right', 'Edit mode no longer paints every exercise green', 'Fixed the empty box peeking at the top of the screen'] },
   { v: '3.15.0', items: ['Sync no longer overwrites data that came from another device', 'Editing a workout keeps rest times, and EACH SIDE there changes only that workout', 'Insights week arrows work again', 'Main buttons use the deeper blue for better contrast', 'Logging 0 kg or 0 reps asks you to tap again first', 'In lb, weight suggestions use your lb step', 'Importing a backup restores your settings, program edits and goals', 'Fixed a few labels: 1 set, steps goal, training per week, program name'] },
   { v: '3.14.5', items: ['Editing a finished workout has the EACH SIDE toggle for each exercise'] },
   { v: '3.14.4', items: ['Weight and reps boxes line up: labels, numbers and the - and + buttons sit at the same height'] },
@@ -83,6 +84,7 @@ let editing = null;                             // past session being edited (me
 let settings = Object.assign({ inc: {}, sound: true, vibrate: true, override: null }, LSget('mx.settings', {}));
 settings.ai = Object.assign({ key: '', model: 'gemini-3.1-flash-lite' }, settings.ai || {});
 settings.goals = Object.assign({ steps: 10000, sleep: 8, protein: 130 }, settings.goals || {});
+if (!settings.scale2) { settings.scale = { 0.72: 0.9, 0.8: 1, 0.9: 1.1 }[settings.scale] || 1; settings.scale2 = true; }
 let timer = LSget('mx.timer', null);
 let daily = LSget('mx.daily', {});             // {YYYY-MM-DD: {steps, sleep}}
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -307,7 +309,7 @@ async function wake() {
 function applyTheme() {
   const t = settings.theme || 'system', r = t === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
   document.documentElement.dataset.theme = r; document.documentElement.dataset.cs = settings.cs || '';
-  document.documentElement.style.zoom = settings.scale || 0.8;
+  document.documentElement.style.zoom = settings.scale || 1;
   const tc = $('#tc'); if (tc) tc.content = r === 'light' ? '#f1f2f7' : '#07080c';
 }
 try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if ((settings.theme || 'system') === 'system') applyTheme(); }); } catch (e) {}
