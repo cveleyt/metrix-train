@@ -80,7 +80,7 @@ function bestSet(name, excludeId) {
 function topSet(x) { return x.sets.filter(t => t.done).reduce((b, t) => (!b || t.w > b.w || (t.w === b.w && t.r > b.r)) ? t : b, null); }
 const CK_S = '<svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 function setStrip(x, big, i) {
-  const cj = x.sets.findIndex(t => !t.done);
+  const cj = !big && !x.sets.some(t => t.done) ? -1 : x.sets.findIndex(t => !t.done);
   return `<div class="sdots${big ? ' big' : ''}">${x.sets.map((t, j) => t.done ? `<span class="sd f"${big ? ` data-act="fix-open" data-i="${i}" data-j="${j}" role="button" aria-label="Set ${j + 1} logged. Tap to fix"` : ' aria-hidden="true"'}>${CK_S}</span>` : `<span class="sd ${j === cj ? 'c' : 'u'}" aria-hidden="true">${j + 1}</span>`).join('')}</div>`;
 }
 function logLine(ex, x, i) {
