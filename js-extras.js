@@ -195,6 +195,8 @@ function warmRow(ex, t, i, j) {
   return `<div class="set warm ${t.done ? 'done' : ''} ${ex.noWeight ? 'nw' : ''}"><span class="sn" title="Warm-up">W${j + 1}</span>
   ${ex.noWeight ? '' : stepper('ww', i, j, dw(t.w))}${stepper('wr', i, j, t.r)}<button class="dn" data-act="wdone" data-i="${i}" data-j="${j}">${t.done ? 'DONE' : 'Done'}</button></div>`;
 }
+const rpeOn = () => settings.rpe !== false;
+const RPE_W = { 6: ' EASY', 8: ' HARD', 10: ' MAX' };
 const rpeRow = (i, j, t) => `<div class="rpe" role="group" aria-label="How hard was set ${j + 1}"><span class="m">HOW HARD</span>${[6, 7, 8, 9, 10].map(v => `<button data-act="rpe" data-i="${i}" data-j="${j}" data-v="${v}" class="${t.rpe === v ? 'on' : ''}" aria-pressed="${t.rpe === v}">${v}</button>`).join('')}</div>`;
 
 /* barcode */

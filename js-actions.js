@@ -103,6 +103,8 @@ async function act(a, el) {
     case 'wdone': { const t = cur().exercises[i].warm[j]; t.done = !t.done; if (t.done) buzz(20); persist(); render(); break; }
     case 'rpe': { const t = cur().exercises[i].sets[j], v = +el.dataset.v; t.rpe = t.rpe === v ? undefined : v; persist(); render(); break; }
     case 'rpe-in': settings.rpe = el.checked; saveSettings(); break;
+    case 'ps-tog': { const n = el.dataset.n, o = exOpt(n); settings.exOpts = settings.exOpts || {}; settings.exOpts[n] = { ps: !o.ps, bar: o.bar || 0 }; saveSettings(); render(); break; }
+    case 'bar-in': { const n = el.dataset.n, v = parseFloat(String(el.value).replace(',', '.')); settings.exOpts = settings.exOpts || {}; settings.exOpts[n] = { ps: exOpt(n).ps, bar: isNaN(v) || v < 0 ? 0 : rnd(fw(v)) }; saveSettings(); render(); break; }
     case 'unit-set': settings.units = Object.assign({}, settings.units, { [el.dataset.f]: el.dataset.v }); saveSettings(); render(); break;
     case 'csv': exportCsv(el.dataset.k); break;
     case 'wk-nav': hist[el.dataset.k] = Math.min(0, hist[el.dataset.k] + (+el.dataset.n)); render(); break;
@@ -144,7 +146,7 @@ async function act(a, el) {
     }
     case 'w-in': {
       const v = parseFloat(String(el.value).replace(',', '.'));
-      setW(cur(), i, j, isNaN(v) || v < 0 ? 0 : rnd(fw(v))); persist(); syncInputs(i); break;
+      setW(cur(), i, j, isNaN(v) || v < 0 ? 0 : rnd(fw(v))); persist(); syncInputs(i); { const pt = $('#pstot-' + i); if (pt) pt.textContent = psTot(cur().exercises[i], isNaN(v) || v < 0 ? 0 : rnd(fw(v))); } break;
     }
     case 'r-in': {
       const v = parseInt(el.value, 10); cur().exercises[i].sets[j].r = isNaN(v) || v < 0 ? 0 : v; persist(); break;
@@ -210,7 +212,7 @@ async function act(a, el) {
     }
     case 'save-edit': {
       const e = editing;
-      const ex = e.exercises.map(x => ({ slotId: x.slotId, name: x.name, nw: x.nw, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true, rpe: t.rpe })), warm: x.warm })).filter(x => x.sets.length);
+      const ex = e.exercises.map(x => ({ slotId: x.slotId, name: x.name, nw: x.nw, ps: x.ps, bar: x.bar, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true, rpe: t.rpe })), warm: x.warm })).filter(x => x.sets.length);
       if (!ex.length) { toast('A workout needs at least one done set. Use Delete in History instead.'); break; }
       const k = sessions.findIndex(s => s.id === e.id);
       if (k >= 0) sessions[k] = Object.assign({}, sessions[k], { exercises: ex, updatedAt: Date.now() });
@@ -278,7 +280,7 @@ async function act(a, el) {
       if (hit) { revealNums(); $('#fd-kcal').value = hit.kcal; $('#fd-p').value = hit.p; $('#fd-c').value = hit.c; $('#fd-f').value = hit.f || 0; $('#fd-fi').value = hit.fi || 0; say('From your foods, instant. Tap Add to today.'); break; }
       if (!settings.ai.key) { say('Add your free Gemini key in Me, under Nutrition and AI.'); break; }
       if (!settings.aiOk) { askAi('food-ai'); break; }
-      btn.disabled = true; btn.textContent = 'Estimating...'; say('Asking the AI...');
+      btn.disabled = true; btn.querySelector('span').textContent = 'Estimating...'; say('Asking the AI...');
       try {
         const prompt = 'Estimate the total nutrition for this meal or food: "' + txt + '". Use the amounts given. If an amount is missing, assume one typical serving. Cooked weights unless stated otherwise. Return JSON with kcal (calories), protein_g, carbs_g, fat_g and fiber_g as numbers for the whole thing combined.';
         const body = JSON.stringify({
@@ -328,7 +330,7 @@ async function act(a, el) {
       } catch (e) {
         say(e.name === 'AbortError' ? 'Timed out. Check your connection and try again.' : (e instanceof TypeError ? 'No connection. You can still type the numbers yourself.' : e.message));
       }
-      btn.disabled = false; btn.textContent = 'Estimate';
+      btn.disabled = false; btn.querySelector('span').textContent = 'Estimate with AI';
       break;
     }
     case 'ai-key-in': settings.ai.key = el.value.trim(); saveSettings(); toast(settings.ai.key ? 'Key saved on this phone' : 'Key removed'); break;

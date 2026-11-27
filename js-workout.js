@@ -9,7 +9,7 @@ function stepper(k, i, j, v) {
 function setRow(ex, t, i, j) {
   return `<div class="set ${t.done ? 'done' : ''} ${ex.noWeight ? 'nw' : ''}"><span class="sn">${j + 1}</span>
   ${ex.noWeight ? '' : stepper('w', i, j, dw(t.w))}${stepper('r', i, j, t.r)}
-  <button class="dn" data-act="done" data-i="${i}" data-j="${j}">${t.done ? 'DONE' : 'Done'}</button></div>${settings.rpe && t.done ? rpeRow(i, j, t) : ''}${t.rest ? `<div class="m" style="text-align:right;margin:-4px 2px 6px;font-size:9.5px">REST ${fdur(t.rest * 1000)}</div>` : ''}`;
+  <button class="dn" data-act="done" data-i="${i}" data-j="${j}">${t.done ? 'DONE' : 'Done'}</button></div>${rpeOn() && t.done ? rpeRow(i, j, t) : ''}${t.rest ? `<div class="m" style="text-align:right;margin:-4px 2px 6px;font-size:9.5px">REST ${fdur(t.rest * 1000)}</div>` : ''}`;
 }
 let replacing = -1;
 function exOf(x) {
@@ -39,6 +39,7 @@ function old_rows(ex, x, i, sg) {
     + x.sets.map((t, j) => setRow(ex, t, i, j)).join('');
 }
 function centerReps() { document.querySelectorAll('.rnums').forEach(r => { const s = r.querySelector('.rn.s'); if (s) r.scrollLeft = s.offsetLeft - (r.clientWidth - s.offsetWidth) / 2; }); }
+function psTot(x, w) { const o = exOpt(x.name); if (!o.ps) return ''; const t = 2 * w + (o.bar || 0); return (o.bar ? '+ bar ' + r1(dw(o.bar)) + ' ' + UW() + ' = ' : '') + r1(dw(t)) + ' ' + UW() + ' total'; }
 function r1Sets(ex, x, i, sg, prev) {
   const sets = x.sets, cj = sets.findIndex(t => !t.done);
   const dtxt = (t, j) => {
@@ -46,9 +47,9 @@ function r1Sets(ex, x, i, sg, prev) {
     if (!ex.noWeight && t.w !== p.w) return (t.w > p.w ? '+' : '') + r1(dw(t.w - p.w)) + ' ' + UW() + ' vs last';
     return t.r === p.r ? 'same as last' : (t.r > p.r ? '+' : '') + (t.r - p.r) + (Math.abs(t.r - p.r) === 1 ? ' rep' : ' reps') + ' vs last';
   };
-  const lastDone = sets.reduce((m, t, j) => t.done ? j : m, -1);
+  const po = exOpt(x.name), lastDone = sets.reduce((m, t, j) => t.done ? j : m, -1);
   const fresh = j => flashSet && flashSet.i === i && flashSet.j === j && Date.now() - flashSet.t < 1700;
-  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone${fresh(j) ? ' sfresh' : ''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ' x '}${t.r}</b> <small class="dim">${esc(dtxt(t, j))}</small></span><span class="mono" style="color:var(--ok);font-weight:700">&#10003; LOGGED</span></button>${settings.rpe && j === lastDone ? rpeRow(i, j, t) : ''}`).join('');
+  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone${fresh(j) ? ' sfresh' : ''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${t.r}</b> <small class="dim">${esc(dtxt(t, j))}</small></span><span class="mono" style="color:var(--ok);font-weight:700">${t.rpe ? 'RPE ' + t.rpe + (RPE_W[t.rpe] || '') : '&#10003; LOGGED'}</span></button>`).join('');
   if (cj < 0) return doneRows + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
   const t = sets[cj], pv = prev ? (prev.sets[cj] || prev.sets[prev.sets.length - 1]) : null, st = incD(ex);
   const lo = ex.lo || 8, hi = ex.hi || 12;
@@ -56,13 +57,15 @@ function r1Sets(ex, x, i, sg, prev) {
   const cur_ = r1(dw(t.w || 0)), tryW = sg && sg.apply ? sg.apply : 0, lastW = pv ? pv.w : 0, prevW = cj > 0 && sets[cj - 1].done && sets[cj - 1].w ? sets[cj - 1].w : 0;
   const chip = (lab, w, d, on) => `<button class="rchip${on ? ' on' : ''}" data-act="wchip" data-i="${i}" data-j="${cj}" ${w != null ? 'data-w="' + w + '"' : 'data-d="' + d + '"'}>${lab}</button>`;
   const wt = ex.noWeight ? '' : `<div class="m" style="margin-top:12px">${esc(ex.wlabel || 'WEIGHT')} &middot; TAP TO TYPE</div>
-    <div class="row" style="justify-content:space-between;flex-wrap:nowrap;align-items:baseline"><label class="wbig" style="margin:0"><input data-act="w-in" data-i="${i}" data-j="${cj}" type="number" inputmode="decimal" step="any" min="0" value="${t.w ? cur_ : ''}" placeholder="0" aria-label="Weight of set ${cj + 1}"><span class="mono dim">${UW()}</span></label>${prevW && t.w === prevW ? `<span class="mono" style="color:var(--acct);font-size:12px">SAME AS SET ${cj}</span>` : pv && t.w !== pv.w ? `<span class="mono" style="color:var(--acct);font-size:12px">${t.w > pv.w ? '+' : ''}${r1(dw(t.w - pv.w))} VS LAST</span>` : ''}</div>
+    <div class="row" style="justify-content:space-between;flex-wrap:nowrap;align-items:baseline"><label class="wbig" style="margin:0"><input data-act="w-in" data-i="${i}" data-j="${cj}" type="number" inputmode="decimal" step="any" min="0" value="${t.w ? cur_ : ''}" placeholder="0" aria-label="Weight of set ${cj + 1}"><span class="mono dim">${UW()}${po.ps ? ' each side' : ''}</span></label>${prevW && t.w === prevW ? `<span class="mono" style="color:var(--acct);font-size:12px">SAME AS SET ${cj}</span>` : pv && t.w !== pv.w ? `<span class="mono" style="color:var(--acct);font-size:12px">${t.w > pv.w ? '+' : ''}${r1(dw(t.w - pv.w))} VS LAST</span>` : ''}</div>
+    ${po.ps ? `<div class="dim" style="font-size:12.5px;margin-top:4px" id="pstot-${i}">${psTot(x, t.w || 0)}</div>` : ''}
     <div class="rchips">${chip('&minus;' + st, null, '-', false)}${prevW ? chip('SET ' + cj + ' ' + r1(dw(prevW)), prevW, 0, t.w === prevW) : ''}${lastW && lastW !== prevW ? chip('LAST ' + r1(dw(lastW)), lastW, 0, t.w === lastW) : ''}${tryW && tryW !== lastW ? chip('TRY ' + r1(dw(tryW)), tryW, 0, t.w === tryW) : ''}${chip('+' + st, null, '+', false)}</div>`;
   const reps = `<div class="m" style="margin-top:16px">${ex.side ? 'REPS PER SIDE' : 'REPS'} &middot; TARGET ${lo} TO ${hi}</div>
     <div class="rnums" role="group" aria-label="Reps, drag sideways for more">${nums.map(n => `<button class="rn${t.r === n ? ' s' : ''}${n < lo || n > hi ? ' o' : ''}" data-act="rpick" data-i="${i}" data-j="${cj}" data-v="${n}" aria-pressed="${t.r === n}">${n}</button>`).join('')}</div>`;
   const beat = pv ? `BEAT ${ex.noWeight ? '' : r1(dw(pv.w)) + ' x '}${pv.r}` : 'FIRST TIME';
   const left = sets.length - cj - 1;
   return doneRows + `<div class="r1c"><div class="m">${pv ? 'LAST TIME ' + (ex.noWeight ? '' : r1(dw(pv.w)) + ' x ') + pv.r : 'FIRST TIME'}</div>${wt}${reps}
+    ${rpeOn() ? rpeRow(i, cj, t).replace('HOW HARD', 'HOW HARD? OPTIONAL') + '<div class="mono dim" style="font-size:10px;margin:2px 0 0">6 EASY, 8 HARD, 10 MAX</div>' : ''}
     <button class="r1go" data-act="done" data-i="${i}" data-j="${cj}"><span>Log set ${cj + 1}</span><span aria-hidden="true">&#10003;</span></button></div>`;
 }
 function bestSet(name, excludeId) {
@@ -86,6 +89,7 @@ function exCard(c, x, i, edit) {
     const nt = notes[x.name];
     const more = `${edit ? '' : replacePanel(x, i)}${nt ? `<div class="sug"><span class="tag">YOUR NOTE</span> ${nt.machine ? '<b>Machine:</b> ' + esc(nt.machine) + '<br>' : ''}${esc(nt.note || '')} ${(nt.tags || []).map(g => `<span class="t" style="color:${g === 'Pain' ? 'var(--rest)' : 'var(--dim)'}">${esc(g.toUpperCase())}</span>`).join(' ')} <small>(${fd(nt.at)})</small></div>` : ''}${ex.note ? `<div class="cue">${esc(ex.note)}</div>` : ''}${ex.cue ? `<div class="cue">${esc(ex.cue)}</div>` : ''}
     ${edit ? '' : `<div class="sug"><span class="tag">${sg.tag}</span> ${esc(sg.text)}${sg.apply ? `<button class="mini" data-act="apply" data-i="${i}" data-w="${sg.apply}">Use ${r1(dw(sg.apply))} ${UW()}</button>` : ''}</div>`}
+    ${edit || exOf(x).noWeight ? '' : `<div class="row" style="align-items:center;margin:8px 0"><button class="mini${exOpt(x.name).ps ? ' on' : ''}" data-act="ps-tog" data-n="${esc(x.name)}" aria-pressed="${exOpt(x.name).ps}">Weight per side: ${exOpt(x.name).ps ? 'ON' : 'OFF'}</button>${exOpt(x.name).ps ? `<label class="mono dim" style="font-size:11px">BAR <input data-act="bar-in" data-n="${esc(x.name)}" type="number" inputmode="decimal" step="any" min="0" value="${exOpt(x.name).bar ? r1(dw(exOpt(x.name).bar)) : ''}" placeholder="0" style="width:64px"> ${UW()}</label>` : ''}</div>`}
     <div class="row"><button class="mini" data-act="addset" data-i="${i}">+ Set</button><button class="mini" data-act="rmset" data-i="${i}">- Set</button>${edit ? '' : `<button class="mini" data-act="warm-add" data-i="${i}">+ Warm-up</button>${(x.warm || []).length ? `<button class="mini" data-act="warm-rm" data-i="${i}">- Warm-up</button>` : ''}`}
     ${ex.noWeight ? '' : `<button class="mini" data-act="inc" data-i="${i}">Step: ${incD(ex)} ${UW()}</button>`}${edit ? '' : `<button class="mini" data-act="skip-open" data-i="${i}">Skip exercise</button>`}</div>`;
     const mo = edit || moreOpen === i;

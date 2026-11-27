@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.11.1';
+const VERSION = '3.12.0';
 const CHANGELOG = [
+  { v: '3.12.0', items: ['Weight per side: Dumbbell and Smith exercises log "kg each side" with the total shown, volume counts both sides, and a switch plus optional bar weight live in More', 'Effort (6 to 10) is now on by default, sits in the set card before you log, and each logged set shows its RPE', 'Estimate with AI is a full-width button under Saved, Scan and Search'] },
   { v: '3.11.1', items: ['Fixed the check mark in the This week strip'] },
   { v: '3.11.0', items: ['Today: smooth solid rings replace the tick rings, a greeting, a Next up suggestion built from your protein gap and saved foods, and a This week strip', 'Me, Look and units: Metric colors with Standard, Color-safe (blues, yellows, white) and One color', 'Tap a ring to see its status in words'] },
   { v: '3.10.1', items: ['Goals are not strict: a slider in Goals sets what counts as met (default 80%). It drives Today, Fuel, Insights and the weekly review', 'Protein at 118 of 140 g now reads MET AT 80%, with the amount left shown', 'Energy uses a band of plus or minus 10%', 'Fat is a range with a LOW, IN RANGE or HIGH tag, and a Recommend button that builds the range from your calories with the steps shown'] },
@@ -104,7 +105,9 @@ const persist = () => { if (!view.params.edit) LSset('mx.active', active); };
 
 const doneCount = s => s.exercises.reduce((n, x) => x.skipped ? n : n + x.sets.filter(t => t.done).length, 0);
 const totalCount = s => s.exercises.reduce((n, x) => x.skipped ? n : n + x.sets.length, 0);
-const volume = s => s.exercises.reduce((v, x) => v + x.sets.reduce((a, t) => a + (t.done ? t.w * t.r : 0), 0), 0);
+const exOpt = name => { const o = (settings.exOpts || {})[name]; if (o) return o; return /dumbbell|smith|\bdb\b/i.test(name || '') ? { ps: true, bar: 0 } : { ps: false, bar: 0 }; };
+const loadOf = (x, t) => x.ps ? 2 * t.w + (x.bar || 0) : t.w;
+const volume = s => s.exercises.reduce((v, x) => v + x.sets.reduce((a, t) => a + (t.done ? loadOf(x, t) * t.r : 0), 0), 0);
 const score = (w, r) => (w > 0 ? w * (1 + r / 30) : r);   // estimated 1RM, or reps for bodyweight work
 const sortedDesc = () => sessions.slice().sort((a, b) => b.finishedAt - a.finishedAt);
 const getInc = ex => settings.inc[ex.name] || 2.5;
@@ -170,7 +173,7 @@ function finishWorkout() {
   const c = active;
   const s = {
     id: c.id, week: c.week, dayKey: c.dayKey, name: c.name, startedAt: c.startedAt, finishedAt: Date.now(), deload: c.deload, skipped: c.exercises.filter(x => x.skipped && !x.sets.some(t => t.done)).map(x => ({ name: x.name, why: x.skipWhy || '' })), note: '', updatedAt: Date.now(),
-    exercises: c.exercises.map(x => ({ slotId: x.orig ? null : x.slotId, name: x.name, nw: x.nw, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true, rest: t.rest, rpe: t.rpe })), warm: (x.warm || []).filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true })) })).filter(x => x.sets.length)
+    exercises: c.exercises.map(x => ({ slotId: x.orig ? null : x.slotId, name: x.name, nw: x.nw, ps: exOpt(x.name).ps || undefined, bar: exOpt(x.name).ps && exOpt(x.name).bar ? exOpt(x.name).bar : undefined, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true, rest: t.rest, rpe: t.rpe })), warm: (x.warm || []).filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true })) })).filter(x => x.sets.length)
   };
   sessions.push(s); saveSessions();
   active = null; LSset('mx.active', null);

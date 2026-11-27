@@ -47,3 +47,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.10.0 | Round 9: saved screen with top sets and one note, review tags in words, muscle range box, Lifts cleanup, check-in nothing preselected, small fixes |
 | 3.10.1 | Goal tolerance slider (80% default), calories band 10%, fat range with formula recommendation, one rule for Today, Fuel, Insights and review |
 | 3.11.0 | Today: solid rings, greeting, Next up, week strip. Metric colors setting: Standard, Color-safe, One color |
+| 3.12.0 | Weight per side (Dumbbell, Smith) with bar weight, effort picker on by default in the set card, AI estimate as a full-width button |
