@@ -269,7 +269,7 @@ html[data-cs=one][data-theme=light]{--prot:#5b4bff;--carb:#5b4bff;--fat:#5b4bff;
 .nbt::before{content:"";width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid #fff}
 .nbt.pop{animation:nbpop .6s ease-out both}@keyframes nbpop{0%{transform:scale(.9);opacity:.4}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
 @media (prefers-reduced-motion:reduce){.nbt.pop{animation:none}}
-.sumr{justify-content:space-between}.sumr .sv{font-weight:700;font-size:15px;color:var(--ink)}
+.sumr{justify-content:space-between}.sumr .sv{font-weight:700;font-size:15px;color:var(--ink);white-space:nowrap}
 .tbar.rb{padding:12px 14px 14px;border-color:var(--line2)}.tin2{max-width:540px;margin:0 auto}
 .rbt{display:block;font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1;margin-top:4px;font-variant-numeric:tabular-nums}
 .tbar.rb .mini{min-height:44px;min-width:64px;font-size:15px;white-space:nowrap}
@@ -278,6 +278,11 @@ html[data-cs=one][data-theme=light]{--prot:#5b4bff;--carb:#5b4bff;--fat:#5b4bff;
 .rbtrack b{position:absolute;top:-5px;width:2px;height:20px;background:var(--ink)}
 .tbar.rb.rdy{border-color:var(--ok)}.tbar.rb.rdy .rbt{color:var(--ok)}.tbar.rb.rdy .rbtrack i{background:var(--ok)}
 .sess.hero1{border:1px solid var(--acct);background:var(--g2)}
+.fst{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.fst>div{background:var(--g1);border:1px solid var(--line);border-radius:16px;padding:10px 12px}.fst .m{display:block;margin:0 0 4px;min-height:0}.fst b{font-size:20px;font-variant-numeric:tabular-nums}
+.fsx{padding:12px 0;border-top:1px solid var(--line)}.fsx:first-of-type{border-top:0}
+.dmb{position:relative;height:16px;margin-top:6px;display:flex;align-items:center;padding-right:96px}.dmb i{display:block;height:2px;background:var(--dim);position:relative}.dmb i::before,.dmb i::after{content:"";position:absolute;top:-5px;width:2px;height:12px;background:inherit}.dmb i::before{left:0}.dmb i::after{right:0}
+.dmb.nw i{background:var(--acct);height:3px}.dmb span{position:absolute;right:0;font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--dim);white-space:nowrap}
+.rvm{display:inline-block;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:12px solid var(--acct);margin-right:6px}
 </style>
 </head>
 <body>
@@ -289,21 +294,21 @@ html[data-cs=one][data-theme=light]{--prot:#5b4bff;--carb:#5b4bff;--fat:#5b4bff;
   <button data-go="fuel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c4 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2-6 6-10z"/></svg> Fuel</button>
   <button data-go="trends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg> Insights</button>
 </nav>
-<script src="program.js?v=3.19.0"></script>
-<script src="users.js?v=3.19.0"></script>
-<script src="sync.js?v=3.19.0"></script>
-<script src="js-core.js?v=3.19.0"></script>
-<script src="js-shell.js?v=3.19.0"></script>
-<script src="js-today.js?v=3.19.0"></script>
-<script src="js-workout.js?v=3.19.0"></script>
-<script src="js-history.js?v=3.19.0"></script>
-<script src="js-me.js?v=3.19.0"></script>
-<script src="js-extras.js?v=3.19.0"></script>
-<script src="js-notes.js?v=3.19.0"></script>
-<script src="js-daily.js?v=3.19.0"></script>
-<script src="js-usage.js?v=3.19.0"></script>
-<script src="js-program.js?v=3.19.0"></script>
-<script src="js-actions.js?v=3.19.0"></script>
-<script src="js-boot.js?v=3.19.0"></script>
+<script src="program.js?v=3.20.0"></script>
+<script src="users.js?v=3.20.0"></script>
+<script src="sync.js?v=3.20.0"></script>
+<script src="js-core.js?v=3.20.0"></script>
+<script src="js-shell.js?v=3.20.0"></script>
+<script src="js-today.js?v=3.20.0"></script>
+<script src="js-workout.js?v=3.20.0"></script>
+<script src="js-history.js?v=3.20.0"></script>
+<script src="js-me.js?v=3.20.0"></script>
+<script src="js-extras.js?v=3.20.0"></script>
+<script src="js-notes.js?v=3.20.0"></script>
+<script src="js-daily.js?v=3.20.0"></script>
+<script src="js-usage.js?v=3.20.0"></script>
+<script src="js-program.js?v=3.20.0"></script>
+<script src="js-actions.js?v=3.20.0"></script>
+<script src="js-boot.js?v=3.20.0"></script>
 </body>
 </html>

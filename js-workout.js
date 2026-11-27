@@ -180,29 +180,36 @@ views.workout = p => {
 views.summary = p => {
   const s = sessions.find(x => x.id === p.id);
   if (!s) return '<div class="card"><h3>Session not found</h3>' + homeBtn + '</div>';
-  const prs = [];
-  s.exercises.forEach(x => {
-    const others = sessions.filter(o => o.id !== s.id).flatMap(o => o.exercises.filter(y => y.name === x.name).flatMap(y => y.sets));
-    if (!others.length) return;
-    const best = Math.max(...others.map(t => score(t.w, t.r)));
-    const mine = x.sets.reduce((b, t) => (score(t.w, t.r) > score(b.w, b.r) ? t : b), x.sets[0]);
-    if (score(mine.w, mine.r) > best + 1e-9) prs.push({ name: x.name, txt: isNW(x.name) ? mine.r + ' reps' : r1(dw(mine.w)) + ' ' + UW() + ' x ' + mine.r });
-  });
   const n = nextWorkout(), nd = dayOf(n.dayKey) || DAYS[0];
+  const before = sessions.filter(o => o.id !== s.id && (o.finishedAt || 0) < (s.finishedAt || 0)).sort((a, b) => b.finishedAt - a.finishedAt);
+  const lastOf = name => { for (const o of before) { const y = o.exercises.find(e => e.name === name && e.sets && e.sets.some(t => t.done)); if (y) return topSet(y); } return null; };
+  const fmt = (name, t) => isNW(name) ? t.r + ' reps' : r1(dw(t.w)) + ' x ' + t.r;
+  let nbN = 0;
   const rowsT = s.exercises.map(x => {
-    const ts = topSet(x), sk = x.skipped || !ts, bs = ts && bestSet(x.name, s.id), nb = !!ts && !!bs && (isNW(x.name) ? ts.r > bs.r : (ts.w > bs.w || (ts.w === bs.w && ts.r > bs.r)));
-    return `<div class="row sumr" style="padding:11px 0;border-top:1px solid var(--line);align-items:center;flex-wrap:nowrap"><div><b>${esc(x.name)}</b><br><small class="dim">${sk ? 'Skipped' : doneCount({ exercises: [x] }) + (doneCount({ exercises: [x] }) === 1 ? ' set' : ' sets')}</small></div><div style="text-align:right">${nb ? '<span class="nbt">NEW BEST</span><br>' : ''}<span class="sv">${sk ? '' : isNW(x.name) ? ts.r + ' reps' : r1(dw(ts.w)) + ' ' + UW() + ' x ' + ts.r}</span></div></div>`;
+    const ts = topSet(x), sk = x.skipped || !ts;
+    if (sk) return `<div class="fsx"><div class="row sumr"><b>${esc(x.name)}</b><span class="dim">Skipped</span></div></div>`;
+    const bs = bestSet(x.name, s.id), nb = !!bs && (isNW(x.name) ? ts.r > bs.r : (ts.w > bs.w || (ts.w === bs.w && ts.r > bs.r)));
+    if (nb) nbN++;
+    const lt = lastOf(x.name), sc = t => isNW(x.name) ? t.r : score(t.w, t.r), a = lt ? sc(lt) : 0, b = sc(ts), mx = Math.max(a, b) * 1.08 || 1;
+    return `<div class="fsx"><div class="row sumr" style="flex-wrap:nowrap"><span>${nb ? '<span class="rvm" aria-label="New best"></span>' : ''}<b>${esc(x.name)}</b></span><span class="sv">${fmt(x.name, ts)}</span></div>
+    ${lt ? `<div class="dmb"><i style="width:${(a / mx * 100).toFixed(0)}%"></i><span>LAST ${fmt(x.name, lt)}</span></div>` : ''}<div class="dmb nw"><i style="width:${(b / mx * 100).toFixed(0)}%"></i><span>TODAY</span></div></div>`;
   }).join('');
+  const prevSame = before.find(o => o.dayKey === s.dayKey), v1 = volume(s), v0 = prevSame ? volume(prevSame) : 0;
+  const vt = v0 > 0 ? Math.round((v1 - v0) / v0 * 100) : null;
+  const head = [nbN ? `<span class="rvm"></span>${nbN} new best${nbN > 1 ? 's' : ''}.` : '', vt == null ? 'First time logging this workout.' : vt === 0 ? 'Volume same as last ' + esc(s.name) + '.' : 'Volume ' + (vt > 0 ? 'up ' : 'down ') + Math.abs(vt) + '% on last ' + esc(s.name) + '.'].filter(Boolean).join(' ');
+  const mins = Math.max(1, Math.round((s.finishedAt - s.startedAt) / 60000)), tm = mins >= 60 ? Math.floor(mins / 60) + ' h ' + String(mins % 60).padStart(2, '0') : mins + ' min';
   const saved = feedback.find(f => f.sid === s.id);
-  return `<h2>Workout saved</h2>
-  <div class="card"><span class="tag">${esc(s.name.toUpperCase())}, WEEK ${s.week}</span>
-  <ul class="list"><li>Time<span>${fdur(s.finishedAt - s.startedAt)}</span></li><li>Sets<span>${doneCount(s)}</span></li><li>Volume<span>${Math.round(dw(volume(s))).toLocaleString()} ${UW()}</span></li></ul></div>
-  <div class="dl"><b></b><span class="m">TOP SET PER EXERCISE</span><b></b></div>
-  <div class="card" style="padding:2px 16px">${rowsT}</div>
+  const date = new Date(s.finishedAt).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase();
+  return `<div class="tblk"><span>MX / TRAIN</span><span>SHEET W${s.week} ${esc(s.name.toUpperCase())}</span><span>${esc(date)}</span></div>
+  <h2 style="margin:0">${esc(s.name)}, week ${s.week}</h2>
+  <p style="margin:8px 0 12px;font-size:17px;font-weight:600;line-height:1.35;color:var(--ink)">${head}</p>
+  <div class="fst"><div><span class="m">TIME</span><b>${tm}</b></div><div><span class="m">SETS</span><b>${doneCount(s)}</b></div><div><span class="m">VOLUME</span><b>${Math.round(dw(v1)).toLocaleString()}</b></div></div>
+  <div class="card" style="padding:14px 16px"><div class="row m" style="justify-content:space-between;margin:0 0 4px"><span>TOP SET VS LAST TIME</span><span>${UW().toUpperCase()} X REPS</span></div>${rowsT}
+  <div class="m" style="margin:12px 0 0">TOP BAR = LAST TIME, BOTTOM BAR = TODAY, <span class="rvm" style="vertical-align:-1px"></span> = NEW BEST</div></div>
   <div class="card" id="fb-box"><b style="font-size:16px">Anything to note?</b><textarea id="fb-text" class="big" style="margin-top:10px" placeholder="How did it feel? Pain, form, or something the app got wrong.">${esc(s.note || (saved && saved.note) || '')}</textarea>
   <div class="mchips" role="group" aria-label="Note type" style="margin-top:8px">${FB_TAGS.map(g => `<button type="button" class="ntg${saved && (saved.tags || []).includes(g) ? ' on' : ''}" data-act="nt-tag" aria-pressed="${!!(saved && (saved.tags || []).includes(g))}">${g}</button>`).join('')}</div>
   <small class="dim" style="display:block;margin-top:8px">Saved when you tap Done. Leave it empty to skip.</small></div>
-  <div class="card"><span class="tag">NEXT WORKOUT</span><h3>${esc(nd.name)}, week ${n.week}</h3></div>
-  <div style="position:sticky;bottom:0;padding:14px 0 18px;background:linear-gradient(transparent,var(--bg) 30%)"><button class="btn ghost" style="margin-bottom:10px" data-act="edit-session" data-id="${esc(s.id)}">Edit workout</button><button class="btn" data-act="summary-done" data-id="${esc(s.id)}">Done</button></div>`;
+  <div class="card"><span class="m">NEXT WORKOUT</span><h3 style="margin:4px 0 0">${esc(nd.name)}, week ${n.week}</h3></div>
+  <div class="row" style="position:sticky;bottom:0;padding:14px 0 18px;background:linear-gradient(transparent,var(--bg) 30%);flex-wrap:nowrap;gap:8px"><button class="btn ghost" style="flex:1" data-act="edit-session" data-id="${esc(s.id)}">Edit</button><button class="btn" style="flex:1.6" data-act="summary-done" data-id="${esc(s.id)}">Done</button></div>`;
 };
 

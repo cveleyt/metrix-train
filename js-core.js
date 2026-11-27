@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.19.0';
+const VERSION = '3.20.0';
 const CHANGELOG = [
+  { v: '3.20.0', items: ['New finish screen: a one-line result (new bests, volume vs last time), time, sets and volume tiles, and each top set drawn against last time', 'Edit and Done sit side by side']  },
   { v: '3.19.0', items: ['Same status words everywhere: MET, TO GO, OVER, SHORT, NOT LOGGED', 'The 80% rule now applies on every screen, so a day header and its rows always agree']  },
   { v: '3.18.0', items: ['Today has one main card: Next up with a big Start button. The day strip and the extra Train button are gone', 'New default colors that are easier to tell apart: Move white, Rest slate, Protein blue, Energy amber', 'Suggestions sit under your rings instead of on top']  },
   { v: '3.17.0', items: ['The rest timer lives in a bar at the bottom of the workout: big countdown, ready and max marks, +30 s and Skip. It stays visible while you scroll and after an exercise is done'] },
