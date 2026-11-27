@@ -146,10 +146,11 @@ async function act(a, el) {
     }
     case 'w-in': {
       const v = parseFloat(String(el.value).replace(',', '.'));
-      setW(cur(), i, j, isNaN(v) || v < 0 ? 0 : rnd(fw(v))); persist(); syncInputs(i); { const pt = $('#pstot-' + i); if (pt) pt.textContent = psTot(cur().exercises[i], isNaN(v) || v < 0 ? 0 : rnd(fw(v))); } break;
+      setW(cur(), i, j, isNaN(v) || v < 0 ? 0 : rnd(fw(v))); persist(); syncInputs(i); updGo(i, j); { const pt = $('#pstot-' + i); if (pt) pt.textContent = psTot(cur().exercises[i], isNaN(v) || v < 0 ? 0 : rnd(fw(v))); } break;
     }
+    case 'rstep': { const q = cur().exercises[i].sets[j]; q.r = Math.max(0, (q.r || 0) + (el.dataset.d === '+' ? 1 : -1)); persist(); render(); break; }
     case 'r-in': {
-      const v = parseInt(el.value, 10); cur().exercises[i].sets[j].r = isNaN(v) || v < 0 ? 0 : v; persist(); break;
+      const v = parseInt(el.value, 10); cur().exercises[i].sets[j].r = isNaN(v) || v < 0 ? 0 : v; persist(); updGo(i, j); break;
     }
     case 'done': {
       const c = cur(), x = c.exercises[i], t = x.sets[j];
@@ -497,6 +498,7 @@ async function act(a, el) {
   }
 }
 
+function updGo(i, j) { const x = cur().exercises[i], t = x && x.sets[j], g = $('#r1go-t-' + i); if (!t || !g) return; const ex = exOf(x), po = exOpt(x.name); g.textContent = 'Log ' + (ex.noWeight ? '' : r1(dw(t.w || 0)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x ') + (t.r || 0); }
 document.addEventListener('click', e => {
   const g = e.target.closest('[data-go]'); if (g) { go(g.dataset.go); return; }
   const a = e.target.closest('[data-act]');

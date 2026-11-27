@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.12.0';
+const VERSION = '3.13.0';
 const CHANGELOG = [
+  { v: '3.13.0', items: ['Set card: weight and reps are pre-filled with big minus and plus, and the button says exactly what it will log, for example Log 30 kg each x 10', 'After you log, the card shows Set N logged, NEW BEST, the change vs last time, one optional effort tap, and the rest timer inside the card', 'The rest timer no longer pops up over the screen on its own'] },
   { v: '3.12.0', items: ['Weight per side: Dumbbell and Smith exercises log "kg each side" with the total shown, volume counts both sides, and a switch plus optional bar weight live in More', 'Effort (6 to 10) is now on by default, sits in the set card before you log, and each logged set shows its RPE', 'Estimate with AI is a full-width button under Saved, Scan and Search'] },
   { v: '3.11.1', items: ['Fixed the check mark in the This week strip'] },
   { v: '3.11.0', items: ['Today: smooth solid rings replace the tick rings, a greeting, a Next up suggestion built from your protein gap and saved foods, and a This week strip', 'Me, Look and units: Metric colors with Standard, Color-safe (blues, yellows, white) and One color', 'Tap a ring to see its status in words'] },
@@ -201,7 +202,7 @@ function syncInputs(i) {
 const tel = t => ((t.acc || 0) + (t.state === 'run' && t.start ? (Date.now() - t.start) / 1000 : 0));
 function startTimer(min, max, next, ref, force) {
   const run = force || settings.autoStart !== false;
-  timer = { state: run ? 'run' : 'idle', start: run ? Date.now() : null, acc: 0, min, max, f1: 0, f2: 0, pop: true, next: next || '', ref: ref || null };
+  timer = { state: run ? 'run' : 'idle', start: run ? Date.now() : null, acc: 0, min, max, f1: 0, f2: 0, pop: false, next: next || '', ref: ref || null };
   saveTimer();
 }
 function stopTimer(log) {
@@ -235,7 +236,7 @@ function tick() {
   const st = timer.state || 'run', s = tel(timer);
   if (st === 'run') {
     if (!timer.f1 && s >= timer.min) {
-      timer.f1 = 1; timer.pop = true; saveTimer(); alertUser(1);
+      timer.f1 = 1; saveTimer(); alertUser(1);
       if (view.name === 'workout' && !view.params.edit) { render(); return; }
     }
     if (!timer.f2 && timer.max > timer.min && s >= timer.max) { timer.f2 = 1; saveTimer(); alertUser(2); }
@@ -249,6 +250,7 @@ function tick() {
     setTicks(st === 'idle' ? 0 : ready ? 1 : 1 - rem / timer.min);
     $('#pp-card').classList.toggle('ready', ready && st === 'run');
   }
+  const ir = $('#ir-time'); if (ir) { ir.textContent = st === 'idle' ? fdur(timer.min * 1000) : ready ? 'GO' : fdur(Math.ceil(rem) * 1000); const f = $('#ir-fill'); if (f) f.style.width = (st === 'idle' ? 0 : Math.min(100, s / timer.max * 100)) + '%'; }
   const m = $('#tmr-main'); if (!m) return;
   const r2 = timer.min - s;
   m.textContent = st === 'idle' ? fdur(timer.min * 1000) : r2 > 0 ? fdur(Math.ceil(r2) * 1000) : '+' + fdur(-r2 * 1000);

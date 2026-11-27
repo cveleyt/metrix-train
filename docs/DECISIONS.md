@@ -48,3 +48,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.10.1 | Goal tolerance slider (80% default), calories band 10%, fat range with formula recommendation, one rule for Today, Fuel, Insights and review |
 | 3.11.0 | Today: solid rings, greeting, Next up, week strip. Metric colors setting: Standard, Color-safe, One color |
 | 3.12.0 | Weight per side (Dumbbell, Smith) with bar weight, effort picker on by default in the set card, AI estimate as a full-width button |
+| 3.13.0 | Set card rework: pre-filled fields with plus and minus, one-tap Log, result panel with NEW BEST, effort and inline rest timer; timer popup no longer auto-opens |

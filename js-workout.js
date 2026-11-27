@@ -40,6 +40,7 @@ function old_rows(ex, x, i, sg) {
 }
 function centerReps() { document.querySelectorAll('.rnums').forEach(r => { const s = r.querySelector('.rn.s'); if (s) r.scrollLeft = s.offsetLeft - (r.clientWidth - s.offsetWidth) / 2; }); }
 function psTot(x, w) { const o = exOpt(x.name); if (!o.ps) return ''; const t = 2 * w + (o.bar || 0); return (o.bar ? '+ bar ' + r1(dw(o.bar)) + ' ' + UW() + ' = ' : '') + r1(dw(t)) + ' ' + UW() + ' total'; }
+const edit_ = () => !!(view && view.params && view.params.edit);
 function r1Sets(ex, x, i, sg, prev) {
   const sets = x.sets, cj = sets.findIndex(t => !t.done);
   const dtxt = (t, j) => {
@@ -49,24 +50,27 @@ function r1Sets(ex, x, i, sg, prev) {
   };
   const po = exOpt(x.name), lastDone = sets.reduce((m, t, j) => t.done ? j : m, -1);
   const fresh = j => flashSet && flashSet.i === i && flashSet.j === j && Date.now() - flashSet.t < 1700;
-  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone${fresh(j) ? ' sfresh' : ''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${t.r}</b> <small class="dim">${esc(dtxt(t, j))}</small></span><span class="mono" style="color:var(--ok);font-weight:700">${t.rpe ? 'RPE ' + t.rpe + (RPE_W[t.rpe] || '') : '&#10003; LOGGED'}</span></button>`).join('');
-  if (cj < 0) return doneRows + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
+  const eff = t => t.rpe ? 'RPE ' + t.rpe + (RPE_W[t.rpe] || '') : '&#10003; LOGGED';
+  const doneRows = sets.map((t, j) => !t.done ? '' : `<button class="sdone${fresh(j) ? ' sfresh' : ''}" data-act="done" data-i="${i}" data-j="${j}" aria-label="Set ${j + 1} logged, ${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + ', '}${t.r} reps. Tap to undo"><span class="mono dim">${j + 1}</span><span><b>${ex.noWeight ? '' : r1(dw(t.w)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${t.r}</b> <small class="dim">${esc(dtxt(t, j))}</small></span><span class="mono" style="color:var(--ok);font-weight:700">${eff(t)}</span></button>`).join('');
+  const lt = lastDone >= 0 ? sets[lastDone] : null;
+  const resultPanel = !lt || edit_() ? '' : (() => {
+    const bs = bestSet(x.name, cur().id), nb = !!bs && !ex.noWeight && (lt.w > bs.w || (lt.w === bs.w && lt.r > bs.r));
+    const run = timer && (timer.state || 'run') !== 'idle';
+    const rest = timer ? `<div class="row" style="align-items:center;flex-wrap:nowrap;gap:12px;margin-top:12px;border-top:1px solid var(--line);padding-top:12px"><div><div class="m">REST</div><div id="ir-time" class="n" style="font-size:30px;line-height:1.1">${run ? fdur(Math.max(0, Math.ceil(timer.min - tel(timer))) * 1000) : fdur(timer.min * 1000)}</div></div><div class="bar" style="flex:1;margin:0"><i id="ir-fill" style="background:var(--acc);width:${run ? Math.min(100, tel(timer) / timer.max * 100).toFixed(0) : 0}%"></i></div>${run ? '<button class="mini" data-act="tskip">Skip</button>' : '<button class="mini" data-act="tstart">Start</button>'}</div>` : '';
+    return `<div class="resp"><div class="row" style="align-items:center"><b style="font-size:17px">Set ${lastDone + 1} logged</b>${nb ? otag('NEW BEST', true) : ''}</div><div style="font-size:15px;margin-top:6px"><b>${ex.noWeight ? '' : r1(dw(lt.w)) + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${lt.r}</b> <span class="dim">${esc(dtxt(lt, lastDone))}</span></div>${rpeOn() ? rpeRow(i, lastDone, lt).replace('HOW HARD', 'HOW HARD WAS IT? OPTIONAL') : ''}${rest}</div>`;
+  })();
+  if (cj < 0) return doneRows + resultPanel + `<div class="sug" style="margin-top:8px"><span class="tag">ALL SETS LOGGED</span> Add a set below, or move to the next exercise.</div>`;
   const t = sets[cj], pv = prev ? (prev.sets[cj] || prev.sets[prev.sets.length - 1]) : null, st = incD(ex);
   const lo = ex.lo || 8, hi = ex.hi || 12;
-  const top = Math.max(50, t.r || 0); const nums = []; for (let n = 1; n <= top; n++) nums.push(n);
   const cur_ = r1(dw(t.w || 0)), tryW = sg && sg.apply ? sg.apply : 0, lastW = pv ? pv.w : 0, prevW = cj > 0 && sets[cj - 1].done && sets[cj - 1].w ? sets[cj - 1].w : 0;
   const chip = (lab, w, d, on) => `<button class="rchip${on ? ' on' : ''}" data-act="wchip" data-i="${i}" data-j="${cj}" ${w != null ? 'data-w="' + w + '"' : 'data-d="' + d + '"'}>${lab}</button>`;
-  const wt = ex.noWeight ? '' : `<div class="m" style="margin-top:12px">${esc(ex.wlabel || 'WEIGHT')} &middot; TAP TO TYPE</div>
-    <div class="row" style="justify-content:space-between;flex-wrap:nowrap;align-items:baseline"><label class="wbig" style="margin:0"><input data-act="w-in" data-i="${i}" data-j="${cj}" type="number" inputmode="decimal" step="any" min="0" value="${t.w ? cur_ : ''}" placeholder="0" aria-label="Weight of set ${cj + 1}"><span class="mono dim">${UW()}${po.ps ? ' each side' : ''}</span></label>${prevW && t.w === prevW ? `<span class="mono" style="color:var(--acct);font-size:12px">SAME AS SET ${cj}</span>` : pv && t.w !== pv.w ? `<span class="mono" style="color:var(--acct);font-size:12px">${t.w > pv.w ? '+' : ''}${r1(dw(t.w - pv.w))} VS LAST</span>` : ''}</div>
-    ${po.ps ? `<div class="dim" style="font-size:12.5px;margin-top:4px" id="pstot-${i}">${psTot(x, t.w || 0)}</div>` : ''}
-    <div class="rchips">${chip('&minus;' + st, null, '-', false)}${prevW ? chip('SET ' + cj + ' ' + r1(dw(prevW)), prevW, 0, t.w === prevW) : ''}${lastW && lastW !== prevW ? chip('LAST ' + r1(dw(lastW)), lastW, 0, t.w === lastW) : ''}${tryW && tryW !== lastW ? chip('TRY ' + r1(dw(tryW)), tryW, 0, t.w === tryW) : ''}${chip('+' + st, null, '+', false)}</div>`;
-  const reps = `<div class="m" style="margin-top:16px">${ex.side ? 'REPS PER SIDE' : 'REPS'} &middot; TARGET ${lo} TO ${hi}</div>
-    <div class="rnums" role="group" aria-label="Reps, drag sideways for more">${nums.map(n => `<button class="rn${t.r === n ? ' s' : ''}${n < lo || n > hi ? ' o' : ''}" data-act="rpick" data-i="${i}" data-j="${cj}" data-v="${n}" aria-pressed="${t.r === n}">${n}</button>`).join('')}</div>`;
-  const beat = pv ? `BEAT ${ex.noWeight ? '' : r1(dw(pv.w)) + ' x '}${pv.r}` : 'FIRST TIME';
-  const left = sets.length - cj - 1;
-  return doneRows + `<div class="r1c"><div class="m">${pv ? 'LAST TIME ' + (ex.noWeight ? '' : r1(dw(pv.w)) + ' x ') + pv.r : 'FIRST TIME'}</div>${wt}${reps}
-    ${rpeOn() ? rpeRow(i, cj, t).replace('HOW HARD', 'HOW HARD? OPTIONAL') + '<div class="mono dim" style="font-size:10px;margin:2px 0 0">6 EASY, 8 HARD, 10 MAX</div>' : ''}
-    <button class="r1go" data-act="done" data-i="${i}" data-j="${cj}"><span>Log set ${cj + 1}</span><span aria-hidden="true">&#10003;</span></button></div>`;
+  const stepBtns = (act, extra) => `<div class="fstep"><button data-act="${act}" ${extra} data-d="-" aria-label="Decrease">&minus;</button><button data-act="${act}" ${extra} data-d="+" aria-label="Increase">+</button></div>`;
+  const wfield = ex.noWeight ? '' : `<div class="ffield"><div class="m">${po.ps ? UW().toUpperCase() + ' EACH SIDE' : esc(ex.wlabel || 'WEIGHT')}</div><label class="fnum"><input data-act="w-in" data-i="${i}" data-j="${cj}" type="number" inputmode="decimal" step="any" min="0" value="${t.w ? cur_ : ''}" placeholder="0" aria-label="Weight of set ${cj + 1}"><span class="dim">${UW()}</span></label><div class="dim fsub" id="pstot-${i}">${po.ps ? psTot(x, t.w || 0) : (pv ? 'last time ' + r1(dw(pv.w)) : '')}</div>${stepBtns('wchip', 'data-i="' + i + '" data-j="' + cj + '"')}</div>`;
+  const rfield = `<div class="ffield"><div class="m">${ex.side ? 'REPS PER SIDE' : 'REPS'}</div><label class="fnum"><input data-act="r-in" data-i="${i}" data-j="${cj}" type="number" inputmode="numeric" min="0" value="${t.r || ''}" placeholder="0" aria-label="Reps of set ${cj + 1}"></label><div class="dim fsub">${pv ? 'last time ' + pv.r : 'target ' + lo + ' to ' + hi}</div>${stepBtns('rstep', 'data-i="' + i + '" data-j="' + cj + '"')}</div>`;
+  const chips = ex.noWeight ? '' : `<div class="rchips" style="margin-top:10px">${prevW ? chip('SET ' + cj + ' ' + r1(dw(prevW)), prevW, 0, t.w === prevW) : ''}${lastW && lastW !== prevW ? chip('LAST ' + r1(dw(lastW)), lastW, 0, t.w === lastW) : ''}${tryW && tryW !== lastW ? chip('TRY ' + r1(dw(tryW)), tryW, 0, t.w === tryW) : ''}</div>`;
+  const beat = pv ? 'BEAT ' + (ex.noWeight ? '' : r1(dw(pv.w)) + ' x ') + pv.r : 'FIRST TIME';
+  return doneRows + resultPanel + `<div class="r1c"><div class="row" style="align-items:center"><span class="m">SET ${cj + 1} OF ${sets.length}</span>${otag(beat, true)}</div><div class="fgrid">${wfield}${rfield}</div>${chips}
+    <button class="r1go" id="r1go-${i}" data-act="done" data-i="${i}" data-j="${cj}"><span id="r1go-t-${i}">Log ${ex.noWeight ? '' : cur_ + ' ' + UW() + (po.ps ? ' each' : '') + ' x '}${t.r || 0}</span><span aria-hidden="true">&#10003;</span></button></div>`;
 }
 function bestSet(name, excludeId) {
   let b = null;
