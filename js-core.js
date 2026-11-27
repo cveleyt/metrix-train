@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.21.0';
+const VERSION = '3.22.0';
 const CHANGELOG = [
+  { v: '3.22.0', items: ['One back button style everywhere: a full size Back button at the top left']  },
   { v: '3.21.0', items: ['Exercise sheet: tap an exercise name on Today or the finish screen, or History in a workout, to see best set, estimated 1RM trend, last 5 sessions and your note']  },
   { v: '3.20.0', items: ['New finish screen: a one-line result (new bests, volume vs last time), time, sets and volume tiles, and each top set drawn against last time', 'Edit and Done sit side by side']  },
   { v: '3.19.0', items: ['Same status words everywhere: MET, TO GO, OVER, SHORT, NOT LOGGED', 'The 80% rule now applies on every screen, so a day header and its rows always agree']  },

@@ -225,7 +225,7 @@ views.exsheet = p => {
     .filter(Boolean);
   const days = DAYS.filter(d => d.exercises.some(e => e.name === name)), ex = days.length ? days[0].exercises.find(e => e.name === name) : null;
   const fmt = t => nw ? t.r + ' reps' : r1(dw(t.w)) + ' x ' + t.r;
-  const back = '<button class="mini" data-act="ex-back" style="min-height:44px;min-width:56px" aria-label="Back">&#8249; Back</button>';
+  const back = '<button class="back" data-act="ex-back">&lsaquo; Back</button>';
   let body;
   if (!rows.length) body = '<div class="card"><p class="dim" style="margin:0">No sets logged for this exercise yet.</p></div>';
   else {

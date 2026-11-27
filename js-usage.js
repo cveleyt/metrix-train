@@ -30,7 +30,7 @@ function usageText() {
 }
 views.usage = () => {
   const t = usageTotals(), used = FEATURES.filter(f => t[f[1]]).sort((a, b) => t[b[1]] - t[a[1]]), never = FEATURES.filter(f => !t[f[1]]), mx = used.length ? t[used[0][1]] : 1;
-  return `<div class="row" style="justify-content:space-between"><button class="m" data-go="me">&lsaquo; ME</button><span class="m">USAGE</span></div><h2 style="margin:12px 0 4px;font-size:46px">Usage</h2>
+  return `<div class="row" style="justify-content:space-between"><button class="back" data-go="me">&lsaquo; Me</button><span class="m">USAGE</span></div><h2 style="margin:12px 0 4px;font-size:46px">Usage</h2>
   <p>Counts what you tap, last 30 days. Stored only on this phone. It decides what we keep, change or cut in the rebuild.</p>
   <div class="card" style="padding:4px 16px 8px"><div class="m" style="padding:10px 0 2px">MOST USED</div>${used.length ? used.map(f => `<div style="padding:9px 0"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><span style="font-size:14px">${f[0]}</span><span class="n" style="font-size:18px">${t[f[1]]}</span></div><div style="height:6px;border-radius:3px;background:var(--line);margin-top:6px"><div style="height:6px;border-radius:3px;width:${Math.max(3, Math.round(t[f[1]] / mx * 100))}%;background:var(--acc)"></div></div></div>`).join('') : '<p>Nothing counted yet. Use the app and come back.</p>'}</div>
   <div class="card"><span class="m">NEVER USED</span><p style="margin:8px 0 0">${never.length ? never.map(f => f[0]).join(', ') : 'You have used everything.'}</p></div>
