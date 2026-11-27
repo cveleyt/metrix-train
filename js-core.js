@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.22.0';
+const VERSION = '3.23.0';
 const CHANGELOG = [
+  { v: '3.23.0', items: ['Size rebalanced: Medium is now 90%, between the old and new size', 'Page titles, the Today day name, card padding and Today rings are smaller. Set numbers and buttons keep their size']  },
   { v: '3.22.0', items: ['One back button style everywhere: a full size Back button at the top left']  },
   { v: '3.21.0', items: ['Exercise sheet: tap an exercise name on Today or the finish screen, or History in a workout, to see best set, estimated 1RM trend, last 5 sessions and your note']  },
   { v: '3.20.0', items: ['New finish screen: a one-line result (new bests, volume vs last time), time, sets and volume tiles, and each top set drawn against last time', 'Edit and Done sit side by side']  },
@@ -90,7 +91,7 @@ let editing = null;                             // past session being edited (me
 let settings = Object.assign({ inc: {}, sound: true, vibrate: true, override: null }, LSget('mx.settings', {}));
 settings.ai = Object.assign({ key: '', model: 'gemini-3.1-flash-lite' }, settings.ai || {});
 settings.goals = Object.assign({ steps: 10000, sleep: 8, protein: 130 }, settings.goals || {});
-if (!settings.scale2) { settings.scale = { 0.72: 0.9, 0.8: 1, 0.9: 1.1 }[settings.scale] || 1; settings.scale2 = true; }
+if (!settings.scale3) { settings.scale = settings.scale2 ? ({ 1: 0.9, 1.1: 1, 0.9: 0.9 }[settings.scale] || 0.9) : ({ 0.72: 0.82, 0.8: 0.9, 0.9: 1 }[settings.scale] || 0.9); settings.scale2 = settings.scale3 = true; }
 let timer = LSget('mx.timer', null);
 let daily = LSget('mx.daily', {});             // {YYYY-MM-DD: {steps, sleep}}
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
@@ -322,7 +323,7 @@ async function wake() {
 function applyTheme() {
   const t = settings.theme || 'system', r = t === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
   document.documentElement.dataset.theme = r; document.documentElement.dataset.cs = settings.cs || '';
-  document.documentElement.style.zoom = settings.scale || 1;
+  document.documentElement.style.zoom = settings.scale || 0.9;
   const tc = $('#tc'); if (tc) tc.content = r === 'light' ? '#f1f2f7' : '#07080c';
 }
 try { matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { if ((settings.theme || 'system') === 'system') applyTheme(); }); } catch (e) {}

@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<script>try{var s=JSON.parse(localStorage.getItem((localStorage.getItem("mx.pfx")||"mx.")+"settings")||"{}"),t=s.theme||"system";if(t==="system")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";document.documentElement.dataset.theme=t;var z=s.scale||1;if(!s.scale2)z={0.72:0.9,0.8:1,0.9:1.1}[z]||1;document.documentElement.style.zoom=z}catch(e){}</script>
+<script>try{var s=JSON.parse(localStorage.getItem((localStorage.getItem("mx.pfx")||"mx.")+"settings")||"{}"),t=s.theme||"system";if(t==="system")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";document.documentElement.dataset.theme=t;var z=s.scale||0.9;if(!s.scale3)z=s.scale2?({1:0.9,1.1:1,0.9:0.9}[z]||0.9):({0.72:0.82,0.8:0.9,0.9:1}[z]||0.9);document.documentElement.style.zoom=z}catch(e){}</script>
 <style>
 @font-face{font-family:Inter;font-weight:400;font-style:normal;font-display:swap;src:url(fonts/inter-latin-400-normal.woff2) format("woff2")}@font-face{font-family:Inter;font-weight:500;font-style:normal;font-display:swap;src:url(fonts/inter-latin-500-normal.woff2) format("woff2")}@font-face{font-family:Inter;font-weight:600;font-style:normal;font-display:swap;src:url(fonts/inter-latin-600-normal.woff2) format("woff2")}@font-face{font-family:Inter;font-weight:700;font-style:normal;font-display:swap;src:url(fonts/inter-latin-700-normal.woff2) format("woff2")}@font-face{font-family:"Barlow Condensed";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/barlow-condensed-latin-600-normal.woff2) format("woff2")}@font-face{font-family:"Barlow Condensed";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}@font-face{font-family:"Barlow Condensed";font-weight:800;font-style:normal;font-display:swap;src:url(fonts/barlow-condensed-latin-800-normal.woff2) format("woff2")}@font-face{font-family:"JetBrains Mono";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/jetbrains-mono-latin-500-normal.woff2) format("woff2")}@font-face{font-family:"JetBrains Mono";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/jetbrains-mono-latin-600-normal.woff2) format("woff2")}
 body.nocal .kc{display:none!important}
@@ -176,7 +176,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left
 #toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-150%);visibility:hidden;background:var(--solid);border:1px solid var(--acct);border-radius:12px;padding:10px 14px;z-index:50;transition:transform .25s;max-width:90%}
 #toast.show{transform:translate(-50%,0);visibility:visible}
 /* ---- Direction A skin (v3.5) ---- */
-h2{font-size:34px!important;font-weight:700;letter-spacing:-.03em;line-height:1.05}
+h2{font-size:28px!important;font-weight:700;letter-spacing:-.03em;line-height:1.05}
 .n,.big{letter-spacing:-.02em}.hero .name{font-size:38px;text-transform:none;letter-spacing:-.03em;line-height:1}
 .card{border-radius:22px;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
 .cut{clip-path:none;border-radius:22px;background:var(--g1);border:1px solid var(--line);box-shadow:none}
@@ -286,6 +286,7 @@ html[data-cs=one][data-theme=light]{--prot:#5b4bff;--carb:#5b4bff;--fat:#5b4bff;
 .chip2{display:inline-flex;align-items:center;min-height:36px;padding:0 10px;border-radius:10px;border:1px solid var(--line2);font-family:var(--mono);font-weight:600;font-size:12px;margin:0 6px 6px 0}
 .exlink{background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
 .back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--g2);color:var(--ink);font-weight:700;font-size:15px}
+.card{padding:14px}.sess{padding:14px}
 </style>
 </head>
 <body>
@@ -297,21 +298,21 @@ html[data-cs=one][data-theme=light]{--prot:#5b4bff;--carb:#5b4bff;--fat:#5b4bff;
   <button data-go="fuel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c4 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2-6 6-10z"/></svg> Fuel</button>
   <button data-go="trends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg> Insights</button>
 </nav>
-<script src="program.js?v=3.22.0"></script>
-<script src="users.js?v=3.22.0"></script>
-<script src="sync.js?v=3.22.0"></script>
-<script src="js-core.js?v=3.22.0"></script>
-<script src="js-shell.js?v=3.22.0"></script>
-<script src="js-today.js?v=3.22.0"></script>
-<script src="js-workout.js?v=3.22.0"></script>
-<script src="js-history.js?v=3.22.0"></script>
-<script src="js-me.js?v=3.22.0"></script>
-<script src="js-extras.js?v=3.22.0"></script>
-<script src="js-notes.js?v=3.22.0"></script>
-<script src="js-daily.js?v=3.22.0"></script>
-<script src="js-usage.js?v=3.22.0"></script>
-<script src="js-program.js?v=3.22.0"></script>
-<script src="js-actions.js?v=3.22.0"></script>
-<script src="js-boot.js?v=3.22.0"></script>
+<script src="program.js?v=3.23.0"></script>
+<script src="users.js?v=3.23.0"></script>
+<script src="sync.js?v=3.23.0"></script>
+<script src="js-core.js?v=3.23.0"></script>
+<script src="js-shell.js?v=3.23.0"></script>
+<script src="js-today.js?v=3.23.0"></script>
+<script src="js-workout.js?v=3.23.0"></script>
+<script src="js-history.js?v=3.23.0"></script>
+<script src="js-me.js?v=3.23.0"></script>
+<script src="js-extras.js?v=3.23.0"></script>
+<script src="js-notes.js?v=3.23.0"></script>
+<script src="js-daily.js?v=3.23.0"></script>
+<script src="js-usage.js?v=3.23.0"></script>
+<script src="js-program.js?v=3.23.0"></script>
+<script src="js-actions.js?v=3.23.0"></script>
+<script src="js-boot.js?v=3.23.0"></script>
 </body>
 </html>

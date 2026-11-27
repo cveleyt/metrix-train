@@ -88,7 +88,7 @@ function todaySentence(gs) {
   if (w.v == null) return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' not logged yet today.';
   { const gl = Math.round(w.v + w.gap), u = w.say === 'protein' ? ' g' : ''; return (w.lab === 'Move' ? 'Steps are' : w.lab + ' is') + ' the gap: ' + Math.round(w.v).toLocaleString() + ' of ' + gl.toLocaleString() + u + ', ' + Math.round(w.gap).toLocaleString() + u + ' to go.'; }
 }
-function solidRing(p, col, txt, sz = 76, w = 9) {
+function solidRing(p, col, txt, sz = 66, w = 8) {
   const r = (sz - w) / 2, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, p));
   return `<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" aria-hidden="true"><circle cx="${sz / 2}" cy="${sz / 2}" r="${r}" fill="none" stroke-width="${w}" style="stroke:color-mix(in srgb, ${col} 22%, transparent)"/>${f > 0 ? `<circle cx="${sz / 2}" cy="${sz / 2}" r="${r}" fill="none" stroke-width="${w}" stroke-linecap="round" style="stroke:${col}" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${sz / 2} ${sz / 2})"/>` : ''}<text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" style="fill:var(--ink)" font-size="16" font-weight="700" font-family="inherit">${esc(txt)}</text></svg>`;
 }
@@ -201,7 +201,7 @@ function tapeBlock() {
   } else {
     const d = dayOf(sel) || DAYS[0], sets = d.exercises.reduce((a, e) => a + e.sets, 0), done = wk.some(s => s.dayKey === sel), first = d.exercises[0];
     card = `<div class="sess hero1"><div class="row" style="justify-content:space-between"><span class="m">NEXT UP</span><span class="t" style="color:var(--dim)">${d.exercises.length} EXERCISES, ${sets} SETS</span></div>
-    <div class="n" style="font-size:40px;margin:8px 0 10px">${esc(d.name)}</div>
+    <div class="n" style="font-size:32px;margin:6px 0 8px">${esc(d.name)}</div>
     ${(sessOpen ? d.exercises : d.exercises.slice(0, 1)).map(ghostRow).join('')}
     <button class="btn" style="margin-top:12px" data-act="${sel === n.dayKey ? 'start' : 'start-day'}" data-k="${esc(sel)}">${done ? 'Do ' + esc(d.name) + ' again' : 'Start ' + esc(d.name) + ' &#8594;'}</button>
     ${d.exercises.length > 1 ? `<button class="sesst" data-act="sess-toggle" aria-expanded="${sessOpen}">${sessOpen ? 'Hide exercises' : 'Show all ' + d.exercises.length + ' exercises'}<span aria-hidden="true"> ${sessOpen ? '&#9652;' : '&#9662;'}</span></button>` : ''}</div>`;
