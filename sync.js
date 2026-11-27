@@ -169,7 +169,7 @@
           LS.setItem(P + name, JSON.stringify(v));
         });
       } finally { busy = false; }
-      if (ok.length) reloadSoon(0);
+      if (ok.length) { if (window.mxReloadData) { try { window.mxReloadData(); } catch (e) { reloadSoon(0); } } else reloadSoon(0); }
     }
     busy = true; try { LS.setItem(P + 'sync', JSON.stringify(Object.fromEntries(Object.entries(nb).filter(e => e[1] !== undefined)))); } finally { busy = false; }
   }

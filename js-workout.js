@@ -35,8 +35,8 @@ function resetSets(x) {
 }
 /* R1 set card (v3.5): finished sets as compact rows, one big card for the current set. */
 function old_rows(ex, x, i, sg) {
-  const po = exOpt(x.name);
-  return (ex.noWeight ? '' : `<div class="wrow" style="margin-bottom:8px"><button class="eachtg${po.ps ? ' on' : ''}" data-act="ps-tog" data-n="${esc(x.name)}" aria-pressed="${!!po.ps}">${po.ps ? '&#10003; ' : ''}EACH SIDE</button><small class="dim">${po.ps ? 'Weights below are per side' : 'Turn on if the weights below are per side'}</small></div>`) + `<div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || UW())}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>`
+  const po = { ps: !!x.ps };
+  return (ex.noWeight ? '' : `<div class="wrow" style="margin-bottom:8px"><button class="eachtg${po.ps ? ' on' : ''}" data-act="ps-tog-e" data-i="${i}" aria-pressed="${!!po.ps}">${po.ps ? '&#10003; ' : ''}EACH SIDE</button><small class="dim">${po.ps ? 'Weights below are per side, this workout only' : 'Turn on if the weights below were per side'}</small></div>`) + `<div class="cols ${ex.noWeight ? 'nw' : ''}"><span></span>${ex.noWeight ? '' : `<span>${esc(ex.wlabel || UW())}</span>`}<span>${ex.side ? 'reps per side' : 'reps'}</span><span></span></div>`
     + x.sets.map((t, j) => setRow(ex, t, i, j)).join('');
 }
 function centerReps() { document.querySelectorAll('.rnums').forEach(r => { const s = r.querySelector('.rn.s'); if (s) r.scrollLeft = s.offsetLeft - (r.clientWidth - s.offsetWidth) / 2; }); }
@@ -96,7 +96,7 @@ function logLine(ex, x, i) {
   }
   return `<div class="lgl">${chips}</div>${panel}`;
 }
-let fixSet = null;
+let fixSet = null, zeroOk = null;
 let flashSet = null, moreOpen = -1;
 function exCard(c, x, i, edit) {
   const ex = exOf(x);
@@ -118,9 +118,9 @@ function exCard(c, x, i, edit) {
   const n = x.sets.length, cj = x.sets.findIndex(t => !t.done), ts = all ? topSet(x) : null;
   let nb = false;
   if (all && ts) { const bs = bestSet(x.name, c.id); nb = !!bs && (ex.noWeight ? ts.r > bs.r : (ts.w > bs.w || (ts.w === bs.w && ts.r > bs.r))); }
-  const spec = (x.orig || x.extra || !ex.lo) ? n + ' sets' : n + ' &times; ' + ex.lo + '-' + ex.hi + (ex.side ? ' per side' : '');
-  const lab = x.skipped ? 'Skipped' : all ? 'Done' : dn > 0 || isOpen ? 'Set ' + (cj + 1) + ' of ' + n : n + ' sets';
-  const sub = all && ts ? n + ' sets, top set ' + (ex.noWeight ? '' : r1(dw(ts.w)) + ' ' + UW() + ' x ') + ts.r : (x.orig || x.extra ? n + ' sets' : ex.sets + ' x ' + ex.lo + '-' + ex.hi) + (ex.side ? ' per side' : '') + ' &middot; rest ' + restTxt(ex.rest);
+  const spec = (x.orig || x.extra || !ex.lo) ? n + (n === 1 ? ' set' : ' sets') : n + ' &times; ' + ex.lo + '-' + ex.hi + (ex.side ? ' per side' : '');
+  const lab = x.skipped ? 'Skipped' : all ? 'Done' : dn > 0 || isOpen ? 'Set ' + (cj + 1) + ' of ' + n : n + (n === 1 ? ' set' : ' sets');
+  const sub = all && ts ? n + ' sets, top set ' + (ex.noWeight ? '' : r1(dw(ts.w)) + ' ' + UW() + ' x ') + ts.r : (x.orig || x.extra ? n + (n === 1 ? ' set' : ' sets') : ex.sets + ' x ' + ex.lo + '-' + ex.hi) + (ex.side ? ' per side' : '') + ' &middot; rest ' + restTxt(ex.rest);
   return `<section class="ex ${isOpen ? 'open' : ''} ${all ? 'complete' : ''} ${x.skipped ? 'skipped' : ''}">
   <div class="exw"><button class="exh" data-act="toggle" data-i="${i}" aria-expanded="${isOpen}"><div style="flex:1;min-width:0"><b>${esc(x.name)}</b> <span class="spec">&middot; ${spec}</span>
   ${all && ts ? `<div class="sub">${sub}</div>` : ''}${x.skipped ? '' : isOpen && !edit ? `<div class="sgrow">${setStrip(x, true, i)}<span class="sgr"><b>${all ? 'All ' + n + ' sets done' : 'Set ' + (cj + 1) + ' of ' + n}</b><small>${dn} logged</small></span></div>` : `<div class="sgrow">${setStrip(x)}<span class="sgl">${all ? '&#10003; DONE' : lab}</span></div>`}${nb ? '<div class="nbest"><span class="tag">NEW BEST</span></div>' : ''}</div>
@@ -188,7 +188,7 @@ views.summary = p => {
   const n = nextWorkout(), nd = dayOf(n.dayKey) || DAYS[0];
   const rowsT = s.exercises.map(x => {
     const ts = topSet(x), sk = x.skipped || !ts, bs = ts && bestSet(x.name, s.id), nb = !!ts && !!bs && (isNW(x.name) ? ts.r > bs.r : (ts.w > bs.w || (ts.w === bs.w && ts.r > bs.r)));
-    return `<div class="row" style="padding:11px 0;border-top:1px solid var(--line);align-items:center;flex-wrap:nowrap"><div><b>${esc(x.name)}</b><br><small class="dim">${sk ? 'Skipped' : doneCount({ exercises: [x] }) + ' sets'}</small></div><div style="text-align:right">${nb ? otag('NEW BEST', true) + '<br>' : ''}<small class="dim">${sk ? '' : isNW(x.name) ? ts.r + ' reps' : r1(dw(ts.w)) + ' ' + UW() + ' x ' + ts.r}</small></div></div>`;
+    return `<div class="row" style="padding:11px 0;border-top:1px solid var(--line);align-items:center;flex-wrap:nowrap"><div><b>${esc(x.name)}</b><br><small class="dim">${sk ? 'Skipped' : doneCount({ exercises: [x] }) + (doneCount({ exercises: [x] }) === 1 ? ' set' : ' sets')}</small></div><div style="text-align:right">${nb ? otag('NEW BEST', true) + '<br>' : ''}<small class="dim">${sk ? '' : isNW(x.name) ? ts.r + ' reps' : r1(dw(ts.w)) + ' ' + UW() + ' x ' + ts.r}</small></div></div>`;
   }).join('');
   const saved = feedback.find(f => f.sid === s.id);
   return `<h2>Workout saved</h2>

@@ -56,3 +56,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.14.3 | Floating rest timer bubble hidden; stepper and note buttons centered with flex | User request; inline rest timer remains in the set card |
 | 3.14.4 | Weight and reps boxes aligned with fixed label, number and sub heights, stepper pinned to bottom | Pill made weight box taller than reps |
 | 3.14.5 | EACH SIDE toggle in edit-workout mode | Edit screen had no way to mark per-side weights |
+| 3.15.0 | Audit batch 1: sync reloads memory after pull (no stale overwrite, no page reload); edit screen EACH SIDE per workout and keeps rest; wk-nav routed by data-k; .btn uses --accf; 0 kg/0 reps needs a second tap; lb suggestions use lb step; import restores settings; banner text when synced; removed password hash; labels fixed | Opus audit findings, verified with a mock two-device sync test |

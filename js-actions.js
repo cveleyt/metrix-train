@@ -40,7 +40,11 @@ function importData(file) {
       if (Array.isArray(d.feedback)) { d.feedback.forEach(n => { if (n && n.t && !feedback.some(x => x.t === n.t)) feedback.push(n); }); feedback.sort((a, b) => a.t - b.t); saveFeedback(); }
       if (d.meas && typeof d.meas === 'object') { Object.keys(d.meas).forEach(k => { if (!meas[k]) meas[k] = d.meas[k]; }); saveMeas(); }
       if (d.daily && typeof d.daily === 'object') { Object.keys(d.daily).forEach(k => { if (!daily[k]) daily[k] = d.daily[k]; }); saveDaily(); }
-      saveSessions(); toast('Imported ' + add + ' new, ' + upd + ' updated'); render();
+      if (d.settings && typeof d.settings === 'object') {
+        const ai = settings.ai, ns = Object.assign({}, settings, d.settings); ns.ai = ai;
+        ns.goals = Object.assign({}, settings.goals, d.settings.goals || {}); settings = ns; saveSettings(); applyTheme();
+      }
+      saveSessions(); toast('Imported ' + add + ' new, ' + upd + ' updated' + (d.settings ? ', settings restored' : '')); render();
     } catch (e) { toast('Import failed: ' + e.message); }
   };
   fr.readAsText(file);
@@ -107,7 +111,10 @@ async function act(a, el) {
     case 'bar-in': { const n = el.dataset.n, v = parseFloat(String(el.value).replace(',', '.')); settings.exOpts = settings.exOpts || {}; settings.exOpts[n] = { ps: exOpt(n).ps, bar: isNaN(v) || v < 0 ? 0 : rnd(fw(v)) }; saveSettings(); render(); break; }
     case 'unit-set': settings.units = Object.assign({}, settings.units, { [el.dataset.f]: el.dataset.v }); saveSettings(); render(); break;
     case 'csv': exportCsv(el.dataset.k); break;
-    case 'wk-nav': hist[el.dataset.k] = Math.min(0, hist[el.dataset.k] + (+el.dataset.n)); render(); break;
+    case 'wk-nav':
+      if (el.dataset.k) hist[el.dataset.k] = Math.min(0, (hist[el.dataset.k] || 0) + (+el.dataset.n));
+      else { hist.wk = kAdd(hist.wk || mondayOf(todayKey()), +el.dataset.n); hist.sel = null; }
+      render(); break;
     case 'meas-in': {
       const mon = el.dataset.mon, f = el.dataset.f, v = parseFloat(String(el.value).replace(',', '.'));
       meas[mon] = meas[mon] || {};
@@ -148,6 +155,7 @@ async function act(a, el) {
       const v = parseFloat(String(el.value).replace(',', '.'));
       setW(cur(), i, j, isNaN(v) || v < 0 ? 0 : rnd(fw(v))); persist(); syncInputs(i); updGo(i, j); { const pt = $('#pstot-' + i); if (pt) pt.textContent = psTot(cur().exercises[i], isNaN(v) || v < 0 ? 0 : rnd(fw(v))); } break;
     }
+    case 'ps-tog-e': { const x = editing && editing.exercises[i]; if (!x) break; x.ps = x.ps ? undefined : true; if (!x.ps) x.bar = undefined; render(); break; }
     case 'fix-open': fixSet = fixSet && fixSet.i === i && fixSet.j === j ? null : { i, j }; render(); break;
     case 'fix-cancel': fixSet = null; render(); break;
     case 'fix-save': {
@@ -163,6 +171,14 @@ async function act(a, el) {
     }
     case 'done': {
       const c = cur(), x = c.exercises[i], t = x.sets[j];
+      if (!t.done && !view.params.edit) {
+        const exz = exOf(x), zw = !exz.noWeight && !exz.wlabel && !t.w, zr = !t.r;
+        if ((zw || zr) && !(zeroOk && zeroOk.i === i && zeroOk.j === j && Date.now() - zeroOk.t < 5000)) {
+          zeroOk = { i, j, t: Date.now() };
+          toast((zr ? 'Reps are 0.' : 'Weight is 0.') + ' Tap Log again to save it anyway.'); break;
+        }
+        zeroOk = null;
+      }
       t.done = !t.done;
       let moved = false;
       if (t.done) {
@@ -222,7 +238,7 @@ async function act(a, el) {
     }
     case 'save-edit': {
       const e = editing;
-      const ex = e.exercises.map(x => ({ slotId: x.slotId, name: x.name, nw: x.nw, ps: x.ps, bar: x.bar, sets: x.sets.filter(t => t.done).map(t => ({ w: t.w, r: t.r, done: true, rpe: t.rpe })), warm: x.warm })).filter(x => x.sets.length);
+      const ex = e.exercises.map(x => ({ slotId: x.slotId, name: x.name, nw: x.nw, ps: x.ps, bar: x.bar, sets: x.sets.filter(t => t.done).map(t => Object.assign({}, t, { done: true })), warm: x.warm })).filter(x => x.sets.length);
       if (!ex.length) { toast('A workout needs at least one done set. Use Delete in History instead.'); break; }
       const k = sessions.findIndex(s => s.id === e.id);
       if (k >= 0) sessions[k] = Object.assign({}, sessions[k], { exercises: ex, updatedAt: Date.now() });
@@ -414,7 +430,6 @@ async function act(a, el) {
     case 'note-in': { const s = sessions.find(x => x.id === el.dataset.id); if (s) { s.note = el.value; s.updatedAt = Date.now(); saveSessions(); } break; }
     case 'hist-mode': hist.mode = el.dataset.m; if (LOGM.includes(hist.mode)) hist.logm = hist.mode; render(); break;
     case 'cal-nav': { const d = new Date(hist.y, hist.m + (+el.dataset.n), 1); hist.y = d.getFullYear(); hist.m = d.getMonth(); render(); break; }
-    case 'wk-nav': hist.wk = kAdd(hist.wk || mondayOf(todayKey()), +el.dataset.n); hist.sel = null; render(); break;
     case 'wk-sel': hist.sel = el.dataset.k; render(); break;
     case 'open-day': go('day', { k: el.dataset.k }); break;
     case 'day-nav': { const k = kAdd(view.params.k, +el.dataset.n); if (k <= todayKey()) go('day', { k }, true); break; }

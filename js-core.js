@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.14.5';
+const VERSION = '3.15.0';
 const CHANGELOG = [
+  { v: '3.15.0', items: ['Sync no longer overwrites data that came from another device', 'Editing a workout keeps rest times, and EACH SIDE there changes only that workout', 'Insights week arrows work again', 'Main buttons use the deeper blue for better contrast', 'Logging 0 kg or 0 reps asks you to tap again first', 'In lb, weight suggestions use your lb step', 'Importing a backup restores your settings, program edits and goals', 'Fixed a few labels: 1 set, steps goal, training per week, program name'] },
   { v: '3.14.5', items: ['Editing a finished workout has the EACH SIDE toggle for each exercise'] },
   { v: '3.14.4', items: ['Weight and reps boxes line up: labels, numbers and the - and + buttons sit at the same height'] },
   { v: '3.14.3', items: ['Rest timer bubble removed (the rest timer stays inside the set card)', '+ and - under weight and reps, and the note button, are now centered'] },
@@ -95,6 +96,31 @@ let notes = LSget('mx.notes', {});            // {exerciseName: {machine, note, 
 let notelog = LSget('mx.notelog', []);        // [{t, name, note, tags}]
 const saveNotes = () => { LSset('mx.notes', notes); LSset('mx.notelog', notelog); };
 const NTAGS = ['Too heavy', 'Too easy', 'Pain', 'Form check', 'Change machine'];
+/* Re-read synced data from storage into memory. Sync calls this after it pulls from the cloud,
+   so an old in-memory copy is never written back over newer data. */
+function reloadData() {
+  sessions = LSget('mx.sessions', []);
+  const key = (settings.ai || {}).key || '';
+  settings = Object.assign({ inc: {}, sound: true, vibrate: true, override: null }, LSget('mx.settings', {}));
+  settings.ai = Object.assign({ key: '', model: 'gemini-3.1-flash-lite' }, settings.ai || {});
+  if (!settings.ai.key) settings.ai.key = key;
+  settings.goals = Object.assign({ steps: 10000, sleep: 8, protein: 130 }, settings.goals || {});
+  daily = LSget('mx.daily', {}); food = LSget('mx.food', {}); myfoods = LSget('mx.myfoods', []);
+  notes = LSget('mx.notes', {}); notelog = LSget('mx.notelog', []);
+  try { meas = LSget('mx.meas', {}); } catch (e) {}
+  try { feedback = LSget('mx.feedback', []); } catch (e) {}
+}
+window.mxReloadData = () => {
+  reloadData();
+  const ae = document.activeElement, typing = ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName);
+  if (typing) { window.mxNeedRender = true; return; }
+  try { applyTheme(); render(); } catch (e) {}
+};
+document.addEventListener('focusout', () => setTimeout(() => {
+  if (!window.mxNeedRender) return; const ae = document.activeElement;
+  if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) return;
+  window.mxNeedRender = false; try { render(); } catch (e) {}
+}, 350));
 let fabMoved = false;
 let view = { name: 'home', params: {} };
 let open = 0;
@@ -153,7 +179,7 @@ function suggest(ex, prev) {
   const allTop = prev.same && ps.length >= ex.sets && ps.every(t => t.r >= ex.hi);
   if (allTop) {
     if (ex.noWeight) return { tag: 'TOP OF RANGE', text: `Every set reached ${ex.hi} reps. Make it harder: slower tempo or more resistance.` };
-    const nw = rnd(topW + getInc(ex));
+    const nw = UW() === 'kg' ? rnd(topW + getInc(ex)) : rnd(fw(r1(dw(topW)) + incD(ex)));
     return { tag: 'ADD WEIGHT', text: `Every set reached ${ex.hi} reps last time. Try ${r1(dw(nw))} ${UW()} and build reps back up.`, apply: nw };
   }
   const src = prev.same ? '' : ` Last numbers are from ${(dayOf(prev.s.dayKey) || {}).name || 'another day'}, where the rep range may differ.`;
