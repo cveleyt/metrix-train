@@ -200,13 +200,13 @@ function tapeBlock() {
     <div class="n" style="font-size:30px;margin:8px 0 14px">${esc(active.name)}</div><button class="btn" data-act="resume">Resume ${esc(active.name)}</button></div>`;
   } else {
     const d = dayOf(sel) || DAYS[0], sets = d.exercises.reduce((a, e) => a + e.sets, 0), done = wk.some(s => s.dayKey === sel), first = d.exercises[0];
-    card = `<div class="sess"><div class="row" style="justify-content:space-between"><span class="m">WEEK ${Math.min(n.week, P.weeks)} OF ${P.weeks}</span><span class="t" style="color:var(--dim)">${d.exercises.length} EXERCISES, ${sets} SETS</span></div>
-    <div class="n" style="font-size:30px;margin:8px 0 8px">${esc(d.name)}</div>
+    card = `<div class="sess hero1"><div class="row" style="justify-content:space-between"><span class="m">NEXT UP</span><span class="t" style="color:var(--dim)">${d.exercises.length} EXERCISES, ${sets} SETS</span></div>
+    <div class="n" style="font-size:40px;margin:8px 0 10px">${esc(d.name)}</div>
     ${(sessOpen ? d.exercises : d.exercises.slice(0, 1)).map(ghostRow).join('')}
-    <button class="btn" style="margin-top:12px" data-act="${sel === n.dayKey ? 'start' : 'start-day'}" data-k="${esc(sel)}">${done ? 'Do ' + esc(d.name) + ' again' : first ? 'Start with ' + esc(first.name) : 'Start ' + esc(d.name)}</button>
+    <button class="btn" style="margin-top:12px" data-act="${sel === n.dayKey ? 'start' : 'start-day'}" data-k="${esc(sel)}">${done ? 'Do ' + esc(d.name) + ' again' : 'Start ' + esc(d.name) + ' &#8594;'}</button>
     ${d.exercises.length > 1 ? `<button class="sesst" data-act="sess-toggle" aria-expanded="${sessOpen}">${sessOpen ? 'Hide exercises' : 'Show all ' + d.exercises.length + ' exercises'}<span aria-hidden="true"> ${sessOpen ? '&#9652;' : '&#9662;'}</span></button>` : ''}</div>`;
   }
-  return `<div class="tape" role="group" aria-label="Program days">${blocks}</div>${card}`;
+  return card;
 }
 function coachNoteCard() {
   const r = settings.review, tk = todayKey();
@@ -220,10 +220,9 @@ views.home = () => {
   <div class="row" style="justify-content:space-between;flex-wrap:nowrap;margin-bottom:14px"><div>${greetBlock()}</div><div class="row" style="gap:8px;flex-wrap:nowrap">
   <button class="ibtn" data-act="theme-flip" aria-label="${light ? 'Switch to dark theme' : 'Switch to light theme'}">${light ? SVG_MOON : SVG_SUN}</button>
   <button class="ibtn" data-go="me" aria-label="Open Me"><span class="n" style="font-size:17px">${esc((USER ? USER.name : 'E').charAt(0).toUpperCase())}</span></button></div></div>
-  ${backupBanner()}${nextUpCard()}${tapeBlock()}${deloadCard()}
+  ${backupBanner()}${tapeBlock()}${deloadCard()}
   <div class="dl"><b></b><span class="m">TODAY SO FAR</span><b></b></div><div id="tg">${todayGauges()}</div>
-  <button class="btn ghost" style="margin-top:14px" data-act="${na}">${esc(nl)}</button>
-  ${weekStrip()}${bodyStrip()}${coachNoteCard()}${dailyCard()}${streakCard()}`;
+  ${nextUpCard()}${weekStrip()}${bodyStrip()}${coachNoteCard()}${dailyCard()}`;
 };
 const QI = { food: '<path d="M12 3c4 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2-6 6-10z"/>', wt: '<path d="M5 20h14l-2-12H7zM9 8a3 3 0 0 1 6 0"/>', ci: '<circle cx="12" cy="12" r="9"/><path d="M8 14c1 2 7 2 8 0M9 9.5h.01M15 9.5h.01"/>', pill: '<rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-35 12 12)"/>', tr: '<path d="M3 9v6M7 6v12M17 6v12M21 9v6M7 12h10"/>', me: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>' };
 function quickAdd() {

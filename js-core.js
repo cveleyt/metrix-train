@@ -2,8 +2,9 @@
    The app is split into several classic scripts that share one global scope; load order matters (see index.html). */
 /* Core: version, users, helpers, state, progression, rest timer, theme, navigation. */
 'use strict';
-const VERSION = '3.17.0';
+const VERSION = '3.18.0';
 const CHANGELOG = [
+  { v: '3.18.0', items: ['Today has one main card: Next up with a big Start button. The day strip and the extra Train button are gone', 'New default colors that are easier to tell apart: Move white, Rest slate, Protein blue, Energy amber', 'Suggestions sit under your rings instead of on top']  },
   { v: '3.17.0', items: ['The rest timer lives in a bar at the bottom of the workout: big countdown, ready and max marks, +30 s and Skip. It stays visible while you scroll and after an exercise is done'] },
   { v: '3.16.0', items: ['Everything is bigger: Medium is now full size (Small and Large around it)', 'Small labels are at least 11 px, and small buttons are easier to hit', 'NEW BEST is a filled tag with how much you beat it by', 'The set you just logged flashes in the line of sets', 'Energy has its own amber color, so it no longer looks like protein', 'Workout summary values line up on the right', 'Edit mode no longer paints every exercise green', 'Fixed the empty box peeking at the top of the screen'] },
   { v: '3.15.0', items: ['Sync no longer overwrites data that came from another device', 'Editing a workout keeps rest times, and EACH SIDE there changes only that workout', 'Insights week arrows work again', 'Main buttons use the deeper blue for better contrast', 'Logging 0 kg or 0 reps asks you to tap again first', 'In lb, weight suggestions use your lb step', 'Importing a backup restores your settings, program edits and goals', 'Fixed a few labels: 1 set, steps goal, training per week, program name'] },

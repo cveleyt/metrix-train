@@ -15,8 +15,8 @@
 body.nocal .kc{display:none!important}
 button:focus-visible,[data-act]:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--acct);outline-offset:2px}
 
-:root{color-scheme:dark;--kcal:#ffb23e;--bg:#07080c;--g1:#0e1016;--g2:#151822;--g3:#1d212d;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.16);--ink:#f4f6fb;--ink2:#c8cfdd;--dim:#8a93a6;--acc:#8b7bff;--acc2:#7a68ff;--acct:#a99dff;--onacc:#ffffff;--accf:#6a5af0;--accf2:#5847e0;--move:#38e1c6;--rest:#ff7ad9;--prot:#6aa8ff;--carb:#ff9f5a;--fat:#ff7a6b;--fib:#8be36b;--body:#4cc9f0;--ok:#38e1c6;--warn:#ff9f5a;--bar:rgba(255,255,255,.1);--tab:rgba(7,8,12,.88);--solid:#11141c;--hero:#151822;--glow1:rgba(139,123,255,.10);--glow2:rgba(56,225,198,.04);--glow3:transparent;--dbg:rgba(255,100,100,.14);--dtx:#ff9a9a;--disp:Inter,system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
-:root[data-theme=light]{color-scheme:light;--kcal:#b86e00;--bg:#f1f2f7;--g1:#ffffff;--g2:#f6f7fb;--g3:#e9ebf3;--line:rgba(13,15,26,.08);--line2:rgba(13,15,26,.2);--ink:#0d0f1a;--ink2:#2b3040;--dim:#5d6577;--acc:#5b4bff;--acc2:#4a3bf0;--acct:#5b4bff;--onacc:#ffffff;--accf:#5b4bff;--accf2:#4a3bf0;--move:#0e9f86;--rest:#e0489f;--prot:#2f6fe0;--carb:#d9731a;--fat:#e0483a;--fib:#3fa31f;--body:#0b86b3;--ok:#0e9f86;--warn:#b5600f;--bar:rgba(13,15,26,.08);--tab:rgba(255,255,255,.9);--solid:#ffffff;--hero:#f6f7fb;--glow1:rgba(91,75,255,.06);--glow2:transparent;--glow3:transparent;--dbg:rgba(224,72,58,.1);--dtx:#c0392b}
+:root{color-scheme:dark;--kcal:#ffb23e;--bg:#07080c;--g1:#0e1016;--g2:#151822;--g3:#1d212d;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.16);--ink:#f4f6fb;--ink2:#c8cfdd;--dim:#8a93a6;--acc:#8b7bff;--acc2:#7a68ff;--acct:#a99dff;--onacc:#ffffff;--accf:#6a5af0;--accf2:#5847e0;--move:#f2f4f8;--rest:#7f8bb0;--prot:#3d9bff;--carb:#ffb23e;--fat:#c8cfdd;--fib:#7f8bb0;--body:#3d9bff;--ok:#38e1c6;--warn:#ff9f5a;--bar:rgba(255,255,255,.1);--tab:rgba(7,8,12,.88);--solid:#11141c;--hero:#151822;--glow1:rgba(139,123,255,.10);--glow2:rgba(56,225,198,.04);--glow3:transparent;--dbg:rgba(255,100,100,.14);--dtx:#ff9a9a;--disp:Inter,system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+:root[data-theme=light]{color-scheme:light;--kcal:#b86e00;--bg:#f1f2f7;--g1:#ffffff;--g2:#f6f7fb;--g3:#e9ebf3;--line:rgba(13,15,26,.08);--line2:rgba(13,15,26,.2);--ink:#0d0f1a;--ink2:#2b3040;--dim:#5d6577;--acc:#5b4bff;--acc2:#4a3bf0;--acct:#5b4bff;--onacc:#ffffff;--accf:#5b4bff;--accf2:#4a3bf0;--move:#2b3040;--rest:#5f6a8f;--prot:#0a6fd6;--carb:#b86e00;--fat:#2b3040;--fib:#5f6a8f;--body:#0a6fd6;--ok:#0b7d6a;--warn:#b5600f;--bar:rgba(13,15,26,.08);--tab:rgba(255,255,255,.9);--solid:#ffffff;--hero:#f6f7fb;--glow1:rgba(91,75,255,.06);--glow2:transparent;--glow3:transparent;--dbg:rgba(224,72,58,.1);--dtx:#c0392b}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg)}
 body{margin:0;min-height:100vh;background:transparent;color:var(--ink);font:16px/1.45 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;padding-bottom:calc(88px + env(safe-area-inset-bottom))}
@@ -277,6 +277,7 @@ html[data-cs=one][data-theme=light]{--prot:#5b4bff;--carb:#5b4bff;--fat:#5b4bff;
 .rbtrack{position:relative;height:10px;background:var(--g3);border-radius:5px;margin:12px 0 6px}.rbtrack i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--acct);border-radius:5px;transition:width .5s linear}
 .rbtrack b{position:absolute;top:-5px;width:2px;height:20px;background:var(--ink)}
 .tbar.rb.rdy{border-color:var(--ok)}.tbar.rb.rdy .rbt{color:var(--ok)}.tbar.rb.rdy .rbtrack i{background:var(--ok)}
+.sess.hero1{border:1px solid var(--acct);background:var(--g2)}
 </style>
 </head>
 <body>
@@ -288,21 +289,21 @@ html[data-cs=one][data-theme=light]{--prot:#5b4bff;--carb:#5b4bff;--fat:#5b4bff;
   <button data-go="fuel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c4 4 6 7 6 10a6 6 0 0 1-12 0c0-3 2-6 6-10z"/></svg> Fuel</button>
   <button data-go="trends"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg> Insights</button>
 </nav>
-<script src="program.js?v=3.17.0"></script>
-<script src="users.js?v=3.17.0"></script>
-<script src="sync.js?v=3.17.0"></script>
-<script src="js-core.js?v=3.17.0"></script>
-<script src="js-shell.js?v=3.17.0"></script>
-<script src="js-today.js?v=3.17.0"></script>
-<script src="js-workout.js?v=3.17.0"></script>
-<script src="js-history.js?v=3.17.0"></script>
-<script src="js-me.js?v=3.17.0"></script>
-<script src="js-extras.js?v=3.17.0"></script>
-<script src="js-notes.js?v=3.17.0"></script>
-<script src="js-daily.js?v=3.17.0"></script>
-<script src="js-usage.js?v=3.17.0"></script>
-<script src="js-program.js?v=3.17.0"></script>
-<script src="js-actions.js?v=3.17.0"></script>
-<script src="js-boot.js?v=3.17.0"></script>
+<script src="program.js?v=3.18.0"></script>
+<script src="users.js?v=3.18.0"></script>
+<script src="sync.js?v=3.18.0"></script>
+<script src="js-core.js?v=3.18.0"></script>
+<script src="js-shell.js?v=3.18.0"></script>
+<script src="js-today.js?v=3.18.0"></script>
+<script src="js-workout.js?v=3.18.0"></script>
+<script src="js-history.js?v=3.18.0"></script>
+<script src="js-me.js?v=3.18.0"></script>
+<script src="js-extras.js?v=3.18.0"></script>
+<script src="js-notes.js?v=3.18.0"></script>
+<script src="js-daily.js?v=3.18.0"></script>
+<script src="js-usage.js?v=3.18.0"></script>
+<script src="js-program.js?v=3.18.0"></script>
+<script src="js-actions.js?v=3.18.0"></script>
+<script src="js-boot.js?v=3.18.0"></script>
 </body>
 </html>
