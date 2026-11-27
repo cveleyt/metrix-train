@@ -60,3 +60,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.16.0 | Design review quick wins: scale 1.0 default (0.9/1.0/1.1, old values migrated), 11 px label floor, 44 px hit areas, --kcal amber for Energy, filled NEW BEST tag with delta, chip flash, summary values right aligned, no teal in edit mode, toast fully hidden, .btn2 defined, weight/reps fields on subgrid | Opus design review (artifact TtfM6y7qRRyNkYE1SQdTJa) |
 | 3.17.0 | A2: rest timer bottom bar replaces in-card rest | Design review sample A2, approved |
 | 3.18.0 | A1: Today one hero, tape removed from Today, streak card removed, nextUp below rings; standard metric palette replaced with deutan-safe tokens from review | Design review A1 and color tokens |
+| 3.19.0 | One status vocabulary; metV used in day view, weekly counts, sleep tags, macro rows | Review top 5 #5 and audit 80% inconsistency |

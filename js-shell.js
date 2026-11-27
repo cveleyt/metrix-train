@@ -142,7 +142,7 @@ function foodsFold() {
 }
 function macroRow(k, label, unit, val, goal, col) {
   const rem = goal > 0 ? goal - val : null, hit = k === 'p' || k === 'fi';
-  const tag = goal > 0 ? (rem > 0 ? Math.round(rem) + ' ' + unit.toUpperCase() + ' TO GO' : (hit ? 'GOAL HIT' : rem >= -0.1 * goal ? 'GOAL REACHED' : 'OVER BY ' + Math.round(-rem) + ' ' + unit.toUpperCase())) : 'NO GOAL SET';
+  const tag = goal > 0 ? (rem > 0 ? (hit && metV(val, goal) ? 'MET' : Math.round(rem) + ' ' + unit.toUpperCase() + ' TO GO') : (hit ? 'MET' : rem >= -0.1 * goal ? 'MET' : Math.round(-rem) + ' ' + unit.toUpperCase() + ' OVER')) : 'NO GOAL SET';
   return `<div style="padding:12px 0;border-top:1px solid var(--line)"><div class="brow"><span style="font-weight:600">${label}</span><span><b>${Math.round(val).toLocaleString()}</b> <small>${goal > 0 ? '/ ' + goal.toLocaleString() + ' ' : ''}${unit}</small></span></div>
   ${goal > 0 ? `<div class="bar" role="img" aria-label="${label} ${Math.round(Math.min(1, val / goal) * 100)} percent of goal"><i style="width:${(Math.min(1, val / goal) * 100).toFixed(0)}%;background:${col}"></i></div>` : ''}<div class="tg" style="color:${col}">${tag}</div></div>`;
 }

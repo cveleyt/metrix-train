@@ -44,7 +44,7 @@ function stackCard() {
 function sleepCard() {
   const k = todayKey(), d = dayD(k), g = settings.goals.sleep, ds = lastDays(7), v = ds.map(x => dayD(x).sleep || 0), have = v.filter(x => x > 0);
   const avg = have.length ? have.reduce((a, b) => a + b, 0) / have.length : 0;
-  return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">SLEEP, LAST NIGHT</span><span class="t" style="color:var(--dim)">${d.sleep == null ? 'NOT LOGGED' : d.sleep >= g ? 'HIT' : 'SHORT ' + Math.round((g - d.sleep) * 60) + ' MIN'}</span></div>
+  return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="m">SLEEP, LAST NIGHT</span><span class="t" style="color:var(--dim)">${d.sleep == null ? 'NOT LOGGED' : metV(d.sleep, g) ? 'MET' : 'SHORT ' + Math.round((g - d.sleep) * 60) + ' MIN'}</span></div>
   <div class="n" style="font-size:36px;margin:6px 0 10px">${d.sleep == null ? '-' : sleepTxt(d.sleep)}</div>
   <div class="ins" style="grid-template-columns:1fr 1fr"><label>Bed time<input data-act="sl-in" data-f="bed" type="time" value="${d.bed || ''}"></label><label>Wake time<input data-act="sl-in" data-f="wake" type="time" value="${d.wake || ''}"></label></div>
   <div style="margin-top:12px">${miniBars(v.map(x => x || null), 'var(--rest)', 330, 56, g, 'Sleep last 7 nights')}</div><small>${have.length ? 'Last 7 nights, average ' + sleepTxt(avg) : 'Enter bed and wake times and the hours fill in by themselves.'}</small></div>`;
