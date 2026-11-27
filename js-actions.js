@@ -54,7 +54,7 @@ async function act(a, el) {
     case 'start':
       if (active && !confirm('You have a workout in progress. Replace it?')) return;
       startSession(nextWorkout()); break;
-    case 'resume': open = firstIncomplete(active); go('workout'); break;
+    case 'resume': closeModal(); open = firstIncomplete(active); go('workout'); break;
     case 'discard': if (confirm('Discard the workout in progress?')) { active = null; LSset('mx.active', null); render(); } break;
     case 'picker': go('train', { picker: true }, true); break;
     case 'pick-cancel': go('train', {}, true); break;
