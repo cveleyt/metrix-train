@@ -216,3 +216,35 @@ function chart(points, labels) {
 }
 views.info = () => '<div class="m">TRAIN</div><h2 style="font-size:46px">Program guide</h2>' + (P.info || (P === window.PROGRAM ? window.INFO_HTML : '<p>No guide for this program yet.</p>')) + '<button class="btn ghost" data-go="train">Back to Train</button>';
 
+
+/* Exercise sheet: one exercise's best, trend, recent sessions and note. Opened by tapping an exercise name. */
+views.exsheet = p => {
+  const name = p.n || '', nw = isNW(name);
+  const rows = sessions.filter(s => s.finishedAt).sort((a, b) => a.finishedAt - b.finishedAt)
+    .map(s => { const x = s.exercises.find(e => e.name === name && e.sets && e.sets.some(t => t.done)); if (!x) return null; const ts = topSet(x); return ts ? { s, x, ts, sc: nw ? ts.r : score(loadOf(x, ts) / (x.ps ? 2 : 1), ts.r) } : null; })
+    .filter(Boolean);
+  const days = DAYS.filter(d => d.exercises.some(e => e.name === name)), ex = days.length ? days[0].exercises.find(e => e.name === name) : null;
+  const fmt = t => nw ? t.r + ' reps' : r1(dw(t.w)) + ' x ' + t.r;
+  const back = '<button class="mini" data-act="ex-back" style="min-height:44px;min-width:56px" aria-label="Back">&#8249; Back</button>';
+  let body;
+  if (!rows.length) body = '<div class="card"><p class="dim" style="margin:0">No sets logged for this exercise yet.</p></div>';
+  else {
+    const best = rows.reduce((b, r) => (!b || r.ts.w > b.ts.w || (r.ts.w === b.ts.w && r.ts.r > b.ts.r)) ? r : b, null);
+    const e1 = Math.max(...rows.map(r => r.sc)), since = Date.now() - 56 * 864e5, tr = rows.filter(r => r.s.finishedAt >= since).slice(-12);
+    let chart = '';
+    if (tr.length >= 2) {
+      const lo = Math.min(...tr.map(r => r.sc)), hi = Math.max(...tr.map(r => r.sc)), sp = hi - lo || 1, W = 300, H = 90;
+      const pts = tr.map((r, k) => [(6 + k * (W - 12) / (tr.length - 1)).toFixed(1), (H - 10 - (r.sc - lo) / sp * (H - 24)).toFixed(1)]);
+      const ch = Math.round((tr[tr.length - 1].sc - tr[0].sc) / tr[0].sc * 100);
+      chart = `<div class="card"><div class="row m" style="justify-content:space-between;margin:0"><span>${nw ? 'BEST REPS' : 'EST. 1RM'}, LAST 8 WEEKS</span><span>${ch > 0 ? '+' : ''}${ch}%</span></div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;margin-top:8px" aria-hidden="true"><line x1="0" y1="${H - 4}" x2="${W}" y2="${H - 4}" stroke="var(--line2)"/><polyline points="${pts.map(q => q.join(',')).join(' ')}" fill="none" stroke="var(--acct)" stroke-width="2.5"/>${pts.map(q => `<circle cx="${q[0]}" cy="${q[1]}" r="3.5" fill="var(--acct)"/>`).join('')}</svg></div>`;
+    } else chart = '<div class="card"><span class="m">TREND</span><p class="dim" style="margin:6px 0 0">Log it twice in 8 weeks to see a trend.</p></div>';
+    const last5 = rows.slice(-5).reverse().map(r => `<span class="chip2">${esc((d => d.toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + d.getDate() + ' ' + d.toLocaleDateString(undefined, { month: 'short' }))(new Date(r.s.finishedAt)).toUpperCase())} ${fmt(r.ts)}</span>`).join('');
+    body = `<div class="fst" style="grid-template-columns:1fr 1fr"><div><span class="m">BEST SET</span><b>${fmt(best.ts)}</b></div><div><span class="m">${nw ? 'MOST REPS' : 'EST. 1RM'}</span><b>${nw ? e1 : r1(dw(e1)) + ' ' + UW()}</b></div></div>
+    ${chart}<div class="card"><div class="m" style="margin:0 0 8px">LAST ${Math.min(5, rows.length)} SESSIONS</div>${last5}</div>`;
+  }
+  const nt = notes[name];
+  return `<div class="row" style="justify-content:space-between;flex-wrap:nowrap">${back}<span class="m" style="margin:0">EXERCISE SHEET</span><span style="width:56px"></span></div>
+  <h2 style="margin:12px 0 2px">${esc(name)}</h2><div class="dim" style="margin-bottom:12px">${days.length ? esc(days.map(d => d.name).join(' and ')) : 'Not in your program'}${ex && ex.lo ? ', ' + ex.sets + ' x ' + ex.lo + '-' + ex.hi : ''}${rows.length ? ', logged ' + rows.length + (rows.length === 1 ? ' time' : ' times') : ''}</div>
+  ${body}${nt && (nt.note || nt.machine) ? `<div class="card"><span class="m">YOUR NOTE</span><div style="margin-top:4px">${nt.machine ? '<b>Machine:</b> ' + esc(nt.machine) + '<br>' : ''}${esc(nt.note || '')}</div></div>` : ''}`;
+};

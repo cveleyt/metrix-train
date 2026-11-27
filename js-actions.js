@@ -156,6 +156,8 @@ async function act(a, el) {
       setW(cur(), i, j, isNaN(v) || v < 0 ? 0 : rnd(fw(v))); persist(); syncInputs(i); updGo(i, j); { const pt = $('#pstot-' + i); if (pt) pt.textContent = psTot(cur().exercises[i], isNaN(v) || v < 0 ? 0 : rnd(fw(v))); } break;
     }
     case 'ps-tog-e': { const x = editing && editing.exercises[i]; if (!x) break; x.ps = x.ps ? undefined : true; if (!x.ps) x.bar = undefined; render(); break; }
+    case 'ex-open': go('exsheet', { n: el.dataset.n }); break;
+    case 'ex-back': if (history.length > 1) history.back(); else go('trends'); break;
     case 'fix-open': fixSet = fixSet && fixSet.i === i && fixSet.j === j ? null : { i, j }; render(); break;
     case 'fix-cancel': fixSet = null; render(); break;
     case 'fix-save': {

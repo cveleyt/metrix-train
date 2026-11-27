@@ -62,3 +62,4 @@ Statuses: KEPT, CHANGED, DROPPED, PARKED (idea, not now), ON HOLD (waiting on so
 | 3.18.0 | A1: Today one hero, tape removed from Today, streak card removed, nextUp below rings; standard metric palette replaced with deutan-safe tokens from review | Design review A1 and color tokens |
 | 3.19.0 | One status vocabulary; metV used in day view, weekly counts, sleep tags, macro rows | Review top 5 #5 and audit 80% inconsistency |
 | 3.20.0 | A4 finish sheet: headline sentence, tiles, top set vs last time dimension lines with revision triangle for bests; chart captions say met/short | Design review A4 |
+| 3.21.0 | A5 exercise sheet view (exsheet), linked from Today ghost row, finish sheet rows and workout More | Design review A5 |

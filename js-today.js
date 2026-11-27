@@ -165,7 +165,7 @@ function ghostRow(e) {
     const tw = sg.apply || top.w;
     if (!e.noWeight) right = `<span class="gtry">TRY<br><b>${r1(dw(tw))}</b></span>`;
   }
-  return `<div class="ex1 gx"><span><b>${esc(e.name)}</b> <span class="dim" style="font-size:12px">${e.sets} x ${rng}</span><span class="glast">${esc(last)}</span></span>${right}</div>`;
+  return `<div class="ex1 gx"><span><button class="exlink" data-act="ex-open" data-n="${esc(e.name)}"><b>${esc(e.name)}</b></button> <span class="dim" style="font-size:12px">${e.sets} x ${rng}</span><span class="glast">${esc(last)}</span></span>${right}</div>`;
 }
 const SVG_CK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 function doneToday() { const k = todayKey(); return sortedDesc().find(s => dkey(s.finishedAt) === k) || null; }
